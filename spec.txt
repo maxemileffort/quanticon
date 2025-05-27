@@ -1,0 +1,118 @@
+🚀 AI-Ready Web App Project Specification Template
+
+---
+
+## App Summary  
+**App Name (Working Title):** Quanticon  
+**One-liner Description:** Monte Carlo your way to smarter trades by simulating randomized strategies over technical indicators  
+**What does the app do?**  
+Quanticon allows users to simulate and analyze trading strategies using Monte Carlo techniques. Users select a financial instrument, timeframe, and number of technical indicators, and the app builds randomized feature sets and model parameters to generate and evaluate potential trading strategies.
+
+---
+
+## User Roles & Permissions  
+**Primary User Roles:**  
+- **Guest**  
+  - Can access the landing page, limited simulations (e.g., 1/day), and view sample output with ads  
+- **Logged-in User**  
+  - Can run unlimited simulations, save results, and compare strategies  
+- **Admin**  
+  - Manage users, monitor resource usage, update indicator libraries, and perform DB admin tasks  
+
+---
+
+## Core Features (MVP)  
+- Users can sign up and log in with email/password  
+- Users select a symbol (e.g., SPX), timeframe, and number of indicators  
+- The system randomly selects technical indicators and their parameters  
+- Users define target ROI per trade  
+- The app generates target labels (entries/exits) based on ROI  
+- Monte Carlo simulations are run across randomized feature/parameter space  
+- Resulting equity curves and performance stats are shown  
+- Users can rerun simulations with new randomness  
+- Admin dashboard to monitor compute cost, user activity, and manage DB entries  
+
+---
+
+## Pages / Routes  
+- `/` – Landing page with product description, CTA, and login/signup links  
+- `/dashboard` – User dashboard with saved simulations and new simulation form  
+- `/simulate` – Interactive form to set simulation parameters and view results  
+- `/results/[id]` – Detail view of a simulation run with charts and performance metrics  
+- `/admin` – Admin panel for managing users and system settings  
+- `/admin/db` – Utility interface for Postgres DB management (admin-only)  
+
+---
+
+## Data Models  
+**User:**  
+- `id`  
+- `name`  
+- `email`  
+- `password`  
+- `subscription_status`  
+- `created_at`  
+
+**SimulationRun:**  
+- `id`  
+- `user_id` (FK to User)  
+- `symbol`  
+- `timeframe`  
+- `num_features`  
+- `roi_target`  
+- `indicators_used` (JSON)  
+- `parameters_used` (JSON)  
+- `equity_curve_data` (JSON)  
+- `run_date`  
+
+**IndicatorLibrary:**  
+- `id`  
+- `name`  
+- `parameter_options` (JSON or array)  
+
+---
+
+## Integrations  
+- **Polygon.io or Alpaca** for historical financial data  
+- **Stripe** for user subscription payments  
+- **Firebase** for optional auth  
+- **Chart.js or Plotly** for interactive visualizations  
+
+---
+
+## Design & Layout  
+- **Preferred Style:** Minimalist, fintech-grade, dark mode-first  
+- **Color Scheme & Fonts:** Navy, dark gray, green for profits; use a monospaced font for output sections  
+- **Example Sites You Like:**  
+  - [https://quantconnect.com](https://www.quantconnect.com) – sleek, data-focused layout  
+  - [https://tradingview.com](https://www.tradingview.com) – intuitive UX for traders  
+
+---
+
+## Deployment Preferences  
+- **Frontend Hosting:** Netlify  
+- **Backend Hosting:** Heroku  
+- **Database Type:** PostgreSQL on Heroku  
+- **Frontend Framework Preference:** Next.js (React-based)  
+- **Backend Framework:** Node.js / Express or FastAPI  
+- **Job Queue / Background Task System:** BullMQ (Node) or Celery (Python)  
+
+---
+
+## Stretch Features (Nice to Have)  
+- Social login (Google, GitHub)  
+- Strategy comparison and export to CSV  
+- OpenAI-based summary of strategy characteristics  
+- Replay of trade logs with annotation  
+- Leaderboard of top Monte Carlo results by Sharpe Ratio  
+
+---
+
+## Known Constraints or Requirements  
+- Must be mobile-accessible but not fully mobile-first  
+- Requires heavy async/queue management for simulations  
+- Must allow rapid iteration of technical indicator sets  
+- Needs to store high-dimensional time series data  
+- Simulations should be containerized for scalability  
+- Must support future asset types (e.g., crypto, ETFs)  
+- Requires web-based admin tools for Postgres since Heroku lacks a native DB UI

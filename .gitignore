@@ -1,0 +1,22 @@
+# Ignore generated output files
+/pyquant/outputs/
+
+# Ignore Node.js modules
+/web/node_modules/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore editor and OS specific files
+.vscode/
+.idea/
+.DS_Store
+
+*/.venv
+.venv
+venv
+.ruff_cache

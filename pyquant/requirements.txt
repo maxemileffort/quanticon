@@ -1,0 +1,10 @@
+openbb[all]
+pandas
+matplotlib
+numpy
+seaborn
+alpaca-trade-api
+python-dotenv
+yfinance
+mplfinance
+ta

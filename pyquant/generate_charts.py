@@ -2,6 +2,7 @@
 # read the symbols, download historical data, generate candlestick charts,
 # and save them to a single PDF.
 
+from datetime import datetime
 import os
 import glob
 import pandas as pd
@@ -18,10 +19,12 @@ def compute_qdqu_signals(df: pd.DataFrame) -> pd.DataFrame:
     week_ema_indicator = ta.trend.EMAIndicator(close=df['Close'], window=7)
     line_ema_indicator = ta.trend.EMAIndicator(close=df['Close'], window=20)
     qtr_ema_indicator = ta.trend.EMAIndicator(close=df['Close'], window=90)
+    half_ema_indicator = ta.trend.EMAIndicator(close=df['Close'], window=180)
 
     df['week_ema'] = week_ema_indicator.ema_indicator()
     df['line_ema'] = line_ema_indicator.ema_indicator()
     df['qtr_ema'] = qtr_ema_indicator.ema_indicator()
+    df['half_ema'] = half_ema_indicator.ema_indicator()
 
     # EMA deltas
     df['week_delta'] = df['week_ema'] - df['week_ema'].shift(1)
@@ -42,11 +45,12 @@ def compute_qdqu_signals(df: pd.DataFrame) -> pd.DataFrame:
 # 1. Find the most recent CSV file in pyquant/outputs
 output_dir = './outputs'
 csv_files = glob.glob(os.path.join(output_dir, '*.csv'))
+csv_files = [f for f in csv_files if 'qdqu&' in f]
 
 if not csv_files:
     print("No CSV files found in the outputs directory.")
 
-most_recent_csvs = sorted(csv_files, key=os.path.getmtime, reverse=True)[:8]
+most_recent_csvs = sorted(csv_files, key=os.path.getmtime, reverse=True)[:2]
 print(f"Using the most recent CSV file: {most_recent_csvs}")
 
 # 2. Read the CSV
@@ -66,7 +70,7 @@ symbols = set(df['symbol'].tolist())
 print(f"Found {len(symbols)} symbols: {symbols}")
 
 # 4. Create candlestick charts for each symbol
-from datetime import datetime
+
 
 today_str = datetime.today().strftime('%Y-%m-%d')
 pdf_output_path = os.path.join(output_dir, f'{today_str}_charts_quqd.pdf')
@@ -84,6 +88,7 @@ with PdfPages(pdf_output_path) as pdf:
                 continue
             
             hist_data = compute_qdqu_signals(hist_data)
+            hist_data['symbol'] = symbol
 
             entry = hist_data.tail(5)[['bull_entry', 'bear_entry']].any().any()
 
@@ -97,6 +102,7 @@ with PdfPages(pdf_output_path) as pdf:
                 mpf.make_addplot(hist_data['week_ema'], color='aqua', width=1.0),
                 mpf.make_addplot(hist_data['line_ema'], color='green', width=1.1),
                 mpf.make_addplot(hist_data['qtr_ema'], color='orange', width=1.0),
+                mpf.make_addplot(hist_data['half_ema'], color='red', width=1.0),
                 mpf.make_addplot(hist_data['Low'].where(hist_data['bull_entry']), type='scatter', markersize=50, marker='^', color='lime'),
                 mpf.make_addplot(hist_data['High'].where(hist_data['bear_entry']), type='scatter', markersize=50, marker='v', color='red'),
             ]
@@ -116,6 +122,12 @@ with PdfPages(pdf_output_path) as pdf:
             # Add the figure to the PDF
             pdf.savefig(fig)
             plt.close(fig) # Close the figure to free up memory
+
+            csv_path = os.path.join(output_dir, f'{today_str}_{symbol}_data.csv')
+            hist_data = hist_data.reset_index()
+            hist_data['Date'] = hist_data['Date'].apply(lambda x: datetime.date(x))
+            hist_data = hist_data.set_index('Date')
+            hist_data.to_csv(csv_path)
 
         except Exception as e:
             print(f"Error generating chart for {symbol}: {e}")

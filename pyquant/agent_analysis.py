@@ -10,12 +10,14 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
+from dotenv import load_dotenv
 
 # Configuration
 CSV_PATH_PATTERN = r"C:\Users\Max\Desktop\projects\quanticon\pyquant\outputs\*.csv"
 SHEET_ID = "15IfaN1fei9P6BXt0Nj7Rdj7SedDoN_Puzgyb6gUboVQ"
 SHEET_NAME = "Sheet1"
 DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
+load_dotenv() # Load environment variables from .env file
 
 def get_filtered_csv_files():
     today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -37,7 +39,7 @@ def csv_to_base64(df):
     return base64.b64encode(csv_bytes).decode("utf-8")
 
 def call_agent(base64_data):
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     llm = ChatGoogleGenerativeAI(model=DEFAULT_MODEL, temperature=0)
 
     system_message = '''Role
@@ -96,7 +98,7 @@ Rules
 def append_to_google_sheet(date_str, play_text):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name(
-        os.getenv("GOOGLE_SHEETS_CREDS_JSON"), scope
+        os.getenv("GOOGLE_SHEET_API_KEY"), scope
     )
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)

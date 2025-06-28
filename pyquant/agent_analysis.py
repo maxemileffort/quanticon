@@ -11,13 +11,23 @@ from oauth2client.service_account import ServiceAccountCredentials
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
+
+today_str = datetime.datetime.today().strftime('%Y-%m-%d')
 
 # Configuration
-CSV_PATH_PATTERN = r"C:\Users\Max\Desktop\projects\quanticon\pyquant\outputs\*.csv"
+CSV_PATH_PATTERN = fr"C:\Users\Max\Desktop\projects\quanticon\pyquant\outputs\{today_str}\*.csv"
 SHEET_ID = "15IfaN1fei9P6BXt0Nj7Rdj7SedDoN_Puzgyb6gUboVQ"
-SHEET_NAME = "Sheet1"
+SHEET_NAME = "Test"
 DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
-load_dotenv() # Load environment variables from .env file
+
+# Load environment variables from .env file
+dotenv_path = find_dotenv()
+load_dotenv(dotenv_path)
+
+# Check if GEMINI_API_KEY is loaded
+if not os.getenv("GEMINI_API_KEY"):
+    raise ValueError("GEMINI_API_KEY not found in .env file")
 
 def get_filtered_csv_files():
     today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -34,13 +44,16 @@ def extract_last_60_days(file_path):
     df.sort_values("Date", inplace=True)
     return df.tail(60)
 
-def csv_to_base64(df):
-    csv_bytes = df.to_csv(index=False).encode("utf-8")
-    return base64.b64encode(csv_bytes).decode("utf-8")
+def csv_to_base64(df:pd.DataFrame):
+    csv_string = df.to_string()
+    return csv_string
 
 def call_agent(base64_data):
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    llm = ChatGoogleGenerativeAI(model=DEFAULT_MODEL, temperature=0)
+    print('configuring gemini...')
+    api_key = os.getenv("GEMINI_API_KEY")
+    # genai.configure(api_key=api_key)
+    print('gemini configured. init gemini...')
+    llm = ChatGoogleGenerativeAI(model=DEFAULT_MODEL, temperature=0, api_key=api_key)
 
     system_message = '''Role
 You are an elite options trader advising small cash accounts that trade only long calls and puts. Your sole input is a CSV file for a single stock symbol that contains at least the columns:
@@ -84,15 +97,17 @@ Rules
 • If price action is messy or mid-range, pass decisively.
 </format>
 '''
-    user_message = f"{base64_data}\n\nBased on the attached base64 encoded data, suggest some options plays."
-
+    user_message = f"{base64_data}\n\nBased on the attached data, suggest some options plays."
+    print('starting messages')
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_message),
         ("user", user_message)
     ])
 
+    print('created messages')
     chain = prompt | llm
     response = chain.invoke({"base64_data": base64_data})
+    print('invoked chain')
     return response.content
 
 def append_to_google_sheet(date_str, play_text):
@@ -105,20 +120,58 @@ def append_to_google_sheet(date_str, play_text):
     sheet.append_row([date_str, play_text, "", ""], value_input_option="RAW")
 
 def process_file(file_path):
+    ai_output = ""  # Initialize ai_output
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    failure_step = 'last 60'
     try:
         df_last60 = extract_last_60_days(file_path)
+        
+        failure_step = 'csv conversion'
         base64_data = csv_to_base64(df_last60)
+        
+        failure_step = 'call agent'
         ai_output = call_agent(base64_data)
-        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        failure_step = 'call agent'
         append_to_google_sheet(date_str, ai_output)
         print(f"Successfully processed {os.path.basename(file_path)}")
+        return None  # No error
     except Exception as e:
-        print(f"Error processing {os.path.basename(file_path)}: {e}")
+        error_message = f"Error processing {os.path.basename(file_path)} on {date_str}: {e}\nAI Output: {ai_output}\n\n"
+        print(error_message)
+        print(f'step failed: {failure_step}')
+        print('=====')
+        return error_message
 
-def main():
+def main(method):
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
     files = get_filtered_csv_files()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-        executor.map(process_file, files)
+    
+    all_error_logs = []
+    if method == 'threads':
+        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            # Use submit and as_completed to get results as they become available
+            future_to_file = {executor.submit(process_file, file_path): file_path for file_path in files}
+            for future in concurrent.futures.as_completed(future_to_file):
+                error_result = future.result()
+                if error_result:
+                    all_error_logs.append(error_result)
+    elif method == 'loop':
+        for f in files:
+            msg = process_file(f)
+            if msg:
+                all_error_logs.append(msg)
+
+    output_path = fr'C:\Users\Max\Desktop\projects\quanticon\pyquant\outputs\{date_str}'
+    os.makedirs(output_path, exist_ok=True) # Ensure the output directory exists
+    error_logs_path = os.path.join(output_path, 'error_logs.txt')
+    
+    with open(error_logs_path, 'w') as outfile:
+        if all_error_logs:
+            outfile.write("".join(all_error_logs))
+        else:
+            outfile.write("No errors logged.\n")
 
 if __name__ == "__main__":
-    main()
+    method = 'threads'
+    main(method)

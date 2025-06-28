@@ -8,7 +8,9 @@ from datetime import datetime
 import os
 import time
 
-os.makedirs('outputs', exist_ok=True)
+today_str = datetime.today().strftime("%Y-%m-%d")
+
+os.makedirs(f'outputs/{today_str}', exist_ok=True)
 
 def get_data(preset):
     
@@ -65,7 +67,7 @@ print(', '.join(target_presets))
 
 # Ensure there are at least 6 presets for the following calls
 if len(target_presets) < 6:
-    print("Warning: Less than 4 target presets available. Appending defaults to reach 4.")
+    print("Warning: Less than 6 target presets available. Appending defaults to reach 4.")
     default_fillers = ['most_active', 'most_gainer', 'most_loser', 'new_high']
     for filler in default_fillers:
         if len(target_presets) >= 6:
@@ -84,8 +86,13 @@ rename_cols = {c:c.replace('_x', '') for c in output_df.columns}
 output_df = output_df.drop(columns=drop_cols)
 output_df = output_df.rename(columns=rename_cols)
 
+f1 = output_df['price'].fillna('100.0').astype(float)<=100.0
+f2 = output_df['price'].fillna('100.0').astype(float)>=10.0
+
+output_df = output_df.loc[f1&f2]
+
 print(output_df.head())
 
-output_file_name = f'{datetime.today().strftime("%Y-%m-%d")}_qdqu&mdmu.csv'
-output_file_path = os.path.join('outputs', output_file_name)
+output_file_name = f'{today_str}_qdqu&mdmu.csv'
+output_file_path = os.path.join('outputs', today_str, output_file_name)
 output_df.to_csv(output_file_path, sep='|', index=False)

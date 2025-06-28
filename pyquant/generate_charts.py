@@ -43,14 +43,15 @@ def compute_qdqu_signals(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # 1. Find the most recent CSV file in pyquant/outputs
-output_dir = './outputs'
+today_str = datetime.today().strftime("%Y-%m-%d")
+output_dir = f'./outputs/{today_str}'
 csv_files = glob.glob(os.path.join(output_dir, '*.csv'))
 csv_files = [f for f in csv_files if 'qdqu&' in f]
 
 if not csv_files:
     print("No CSV files found in the outputs directory.")
 
-most_recent_csvs = sorted(csv_files, key=os.path.getmtime, reverse=True)[:2]
+most_recent_csvs = sorted(csv_files, key=os.path.getmtime, reverse=True)
 print(f"Using the most recent CSV file: {most_recent_csvs}")
 
 # 2. Read the CSV
@@ -71,8 +72,6 @@ print(f"Found {len(symbols)} symbols: {symbols}")
 
 # 4. Create candlestick charts for each symbol
 
-
-today_str = datetime.today().strftime('%Y-%m-%d')
 pdf_output_path = os.path.join(output_dir, f'{today_str}_charts_quqd.pdf')
 
 with PdfPages(pdf_output_path) as pdf:

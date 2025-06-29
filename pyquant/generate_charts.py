@@ -29,12 +29,15 @@ def compute_qdqu_signals(df: pd.DataFrame) -> pd.DataFrame:
     # EMA deltas
     df['week_delta'] = df['week_ema'] - df['week_ema'].shift(1)
     df['qtr_delta'] = df['qtr_ema'] - df['qtr_ema'].shift(1)
+    df['half_delta'] = df['half_ema'] - df['half_ema'].shift(1)
 
     # Direction flags
     df['week_up'] = df['week_delta'] > 0
     df['week_down'] = df['week_delta'] < 0
     df['qtr_up'] = df['qtr_delta'] > 0
     df['qtr_down'] = df['qtr_delta'] < 0
+    df['half_up'] = df['half_delta'] > 0
+    df['half_down'] = df['half_delta'] < 0
 
     # Entry signals
     df['bull_entry'] = df['week_down'].shift(1) & df['week_up'] & df['qtr_up']

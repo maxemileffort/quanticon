@@ -18,7 +18,7 @@ today_str = datetime.datetime.today().strftime('%Y-%m-%d')
 # Configuration
 CSV_PATH_PATTERN = fr"C:\Users\Max\Desktop\projects\quanticon\pyquant\outputs\{today_str}\*.csv"
 SHEET_ID = "15IfaN1fei9P6BXt0Nj7Rdj7SedDoN_Puzgyb6gUboVQ"
-SHEET_NAME = "Test"
+SHEET_NAME = "Sheet1"
 DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
 
 # Load environment variables from .env file
@@ -49,10 +49,10 @@ def csv_to_base64(df:pd.DataFrame):
     return csv_string
 
 def call_agent(base64_data):
-    print('configuring gemini...')
+    # print('configuring gemini...')
     api_key = os.getenv("GEMINI_API_KEY")
     # genai.configure(api_key=api_key)
-    print('gemini configured. init gemini...')
+    # print('gemini configured. init gemini...')
     llm = ChatGoogleGenerativeAI(model=DEFAULT_MODEL, temperature=0, api_key=api_key)
 
     system_message = '''Role
@@ -98,26 +98,38 @@ Rules
 </format>
 '''
     user_message = f"{base64_data}\n\nBased on the attached data, suggest some options plays."
-    print('starting messages')
+    # print('starting messages')
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_message),
         ("user", user_message)
     ])
 
-    print('created messages')
+    # print('created messages')
     chain = prompt | llm
     response = chain.invoke({"base64_data": base64_data})
-    print('invoked chain')
+    # print('invoked chain')
     return response.content
 
 def append_to_google_sheet(date_str, play_text):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        os.getenv("GOOGLE_SHEET_API_KEY"), scope
-    )
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
-    sheet.append_row([date_str, play_text, "", ""], value_input_option="RAW")
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        print("setting creds...")
+        creds = ServiceAccountCredentials.from_json_keyfile_name(
+            os.getenv("GOOGLE_SHEET_API_KEY"), scope
+        )
+        print('authorizing...')
+        client = gspread.authorize(creds)
+        print("opening spreadsheet...")
+        # sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+        spreadsheet = client.open_by_key(SHEET_ID)
+        print("opening sheet...")
+
+        sheet = spreadsheet.worksheet(SHEET_NAME)
+
+        print("appending row...")
+        sheet.append_row([date_str, play_text, "", ""], value_input_option="RAW")
+    except Exception as e:
+        print(f"Error when trying to append to sheet: {e}")
 
 def process_file(file_path):
     ai_output = ""  # Initialize ai_output
@@ -132,10 +144,10 @@ def process_file(file_path):
         failure_step = 'call agent'
         ai_output = call_agent(base64_data)
         
-        failure_step = 'call agent'
+        failure_step = 'append to sheet'
         append_to_google_sheet(date_str, ai_output)
         print(f"Successfully processed {os.path.basename(file_path)}")
-        return None  # No error
+        return ai_output  # No error
     except Exception as e:
         error_message = f"Error processing {os.path.basename(file_path)} on {date_str}: {e}\nAI Output: {ai_output}\n\n"
         print(error_message)
@@ -173,5 +185,5 @@ def main(method):
             outfile.write("No errors logged.\n")
 
 if __name__ == "__main__":
-    method = 'threads'
+    method = 'threads' # 'loop' or 'threads'
     main(method)

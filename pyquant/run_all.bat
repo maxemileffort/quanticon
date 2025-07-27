@@ -7,6 +7,8 @@ echo Running generate_charts.py
 python generate_charts.py
 echo Running agent_analysis.py
 python agent_analysis.py
+echo Running agent_backtest.py
+python agent_backtest.py
 echo Deactivating virtual environment
 deactivate
 echo Done

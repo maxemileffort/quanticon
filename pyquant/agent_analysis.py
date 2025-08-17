@@ -65,7 +65,7 @@ From the most recent price action in the CSV, decide whether to recommend a trad
 
 Process Checklist
 
-Load & Sort - Read the CSV, sort by Date ascending, focus on the latest 60 trading days.
+Load & Sort - Read the CSV, focusing on the latest 60 trading days.
 
 Visual-Logic Classification - From OHLC data infer one of:
 • Bullish breakout • Bearish breakdown • Trend continuation (up/down) • Choppy / Range / Mid-pattern

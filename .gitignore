@@ -28,3 +28,5 @@ client_secret*
 /quant_bet/crawler/links_crawled
 /quant_bet/crawler/pages
 /quant_bet/crawler/md
+
+/quant_bet/odds_data/*

@@ -13,7 +13,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 # Define paths for saving models
-MODEL_DIR = "quanticon/quant_bet/models"
+MODEL_DIR = "/models"
 MODEL_PATH_WIN_PREDICTOR = os.path.join(MODEL_DIR, "nfl_predictor_win_model.joblib")
 
 def train_nfl_predictor_model():

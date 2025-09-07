@@ -7,9 +7,9 @@ Install:
   patchright install chromium
 
 Run (examples):
-  python crawler.py --seeds-file ./seeds/nfl_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.pro-football-reference.com/teams/" --allowed-pattern "https://www.pro-football-reference.com/players/" --disallowed-pattern "draft.htm" --disallowed-pattern "/gamelog/"
-  python crawler.py --seeds-file ./seeds/nba_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.basketball-reference.com/teams/" --allowed-pattern "https://www.basketball-reference.com/players/" --disallowed-pattern "draft.htm" --disallowed-pattern "/gamelog/"
-  python crawler.py --seeds-file ./seeds/mlb_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.baseball-reference.com/teams/" --allowed-pattern "https://www.baseball-reference.com/players/" --disallowed-pattern "draft.htm" --disallowed-pattern "/gamelog/"
+  python crawler.py --seeds-file ./seeds/nfl_seeds.txt --per-page-limit 100 --max-depth 1 --delay-sec 4.0 --selectors "th a" --selectors "div#content td a" --iselectors "footer" --allowed-pattern "https://www.pro-football-reference.com/teams/" --allowed-pattern "https://www.pro-football-reference.com/players/" --disallowed-pattern "draft.htm" 
+  python crawler.py --seeds-file ./seeds/nba_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.basketball-reference.com/teams/" --allowed-pattern "https://www.basketball-reference.com/players/" --disallowed-pattern "draft.htm" 
+  python crawler.py --seeds-file ./seeds/mlb_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.baseball-reference.com/teams/" --allowed-pattern "https://www.baseball-reference.com/players/" --disallowed-pattern "draft.htm" 
   python crawler.py --seeds-file ./seeds/mma_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "http://ufcstats.com/fighter-details/"
 """
 
@@ -24,6 +24,8 @@ from pathlib import Path
 from urllib.parse import urljoin, urldefrag, urlparse
 from patchright.async_api import async_playwright, TimeoutError
 from bs4 import BeautifulSoup
+from organize_html_files import organize_html_files
+from link_manager import get_crawled_links_dir, load_recent_crawled_links, save_current_crawled_links
 
 # --------------------------
 # Utility helpers
@@ -113,6 +115,10 @@ class PlaywrightCrawler:
         self.navigation_timeout_ms = navigation_timeout_ms
         self.delay_sec = max(0.0, delay_sec)
 
+        self.base_crawler_dir = Path(__file__).parent
+        self.links_crawled_dir = get_crawled_links_dir(self.base_crawler_dir)
+        self.recently_crawled_links = load_recent_crawled_links(self.base_crawler_dir)
+        self.current_run_crawled_links: set[str] = set()
         self.visited: set[str] = set()
 
     async def _extract_links(self, page, base_url: str) -> list[str]:
@@ -157,11 +163,18 @@ class PlaywrightCrawler:
         # Deduplicate while preserving order
         seen = set()
         unique = []
-        for u in links:
+
+        filtered = [
+                    u for u in links
+                    if url_matches(u, self.allowed_regex) and not url_disallowed(u, self.disallowed_regex)
+                ]
+        for u in filtered:
             if u not in seen:
                 seen.add(u)
                 unique.append(u)
         print(f'DEBUG: Extracted and filtered links: {unique}')
+        print(f'Seen: # Seen links: {len(seen)}')
+        print(f'Unique: # Links left: {len(unique)}')
         return unique
 
     async def _save_html(self, html_content: str, url: str):
@@ -209,19 +222,22 @@ class PlaywrightCrawler:
 
                 while queue:
                     current_url, depth = queue.pop(0)
-                    if current_url in self.visited:
+                    
+                    # Deduplication check
+                    if current_url in self.visited or current_url in self.recently_crawled_links:
+                        print(f"[SKIP] Already visited or recently crawled: {current_url}")
                         continue
+                    
                     self.visited.add(current_url)
 
                     ok, html_content = await self._visit_page(page, current_url)
                     if not ok:
                         continue
+                    
+                    self.current_run_crawled_links.add(current_url) # Add to current run's crawled links
 
                     if self.delay_sec:
                         await asyncio.sleep(self.delay_sec)
-
-                    if depth >= self.max_depth:
-                        continue
 
                     try:
                         # Pass html_content to _extract_links
@@ -229,6 +245,10 @@ class PlaywrightCrawler:
                     except Exception as e:
                         print(f"[LINK-EXTRACT-ERROR] {current_url} :: {e}")
                         links = []
+
+                    # this has to come after the self._extract_links in order to print the progress
+                    if depth >= self.max_depth:
+                        continue
 
                     filtered = [
                         u for u in links
@@ -238,14 +258,20 @@ class PlaywrightCrawler:
                     for u in filtered:
                         if len(next_links) >= self.per_page_limit:
                             break
-                        if u not in self.visited:
+                        # Check against both visited and recently_crawled_links for next links
+                        if u not in self.visited and u not in self.recently_crawled_links:
                             next_links.append(u)
 
                     for u in next_links:
                         queue.append((u, depth + 1))
 
                 print("[DONE] All links processed.")
+            except KeyboardInterrupt:
+                print("\n[INTERRUPT] Crawler stopped by user.")
             finally:
+                # Ensure links are saved even on interruption
+                if self.current_run_crawled_links:
+                    save_current_crawled_links(self.base_crawler_dir, self.current_run_crawled_links)
                 await page.close()
                 await context.close()
                 await browser.close()
@@ -315,5 +341,8 @@ async def amain():
     await crawler.crawl()
 
 if __name__ == "__main__":
-    asyncio.run(amain())
     ensure_dir('pages')
+    asyncio.run(amain())
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    html_directory_to_organize = os.path.join(current_script_dir, "pages")
+    organize_html_files(html_directory_to_organize)

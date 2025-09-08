@@ -13,7 +13,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 # Define paths for saving models
-MODEL_DIR = "/models"
+MODEL_DIR = "./models"
 MODEL_PATH_TEAM_SCORE = os.path.join(MODEL_DIR, "nfl_regressor_team_score_model.joblib")
 MODEL_PATH_OPP_SCORE = os.path.join(MODEL_DIR, "nfl_regressor_opp_score_model.joblib")
 MODEL_PATH_PASS_YDS_OFF = os.path.join(MODEL_DIR, "nfl_regressor_pass_yds_off_model.joblib")

@@ -103,14 +103,14 @@ def train_and_evaluate_regressor(X, y):
 
 def save_model(model, filename):
     """Saves the trained model to a file."""
-    model_dir = 'quanticon/quant_bet/models'
+    model_dir = './models'
     os.makedirs(model_dir, exist_ok=True)
     filepath = os.path.join(model_dir, filename)
     joblib.dump(model, filepath)
     print(f"Model saved to {filepath}")
 
 if __name__ == '__main__':
-    base_dir = 'quanticon/quant_bet/crawler/pages'
+    base_dir = './crawler/pages'
     
     fighters_df, fights_df = load_and_process_data(base_dir)
     

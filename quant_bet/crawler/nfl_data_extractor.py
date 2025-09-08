@@ -11,7 +11,7 @@ def get_team_full_name(team_abbr):
     """
     team_name_map = {
         'crd': 'Arizona Cardinals'
-        ,'az': 'Arizona Cardinals'
+        ,'ari': 'Arizona Cardinals'
 , 'atl': 'Atlanta Falcons'
 , 'rav': 'Baltimore Ravens'
 , 'bal': 'Baltimore Ravens',
@@ -25,7 +25,8 @@ def get_team_full_name(team_abbr):
 , 'det': 'Detroit Lions'
 , 'gnb': 'Green Bay Packers'
 , 'gb': 'Green Bay Packers',
-        'htx': 'Houston Texans'
+        'htx': 'Houston Texans',
+        'hou': 'Houston Texans'
 , 'clt': 'Indianapolis Colts'
 , 'ind': 'Indianapolis Colts'
 , 'jax': 'Jacksonville Jaguars',
@@ -46,7 +47,8 @@ def get_team_full_name(team_abbr):
         'nyj': 'New York Jets'
 , 'phi': 'Philadelphia Eagles'
 , 'pit': 'Pittsburgh Steelers',
-        'sfo': 'San Francisco 49ers'
+        'sfo': 'San Francisco 49ers',
+        'sf': 'San Francisco 49ers'
 , 'sea': 'Seattle Seahawks'
 , 'tam': 'Tampa Bay Buccaneers',
         'oti': 'Tennessee Titans',

@@ -10,7 +10,7 @@ from nfl_predictor import MODEL_DIR as PREDICTOR_MODEL_DIR
 import pandas as pd
 import joblib
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Define paths to models
 MODEL_PATH_WIN_PREDICTOR = os.path.join(PREDICTOR_MODEL_DIR, "nfl_predictor_win_model.joblib")
@@ -41,16 +41,41 @@ def load_nfl_models():
             models[name] = None
     return models
 
+def find_nfl_dataframe():
+    file_path = './dataframes/nfl_temp.csv'
+    five_days_ago = datetime.now() - timedelta(days=5)
+
+    if os.path.isfile(file_path):
+        file_mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+        if file_mod_time > five_days_ago:
+            try:
+                df = pd.read_csv(file_path)
+                print(f"Loaded NFL data from {file_path} (less than 5 days old).")
+                return df
+            except Exception as e:
+                print(f"Error reading existing NFL data file: {e}. Creating new dataframe.")
+        else:
+            print(f"NFL data file is older than 5 days. Creating new dataframe.")
+    else:
+        print(f"NFL data file not found at {file_path}. Creating new dataframe.")
+    
+    df = create_nfl_dataframe()
+    # Ensure the directory exists before saving
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    df.to_csv(file_path, index=False)
+    print(f"New NFL data dataframe created and saved to {file_path}.")
+    return df
+
 def get_team_stats_for_prediction(team_abbr, year, current_week, is_home_game, opponent_abbr):
     """
     Generates a DataFrame row for a team's stats for prediction, based on average historical data.
     This is a simplified approach. In a real scenario, you'd use more sophisticated feature engineering
     based on recent performance, opponent strength, etc.
     """
-    df = create_nfl_dataframe()
+    df = find_nfl_dataframe()
     # print(df.head())
     # print(df.groupby(['team', 'year'])['week'].count())
-    # df.to_csv('temp.csv', index=False)
+    # df.to_csv('./dataframes/nfl_temp.csv', index=False)
     if df.empty:
         print("No NFL data available to generate prediction features.")
         return pd.DataFrame()
@@ -137,6 +162,7 @@ def predict_nfl_game_outcome(team1_abbr, team2_abbr, year, week):
     # For now, we'll use team1_data directly, assuming it contains all necessary features
     # and the preprocessor in the pipeline will handle the one-hot encoding for 'opponent'.
     X_predict = team1_data[features_for_prediction]
+    X_predict2 = team2_data[features_for_prediction]
 
     # Make predictions
     predicted_win = models['win_predictor'].predict(X_predict)[0]
@@ -144,13 +170,21 @@ def predict_nfl_game_outcome(team1_abbr, team2_abbr, year, week):
     predicted_team1_opp_score = models['opp_score_regressor'].predict(X_predict)[0]
     predicted_team1_pass_yds_off = models['pass_yds_off_regressor'].predict(X_predict)[0]
     predicted_team1_rush_yds_off = models['rush_yds_off_regressor'].predict(X_predict)[0]
+    predicted_team2_pass_yds_off = models['pass_yds_off_regressor'].predict(X_predict2)[0]
+    predicted_team2_rush_yds_off = models['rush_yds_off_regressor'].predict(X_predict2)[0]
 
-    print(f"\nPrediction for {get_team_full_name(team1_abbr)} (Home) vs {get_team_full_name(team2_abbr)} (Away) in Week {week}, {year}:")
-    print(f"  Predicted Winner: {get_team_full_name(team1_abbr) if predicted_win == 1 else get_team_full_name(team2_abbr)}")
-    print(f"  Predicted {get_team_full_name(team1_abbr)} Score: {predicted_team1_score:.2f}")
-    print(f"  Predicted {get_team_full_name(team2_abbr)} Score: {predicted_team1_opp_score:.2f}")
-    print(f"  Predicted {get_team_full_name(team1_abbr)} Pass Yards: {predicted_team1_pass_yds_off:.2f}")
-    print(f"  Predicted {get_team_full_name(team1_abbr)} Rush Yards: {predicted_team1_rush_yds_off:.2f}")
+    pred_text = f"\nPrediction for {get_team_full_name(team1_abbr)} (Home) vs {get_team_full_name(team2_abbr)} (Away) in Week {week}, {year}:"
+    pred_text += f"\nPredicted Winner: {get_team_full_name(team1_abbr) if predicted_win == 1 else get_team_full_name(team2_abbr)}"
+    pred_text += f"\nPredicted {get_team_full_name(team1_abbr)} Score: {predicted_team1_score:.2f}"
+    pred_text += f"\nPredicted {get_team_full_name(team2_abbr)} Score: {predicted_team1_opp_score:.2f}"
+    pred_text += f"\nPredicted {get_team_full_name(team1_abbr)} Pass Yards: {predicted_team1_pass_yds_off:.2f}"
+    pred_text += f"\nPredicted {get_team_full_name(team1_abbr)} Rush Yards: {predicted_team1_rush_yds_off:.2f}"
+    pred_text += f"\nPredicted {get_team_full_name(team2_abbr)} Pass Yards: {predicted_team2_pass_yds_off:.2f}"
+    pred_text += f"\nPredicted {get_team_full_name(team2_abbr)} Rush Yards: {predicted_team2_rush_yds_off:.2f}"
+
+    print(pred_text)
+
+    return pred_text
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict NFL game outcome and stats.")

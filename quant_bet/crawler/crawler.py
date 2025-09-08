@@ -10,7 +10,7 @@ Run (examples):
   python crawler.py --seeds-file ./seeds/nfl_seeds.txt --per-page-limit 100 --max-depth 1 --delay-sec 4.0 --selectors "th a" --selectors "div#content td a" --iselectors "footer" --allowed-pattern "https://www.pro-football-reference.com/teams/" --allowed-pattern "https://www.pro-football-reference.com/players/" --disallowed-pattern "draft.htm" 
   python crawler.py --seeds-file ./seeds/nba_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.basketball-reference.com/teams/" --allowed-pattern "https://www.basketball-reference.com/players/" --disallowed-pattern "draft.htm" 
   python crawler.py --seeds-file ./seeds/mlb_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "https://www.baseball-reference.com/teams/" --allowed-pattern "https://www.baseball-reference.com/players/" --disallowed-pattern "draft.htm" 
-  python crawler.py --seeds-file ./seeds/mma_seeds.txt --per-page-limit 100 --max-depth 2 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "http://ufcstats.com/fighter-details/"
+  python crawler.py --seeds-file ./seeds/mma_seeds.txt --per-page-limit 100 --max-depth 1 --delay-sec 4.0 --iselectors "header" --iselectors "footer" --allowed-pattern "http://ufcstats.com/fighter-details/"
 """
 
 import argparse

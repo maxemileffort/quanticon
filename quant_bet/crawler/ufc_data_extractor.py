@@ -1,6 +1,9 @@
 import os
+import re
 from bs4 import BeautifulSoup
 import pandas as pd
+
+PAGES_DIR = r"C:\Users\Max\Desktop\projects\quanticon\quant_bet\crawler\pages"
 
 def extract_fighter_details(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -141,36 +144,82 @@ def extract_fight_history(html_content):
     df = pd.DataFrame(data, columns=expected_headers)
     return df
 
-def get_ufc_html_files(directory_path):
-    ufc_files = []
-    for root, _, files in os.walk(directory_path):
+def get_ufc_html_files(base_dir=PAGES_DIR):
+    """
+    Walks through the directory and finds ufcstats.com fighter detail HTML files.
+    """
+    ufc_html_files = []
+    for root, dirs, files in os.walk(base_dir):
+        print(f'Root: {dirs}')
         for file in files:
-            if file.startswith('ufcstats.com--fighter-details') and file.endswith('.html'):
-                ufc_files.append(os.path.join(root, file))
-    return ufc_files
+            # Check for fighter detail pages based on the naming convention
+            # Example: 'ufcstats.com--fighter-details-0aa74d04c196800c-1757309158-a1daad04.md'
+            if "ufcstats.com--fighter-details-" in file and file.endswith(".html"):
+                ufc_html_files.append(os.path.join(root, file))
+    return ufc_html_files
+
+def create_ufc_dataframe():
+    """
+    Creates a pandas DataFrame from extracted UFC fighter details and fight history.
+    """
+    all_fighter_details = []
+    all_fight_history = []
+    ufc_files = get_ufc_html_files()
+
+    if not ufc_files:
+        print(f"No UFC HTML files found in {PAGES_DIR}. Please ensure files are present.")
+        return pd.DataFrame(), pd.DataFrame() # Return two empty DataFrames
+
+    for file_path in ufc_files:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            fighter_details = extract_fighter_details(html_content)
+            if fighter_details:
+                all_fighter_details.append(fighter_details)
+
+            fight_history_df = extract_fight_history(html_content)
+            if not fight_history_df.empty:
+                # Add fighter name to each row of fight history for context
+                fighter_name = fighter_details.get('Fighter Name', 'Unknown Fighter')
+                fight_history_df['Fighter Name'] = fighter_name
+                all_fight_history.append(fight_history_df)
+
+        except Exception as e:
+            print(f"Error processing file {file_path}: {e}")
+            
+    fighters_df = pd.DataFrame(all_fighter_details)
+    
+    # Concatenate all fight history DataFrames
+    if all_fight_history:
+        fights_df = pd.concat(all_fight_history, ignore_index=True)
+    else:
+        fights_df = pd.DataFrame()
+
+    # Convert relevant columns to numeric in fights_df, coercing errors to NaN
+    numeric_cols_fights = ['Kd 1', 'Kd 2', 'Str 1', 'Str 2', 'Td 1', 'Td 2', 'Sub 1', 'Sub 2', 'Round']
+    for col in numeric_cols_fights:
+        if col in fights_df.columns:
+            fights_df[col] = pd.to_numeric(fights_df[col], errors='coerce')
+            # Impute missing numerical values with 0 for fight stats
+            fights_df[col] = fights_df[col].fillna(0)
+
+    return fighters_df, fights_df
 
 if __name__ == '__main__':
-    base_path = 'quanticon/quant_bet/crawler/pages'
-    
-    # Get all UFC fighter detail HTML files
-    ufc_html_files = get_ufc_html_files(base_path)
-
-    if ufc_html_files:
-        print(f"Found {len(ufc_html_files)} UFC fighter detail files.")
-        # Process the first file as an example
-        file_path = ufc_html_files[0]
-        print(f"\nProcessing file: {file_path}")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-
-        fighter_details = extract_fighter_details(html_content)
-        print("\nFighter Details:")
-        for key, value in fighter_details.items():
-            print(f"{key}: {value}")
-
-        fight_history_df = extract_fight_history(html_content)
-        print("\nFight History:")
-        # Use to_string() with a wider display to prevent truncation
-        print(fight_history_df.to_string(index=False, max_colwidth=50))
+    # Example usage:
+    ufc_fighters_df, ufc_fights_df = create_ufc_dataframe()
+    if not ufc_fighters_df.empty:
+        print("\nUFC Fighter Details DataFrame:")
+        print(ufc_fighters_df.head())
+        print(f"Total UFC fighters extracted: {len(ufc_fighters_df)}")
     else:
-        print(f"No UFC fighter detail HTML files found in {base_path}")
+        print("No UFC fighter data to display.")
+
+    if not ufc_fights_df.empty:
+        print("\nUFC Fight History DataFrame:")
+        print(ufc_fights_df.head())
+        print(f"Total UFC fights extracted: {len(ufc_fights_df)}")
+    else:
+        print("No UFC fight history data to display.")

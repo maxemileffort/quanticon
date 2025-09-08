@@ -32,4 +32,6 @@ client_secret*
 /quant_bet/odds_data/*.txt
 /quant_bet/odds_data/*.csv
 
-quant_bet/models
+/quant_bet/models
+/quant_bet/dataframes
+/quant_bet/nfl_pred_outs

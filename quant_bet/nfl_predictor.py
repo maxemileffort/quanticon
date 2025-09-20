@@ -41,15 +41,6 @@ def train_nfl_predictor_model():
     df['home_team_win'] = ((df['game_location'] == '') & (df['game_outcome'] == 'W')) | \
                           ((df['game_location'] == '@') & (df['game_outcome'] == 'L'))
     df['home_team_win'] = df['home_team_win'].astype(int)
-
-    # Calculate sample weights based on recency
-    # Sort by date to ensure proper weighting
-    df_filtered = df_filtered.sort_values(by='date').reset_index(drop=True)
-    # Assign higher weights to more recent games.
-    # A simple linear weighting: latest game gets weight 1.0, oldest gets a small base weight.
-    min_weight = 0.1
-    max_weight = 1.0
-    df_filtered['sample_weight'] = min_weight + (df_filtered.index / (len(df_filtered) - 1)) * (max_weight - min_weight)
     
     # Define features for prediction
     features = [
@@ -66,11 +57,20 @@ def train_nfl_predictor_model():
             return
     
     # Drop rows with any missing target values or critical features
-    df_filtered = df.dropna(subset=features + ['home_team_win'])
+    df_filtered = df.dropna(subset=features + ['home_team_win']).copy() # Use .copy() to avoid SettingWithCopyWarning
 
     if df_filtered.empty:
         print("No sufficient data after filtering for training the predictor model.")
         return
+
+    # Calculate sample weights based on recency
+    # Sort by date to ensure proper weighting
+    df_filtered = df_filtered.sort_values(by='date').reset_index(drop=True)
+    # Assign higher weights to more recent games.
+    # A simple linear weighting: latest game gets weight 1.0, oldest gets a small base weight.
+    min_weight = 0.1
+    max_weight = 1.0
+    df_filtered['sample_weight'] = min_weight + (df_filtered.index / (len(df_filtered) - 1)) * (max_weight - min_weight)
 
     # Preprocessing for numerical and categorical features
     numerical_features = [
@@ -105,7 +105,10 @@ def train_nfl_predictor_model():
     print("Accuracy:", accuracy_score(y_test, y_pred))
     print("Classification Report:\n", classification_report(y_test, y_pred))
 
-    joblib.dump(model_pipeline, MODEL_PATH_WIN_PREDICTOR)
+    # For classification, we don't have residuals in the same way as regression.
+    # We can save the model directly. If we wanted to quantify uncertainty,
+    # we might look at predicted probabilities or confidence scores.
+    joblib.dump({'model': model_pipeline}, MODEL_PATH_WIN_PREDICTOR)
     print(f"Model saved to {MODEL_PATH_WIN_PREDICTOR}")
 
 if __name__ == "__main__":

@@ -38,15 +38,6 @@ def train_nfl_regressor_models():
     df['day_of_week'] = df['date'].dt.dayofweek
     df['is_home_game'] = df['game_location'].apply(lambda x: 1 if x == '' else 0) # '' means home game on pro-football-reference
 
-    # Calculate sample weights based on recency
-    # Sort by date to ensure proper weighting
-    df_filtered = df_filtered.sort_values(by='date').reset_index(drop=True)
-    # Assign higher weights to more recent games.
-    # A simple linear weighting: latest game gets weight 1.0, oldest gets a small base weight.
-    min_weight = 0.1
-    max_weight = 1.0
-    df_filtered['sample_weight'] = min_weight + (df_filtered.index / (len(df_filtered) - 1)) * (max_weight - min_weight)
-
     # Define features and target variables
     features = [
         'week', 'month', 'day_of_week', 'is_home_game',
@@ -62,11 +53,20 @@ def train_nfl_regressor_models():
             return
     
     # Drop rows with any missing target values or critical features
-    df_filtered = df.dropna(subset=features + ['team_score', 'opponent_score'])
+    df_filtered = df.dropna(subset=features + ['team_score', 'opponent_score']).copy() # Use .copy() to avoid SettingWithCopyWarning
 
     if df_filtered.empty:
         print("No sufficient data after filtering for training the regressor models.")
         return
+
+    # Calculate sample weights based on recency
+    # Sort by date to ensure proper weighting
+    df_filtered = df_filtered.sort_values(by='date').reset_index(drop=True)
+    # Assign higher weights to more recent games.
+    # A simple linear weighting: latest game gets weight 1.0, oldest gets a small base weight.
+    min_weight = 0.1
+    max_weight = 1.0
+    df_filtered['sample_weight'] = min_weight + (df_filtered.index / (len(df_filtered) - 1)) * (max_weight - min_weight)
 
     # Preprocessing for numerical and categorical features
     numerical_features = [
@@ -106,10 +106,18 @@ def train_nfl_regressor_models():
         model_pipeline.fit(X_train, y_train, regressor__sample_weight=w_train)
         y_pred = model_pipeline.predict(X_test)
 
+        # Calculate residuals on the training set to estimate model uncertainty
+        train_preds = model_pipeline.predict(X_train)
+        residuals = y_train - train_preds
+        residual_std_dev = residuals.std()
+
         print(f"\n--- {target_name} Regressor ---")
         print("Mean Squared Error:", mean_squared_error(y_test, y_pred))
         print("R2 Score:", r2_score(y_test, y_pred))
-        joblib.dump(model_pipeline, model_path)
+        print(f"Residual Standard Deviation (Training): {residual_std_dev:.2f}")
+        
+        # Save the model pipeline along with its residual standard deviation
+        joblib.dump({'model': model_pipeline, 'residual_std_dev': residual_std_dev}, model_path)
         print(f"Model saved to {model_path}")
 
 if __name__ == "__main__":

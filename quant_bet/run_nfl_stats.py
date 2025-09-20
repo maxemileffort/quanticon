@@ -49,7 +49,9 @@ for card in r2.json():
 today_str = datetime.today().strftime('%Y-%m-%d')
 
 r2_text = json.dumps(r2.json())
-with open(f'./odds_data/{today_str}_{t_sport_keys[league_index]}_odds.txt','w') as outfile:
+odds_data_dir = './odds_data'
+os.makedirs(odds_data_dir, exist_ok=True) # Create the directory if it doesn't exist
+with open(os.path.join(odds_data_dir, f'{today_str}_{t_sport_keys[league_index]}_odds.txt'),'w') as outfile:
     outfile.write(r2_text)
 
 
@@ -194,8 +196,8 @@ df2 = target_df.loc[target_df['rank']==1.0]
 plot_all_games_grouped(df2, value_col="implied_prob")
 
 
-df2['league'] = t_sport_keys[league_index]
-df2.to_csv(f'./odds_data/{today_str}_{t_sport_keys[league_index]}.csv',index=False)
+df2.loc[:, 'league'] = t_sport_keys[league_index] # Use .loc to avoid SettingWithCopyWarning
+df2.to_csv(os.path.join(odds_data_dir, f'{today_str}_{t_sport_keys[league_index]}.csv'), index=False)
 
 
 df2.to_clipboard()
@@ -247,31 +249,63 @@ team_abrev_map = {
 rev_team_abrev_map = {v:k for k,v in team_abrev_map.items()}
 
 
-from nfl_predict_game import predict_nfl_game_outcome
+from nfl_predict_game import predict_nfl_game_outcome, predict_nfl_game_outcome_enhanced
 
 
 games = []
-pred_text1_list = []
-pred_text2_list = []
+original_pred_text_list = []
+enhanced_pred_text_list = []
+
+# Set this flag to True to use enhanced predictions, False for original
+USE_ENHANCED_PREDICTION = True 
+NUM_SIMULATIONS = 1000 # Number of simulations for enhanced prediction
 
 for game in df2['game'].unique():
     teams = (game.split(' vs '))
     print(teams)
-    team1 = rev_team_abrev_map[teams[0]]
-    print(team1)
-    team2 = rev_team_abrev_map[teams[1]]
-    print(team2)
+    team1_abbr = rev_team_abrev_map[teams[0]]
+    print(team1_abbr)
+    team2_abbr = rev_team_abrev_map[teams[1]]
+    print(team2_abbr)
 
     games.append(game) 
-    pred_text1 = predict_nfl_game_outcome(team1, team2, SEASON, WEEK)
-    pred_text1_list.append(pred_text1)
-    pred_text2 = predict_nfl_game_outcome(team2, team1, SEASON, WEEK)
-    pred_text2_list.append(pred_text2)
+    
+    if USE_ENHANCED_PREDICTION:
+        # Call enhanced prediction for Team 1 as home, Team 2 as away
+        enhanced_pred1 = predict_nfl_game_outcome_enhanced(team1_abbr, team2_abbr, SEASON, WEEK, NUM_SIMULATIONS)
+        enhanced_pred_text_list.append(enhanced_pred1)
+        
+        # Call enhanced prediction for Team 2 as home, Team 1 as away (for completeness, though usually one perspective is enough for simulation)
+        enhanced_pred2 = predict_nfl_game_outcome_enhanced(team2_abbr, team1_abbr, SEASON, WEEK, NUM_SIMULATIONS)
+        enhanced_pred_text_list.append(enhanced_pred2)
+    else:
+        # Original prediction for Team 1 as home, Team 2 as away
+        original_pred1 = predict_nfl_game_outcome(team1_abbr, team2_abbr, SEASON, WEEK)
+        original_pred_text_list.append(original_pred1)
+        
+        # Original prediction for Team 2 as home, Team 1 as away
+        original_pred2 = predict_nfl_game_outcome(team2_abbr, team1_abbr, SEASON, WEEK)
+        original_pred_text_list.append(original_pred2)
 
 
-nfl_pred_outputs_path = os.path.join('./nfl_pred_outs', f'{today_str}_nfl_preds.txt')
-with open(nfl_pred_outputs_path, 'w') as outfile:
-    for a,b, c in zip(pred_text1_list, pred_text2_list, games):
-        outfile.write(c + a + '\n' + b + '\n==============\n\n')
+nfl_pred_outputs_dir = './nfl_pred_outs'
+os.makedirs(nfl_pred_outputs_dir, exist_ok=True)
 
-
+if USE_ENHANCED_PREDICTION:
+    nfl_pred_outputs_path = os.path.join(nfl_pred_outputs_dir, f'{today_str}_nfl_preds_enhanced.txt')
+    with open(nfl_pred_outputs_path, 'w') as outfile:
+        for i, game in enumerate(games):
+            outfile.write(f"Game: {game}\n")
+            outfile.write(enhanced_pred_text_list[i*2] + '\n') # Team 1 home perspective
+            outfile.write(enhanced_pred_text_list[i*2 + 1] + '\n') # Team 2 home perspective
+            outfile.write('==============\n\n')
+    print(f"Enhanced NFL predictions saved to {nfl_pred_outputs_path}")
+else:
+    nfl_pred_outputs_path = os.path.join(nfl_pred_outputs_dir, f'{today_str}_nfl_preds_original.txt')
+    with open(nfl_pred_outputs_path, 'w') as outfile:
+        for i, game in enumerate(games):
+            outfile.write(f"Game: {game}\n")
+            outfile.write(original_pred_text_list[i*2] + '\n') # Team 1 home perspective
+            outfile.write(original_pred_text_list[i*2 + 1] + '\n') # Team 2 home perspective
+            outfile.write('==============\n\n')
+    print(f"Original NFL predictions saved to {nfl_pred_outputs_path}")

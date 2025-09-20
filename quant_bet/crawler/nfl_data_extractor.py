@@ -157,6 +157,7 @@ def get_nfl_html_files(base_dir=PAGES_DIR):
                     if re.search(r'-\d{4}$', team_year_part):
                         nfl_html_files.append(os.path.join(root, file))
     return nfl_html_files
+
 def create_nfl_dataframe():
     """
     Creates a pandas DataFrame from extracted NFL game details.

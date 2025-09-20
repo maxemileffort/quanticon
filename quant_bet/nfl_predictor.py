@@ -42,6 +42,15 @@ def train_nfl_predictor_model():
                           ((df['game_location'] == '@') & (df['game_outcome'] == 'L'))
     df['home_team_win'] = df['home_team_win'].astype(int)
 
+    # Calculate sample weights based on recency
+    # Sort by date to ensure proper weighting
+    df_filtered = df_filtered.sort_values(by='date').reset_index(drop=True)
+    # Assign higher weights to more recent games.
+    # A simple linear weighting: latest game gets weight 1.0, oldest gets a small base weight.
+    min_weight = 0.1
+    max_weight = 1.0
+    df_filtered['sample_weight'] = min_weight + (df_filtered.index / (len(df_filtered) - 1)) * (max_weight - min_weight)
+    
     # Define features for prediction
     features = [
         'week', 'month', 'day_of_week', 'is_home_game',
@@ -80,12 +89,16 @@ def train_nfl_predictor_model():
     X = df_filtered[features]
     y = df_filtered['home_team_win']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    
+    # Split weights as well
+    sample_weights = df_filtered['sample_weight']
+    w_train, w_test = train_test_split(sample_weights, test_size=0.2, random_state=42, stratify=y)
 
     model_pipeline = Pipeline(steps=[('preprocessor', preprocessor),
                                    ('classifier', LogisticRegression(random_state=42, solver='liblinear'))])
     
-    model_pipeline.fit(X_train, y_train)
+    model_pipeline.fit(X_train, y_train, classifier__sample_weight=w_train)
     y_pred = model_pipeline.predict(X_test)
 
     print("\n--- Win Predictor Model ---")

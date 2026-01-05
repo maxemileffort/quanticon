@@ -52,6 +52,11 @@ To use the interactive dashboard:
 streamlit run src/dashboard.py
 ```
 
+The dashboard now features three modes:
+1.  **Backtest**: Run single simulations, visualize equity curves, drawdowns, and run Monte Carlo analysis. Includes an "Optimize Universe" tool to filter assets.
+2.  **Grid Optimization**: Run parameter sweeps (Grid Search) and visualize results with interactive heatmaps.
+3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
+
 ### Configuration
 
 Configuration is managed via `config.yaml`. You can customize:

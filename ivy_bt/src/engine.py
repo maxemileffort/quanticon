@@ -220,7 +220,10 @@ class BacktestEngine:
 
         # 2. Calculate Portfolio Returns (Equal Weighted)
         # We use mean across columns, then convert log returns to simple returns for the visual
-        portfolio_log_returns = all_returns.mean(axis=1)
+        all_simple_returns = np.exp(all_returns) - 1
+        portfolio_simple_returns = all_simple_returns.mean(axis=1)
+        portfolio_log_returns = np.log1p(portfolio_simple_returns)
+        
         portfolio_cum_growth = np.exp(portfolio_log_returns.cumsum())
 
         # 3. Portfolio Metrics
@@ -335,10 +338,15 @@ class BacktestEngine:
                 return {}
                 
             # Aggregate to single portfolio series (assume equal weights for simulation base)
-            df_rets = pd.DataFrame(strat_rets_dict).fillna(0)
-            port_rets = df_rets.mean(axis=1)
-            # Keeping log returns is safer for summation (log(1+r))
-            population_returns = port_rets.values
+            # Correct logic: Convert log returns -> simple returns -> mean -> log returns
+            df_log_rets = pd.DataFrame(strat_rets_dict).fillna(0)
+            df_simple_rets = np.exp(df_log_rets) - 1
+            port_simple_rets = df_simple_rets.mean(axis=1)
+            
+            # Convert back to log returns for simulation
+            # Use log1p(x) which is log(1+x)
+            port_log_rets = np.log1p(port_simple_rets)
+            population_returns = port_log_rets.values
 
         if len(population_returns) == 0:
             logging.warning("No returns data available for Monte Carlo.")
@@ -542,7 +550,9 @@ class BacktestEngine:
             # Aggregate Portfolio Return for this step
             step_df = pd.DataFrame(step_returns).fillna(0)
             if not step_df.empty:
-                step_portfolio_ret = step_df.mean(axis=1) # Equal weight
+                step_simple = np.exp(step_df) - 1
+                step_port_simple = step_simple.mean(axis=1)
+                step_portfolio_ret = np.log1p(step_port_simple) # Equal weight
                 oos_results.append(step_portfolio_ret)
             
             # Move Window
@@ -609,8 +619,14 @@ class BacktestEngine:
               continue
 
           # FIX: Align all tickers by Date Index before taking the mean
-          all_rets_df = pd.DataFrame(run_returns).fillna(0)
-          portfolio_rets = all_rets_df.mean(axis=1)
+          all_log_rets_df = pd.DataFrame(run_returns).fillna(0)
+          
+          # Convert to simple returns for portfolio aggregation
+          all_simple_rets_df = np.exp(all_log_rets_df) - 1
+          portfolio_simple_rets = all_simple_rets_df.mean(axis=1)
+          
+          # Convert back to log returns for metrics calculation
+          portfolio_rets = np.log1p(portfolio_simple_rets)
 
           # Calculate Metrics (Dropping the first NaN from the shift)
           clean_rets = portfolio_rets.dropna()

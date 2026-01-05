@@ -265,6 +265,298 @@ class BacktestEngine:
         self.tickers = passed_tickers
         return passed_tickers
 
+    def _get_trade_returns(self, ticker):
+        """
+        Extracts discrete trade returns from the continuous daily series.
+        A trade is defined as a contiguous period where position != 0.
+        Scaling in/out is treated as part of the same trade until position hits 0.
+        """
+        if ticker not in self.data:
+            return []
+            
+        df = self.data[ticker]
+        if 'position' not in df.columns or 'strategy_return' not in df.columns:
+            return []
+            
+        # Identify non-zero positions
+        is_active = df['position'] != 0
+        
+        if not is_active.any():
+            return []
+
+        # Group consecutive active days
+        # We can use (is_active != is_active.shift()).cumsum() to generate groups
+        groups = (is_active != is_active.shift()).cumsum()
+        active_groups = groups[is_active]
+        
+        trade_returns = []
+        
+        # Iterate over unique group IDs
+        for group_id in active_groups.unique():
+            # Get returns for this group
+            # Note: strategy_return is usually log return
+            period_returns = df.loc[active_groups[active_groups == group_id].index, 'strategy_return']
+            
+            # Cumulative return for the trade (sum of log returns = total log return)
+            total_log_ret = period_returns.sum()
+            
+            # Convert to simple return for the "Trade Result"
+            simple_ret = np.exp(total_log_ret) - 1
+            trade_returns.append(simple_ret)
+            
+        return trade_returns
+
+    def run_monte_carlo_simulation(self, n_sims=1000, method='daily', plot=False):
+        """
+        Runs Monte Carlo Simulation to estimate risk metrics.
+        
+        Args:
+            n_sims: Number of simulations to run.
+            method: 'daily' (shuffle daily returns) or 'trade' (shuffle trade results).
+            plot: If True, plots the envelope.
+            
+        Returns:
+            dict: MC Metrics (Avg Max DD, VaR, Probability of Loss, etc.)
+        """
+        logging.info(f"Running Monte Carlo Simulation ({n_sims} runs, method={method})...")
+        
+        # 1. Gather the source population of returns
+        population_returns = []
+        
+        if method == 'trade':
+            for ticker in self.tickers:
+                t_rets = self._get_trade_returns(ticker)
+                population_returns.extend(t_rets)
+        else: # daily
+            # Use portfolio daily returns if available, else concat all ticker daily returns
+            strat_rets_dict = {t: self.data[t]['strategy_return'] for t in self.tickers if t in self.data and 'strategy_return' in self.data[t]}
+            if not strat_rets_dict:
+                logging.warning("No strategy returns found for MC simulation.")
+                return {}
+                
+            # Aggregate to single portfolio series (assume equal weights for simulation base)
+            df_rets = pd.DataFrame(strat_rets_dict).fillna(0)
+            port_rets = df_rets.mean(axis=1)
+            # Keeping log returns is safer for summation (log(1+r))
+            population_returns = port_rets.values
+
+        if len(population_returns) == 0:
+            logging.warning("No returns data available for Monte Carlo.")
+            return {}
+            
+        population_returns = np.array(population_returns)
+        
+        # 2. Run Simulations
+        # n_periods should match the history length to be comparable
+        n_periods = len(population_returns)
+        
+        # Pre-allocate random indices: (n_sims, n_periods)
+        rng = np.random.default_rng()
+        random_indices = rng.integers(0, len(population_returns), size=(n_sims, n_periods))
+        
+        # Sample returns
+        sampled_returns = population_returns[random_indices] # Shape (n_sims, n_periods)
+        
+        if method == 'daily':
+            # Cumulative Log Return -> Equity
+            cum_log_rets = np.cumsum(sampled_returns, axis=1)
+            equity_curves = np.exp(cum_log_rets)
+        else:
+            # Trade returns are simple returns. Convert to log for cumsum or use cumprod
+            # log(1+r)
+            # Clip to > -1 to avoid log domain error if trade loss is -100%
+            sampled_returns = np.maximum(sampled_returns, -0.9999)
+            log_trade_rets = np.log1p(sampled_returns)
+            cum_log_rets = np.cumsum(log_trade_rets, axis=1)
+            equity_curves = np.exp(cum_log_rets)
+
+        # 3. Calculate Metrics for each curve
+        # Add column of ones at start for correct DD calculation
+        ones = np.ones((n_sims, 1))
+        equity_curves_with_start = np.hstack((ones, equity_curves))
+        
+        peaks = np.maximum.accumulate(equity_curves_with_start, axis=1)
+        drawdowns = (equity_curves_with_start - peaks) / peaks
+        sim_max_dds = np.min(drawdowns, axis=1) # Min is the largest negative number (max DD)
+        
+        sim_final_equity = equity_curves[:, -1]
+        
+        # 4. Aggregate Statistics
+        avg_dd = np.mean(sim_max_dds)
+        worst_dd = np.min(sim_max_dds) # Worst case
+        median_final_eq = np.median(sim_final_equity)
+        
+        # Probability of Drawdown > 50%
+        prob_dd_50 = np.mean(sim_max_dds < -0.50)
+        
+        metrics = {
+            'simulations': n_sims,
+            'method': method,
+            'max_drawdown_avg': avg_dd,
+            'max_drawdown_worst': worst_dd,
+            'final_equity_median': median_final_eq,
+            'prob_drawdown_50pct': prob_dd_50
+        }
+        
+        logging.info(f"Monte Carlo Results: Avg DD: {avg_dd:.2%}, Median Equity: {median_final_eq:.2f}")
+        
+        if plot:
+            try:
+                plt.figure(figsize=(10, 6))
+                # Plot first 100 curves
+                for i in range(min(n_sims, 100)):
+                    plt.plot(equity_curves_with_start[i], color='gray', alpha=0.1)
+                
+                # Plot Mean Curve
+                mean_curve = np.mean(equity_curves_with_start, axis=0)
+                plt.plot(mean_curve, color='red', label='Mean Expectation')
+                
+                plt.title(f"Monte Carlo Simulation ({n_sims} runs, {method})")
+                plt.ylabel("Growth of $1")
+                plt.legend()
+                plt.show()
+            except Exception as e:
+                logging.error(f"Failed to plot MC results: {e}")
+            
+        return metrics
+
+    def run_walk_forward_optimization(self, strategy_class, param_grid, window_size_days, step_size_days, metric='Sharpe'):
+        """
+        Performs a Walk-Forward Optimization (WFO).
+        
+        1. Train (Optimize) on window_size_days.
+        2. Select best params based on metric.
+        3. Test on step_size_days immediately following train window.
+        4. Shift window by step_size_days and repeat.
+        
+        Returns:
+            wfo_results: Series of concatenated out-of-sample portfolio returns.
+            param_log: DataFrame showing best params for each period.
+        """
+        logging.info("Starting Walk-Forward Optimization...")
+        
+        # Ensure data is fetched
+        if not self.data:
+            self.fetch_data()
+            
+        # Determine overall start/end from data
+        if self.benchmark_data is not None and not self.benchmark_data.empty:
+            master_index = self.benchmark_data.index
+        else:
+            first_ticker = list(self.data.keys())[0]
+            master_index = self.data[first_ticker].index
+            
+        start_date = master_index[0]
+        end_date = master_index[-1]
+        
+        current_train_start = start_date
+        
+        oos_results = [] # Out of sample returns
+        param_log = []
+        
+        while True:
+            # Define Windows
+            train_end = current_train_start + pd.Timedelta(days=window_size_days)
+            test_end = train_end + pd.Timedelta(days=step_size_days)
+            
+            if train_end >= end_date:
+                break
+                
+            # Cap test_end at data end
+            if test_end > end_date:
+                test_end = end_date
+                
+            logging.info(f"WFO Step: Train [{current_train_start.date()} - {train_end.date()}] | Test [{train_end.date()} - {test_end.date()}]")
+            
+            # --- 1. Optimization Phase (In-Sample) ---
+            # Backup
+            full_data_backup = self.data
+            
+            # Slice Data for Training
+            train_data = {}
+            for t, df in full_data_backup.items():
+                train_data[t] = df.loc[current_train_start:train_end].copy()
+            self.data = train_data # Swap in training data
+            
+            # Run Grid Search
+            try:
+                # Suppress inner logging if possible or accept it
+                grid_res = self.run_grid_search(strategy_class, param_grid)
+            except Exception as e:
+                logging.error(f"Grid search failed for window: {e}")
+                self.data = full_data_backup # Restore
+                break
+                
+            if grid_res.empty:
+                logging.warning("No valid grid results.")
+                self.data = full_data_backup
+                # If training fails, maybe skip this window? Or break?
+                # Let's break to be safe.
+                break
+                
+            # Select Best Params
+            best_row = grid_res.sort_values(by=metric, ascending=False).iloc[0]
+            best_params = best_row.to_dict()
+            # Remove metric columns to get just params
+            clean_params = {k: v for k, v in best_params.items() if k in param_grid}
+            
+            param_log.append({
+                'train_start': current_train_start,
+                'train_end': train_end,
+                'test_end': test_end,
+                'params': clean_params,
+                'is_metric': best_row[metric]
+            })
+            
+            # Restore Data
+            self.data = full_data_backup
+            
+            # --- 2. Testing Phase (Out-of-Sample) ---
+            # Instantiate strategy with best params
+            strat = strategy_class(**clean_params)
+            
+            step_returns = {}
+            
+            for ticker in self.tickers:
+                try:
+                    # Get full df
+                    df = self.data[ticker].copy()
+                    
+                    # Apply strategy on FULL data to ensure indicators are correct
+                    df = strat.strat_apply(df)
+                    df = self.position_sizer.size_position(df)
+                    
+                    df['position'] = df['position_size'].shift(1).fillna(0)
+                    df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                    df['strategy_return'] = df['position'] * df['log_return']
+                    
+                    # Slice for Test Window
+                    mask = (df.index > train_end) & (df.index <= test_end)
+                    test_slice = df.loc[mask]
+                    
+                    step_returns[ticker] = test_slice['strategy_return']
+                    
+                except Exception as e:
+                    logging.error(f"Error in WFO test phase for {ticker}: {e}")
+            
+            # Aggregate Portfolio Return for this step
+            step_df = pd.DataFrame(step_returns).fillna(0)
+            if not step_df.empty:
+                step_portfolio_ret = step_df.mean(axis=1) # Equal weight
+                oos_results.append(step_portfolio_ret)
+            
+            # Move Window
+            current_train_start = current_train_start + pd.Timedelta(days=step_size_days)
+            
+        # Concatenate all OOS results
+        if oos_results:
+            full_oos_series = pd.concat(oos_results)
+            logging.info("WFO Complete.")
+            return full_oos_series, pd.DataFrame(param_log)
+        else:
+            logging.warning("WFO yielded no results.")
+            return pd.Series(dtype=float), pd.DataFrame()
+
     def generate_empty_grid(self, strategy_class):
         """
         Inspects a strategy class and returns a dictionary template

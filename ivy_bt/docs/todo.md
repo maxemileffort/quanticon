@@ -34,21 +34,21 @@ Enhancing the sophistication of the trading logic.
 - [x] **Transaction Cost Modeling**
     - [x] Support fixed commissions per trade (e.g., $1/trade).
     - [x] Support variable spread modeling (dynamic slippage based on volatility).
-- [ ] **Strategy Framework Extensions**
-    - [ ] **Multi-Timeframe Analysis**: Allow strategies to look at Daily and Hourly data simultaneously.
-    - [ ] **Portfolio Optimization**: Implement Mean-Variance Optimization (MVO) or Hierarchical Risk Parity (HRP) for asset allocation *after* signals are generated.
-- [ ] **Optimization Improvements**
-    - [ ] **Walk-Forward Optimization**: Implement rolling window training/testing to detect overfitting.
-    - [ ] **Monte Carlo Simulation**: Shuffle trade results to estimate probability of drawdown and ruin.
+- [x] **Strategy Framework Extensions**
+    - [x] **Multi-Timeframe Analysis**: Added helper methods `get_resampled_data` and `normalize_resampled_data` to `StrategyTemplate`.
+    - [x] **Portfolio Optimization**: Implemented `PortfolioOptimizer` class (MVO, Min Variance, Inverse Volatility).
+- [x] **Optimization Improvements**
+    - [x] **Walk-Forward Optimization**: Implemented `run_walk_forward_optimization` in `BacktestEngine` with rolling train/test windows.
+    - [x] **Monte Carlo Simulation**: Implemented `run_monte_carlo_simulation` in `BacktestEngine` (supports both daily return and trade return shuffling).
 
 ## Phase 3: UI & Interaction (The Research Hub)
 Moving towards a user-friendly product.
 
-- [ ] **Web Dashboard**
+- [x] **Web Dashboard**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
-    - [ ] Frontend: React, Vue, or Streamlit to configure and run tests.
-- [ ] **Interactive Visualization**
-    - [ ] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** for zoomable, interactive equity curves and candle charts.
+    - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
+- [x] **Interactive Visualization**
+    - [x] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** (Plotly used in Streamlit).
     - [ ] Display trade logs on the chart (buy/sell markers).
 - [ ] **Reporting**
     - [ ] Generate comprehensive HTML tearsheets (similar to QuantStats).
@@ -139,3 +139,38 @@ Features needed for a production/distributed environment.
 ### Notes
 - **Architecture**: `BacktestEngine` now accepts a `transaction_costs` dictionary and `stop_loss` parameter in `run_strategy`. Defaults preserve previous behavior (no costs, no stop).
 - **Testing**: Consolidated new tests into `tests/test_risk.py` and `tests/test_engine.py`.
+
+## Session Summary (2026-01-04) - Session 4
+
+### Accomplished
+- **Optimization Improvements**:
+    - Implemented **Monte Carlo Simulation** in `BacktestEngine` (`run_monte_carlo_simulation`).
+    - Supports both **Daily Return Shuffling** (Time-Series Bootstrap) and **Trade Return Shuffling**.
+    - Calculates Max Drawdown Probability and Final Equity distribution.
+- **Testing**:
+    - Created `tests/test_monte_carlo.py` to verify trade extraction and simulation logic.
+
+### Next Session Priorities
+- Transition to **Phase 3: UI & Interaction**.
+- Implement Web Dashboard (FastAPI + React/Streamlit).
+- Implement Interactive Visualization (Plotly).
+
+## Session Summary (2026-01-04) - Session 5
+
+### Accomplished
+- **UI & Interaction**:
+    - Created `src/dashboard.py` using **Streamlit**.
+    - Implemented a graphical interface to:
+        - Select tickers and date range.
+        - Choose from available strategies (EMA Cross, Bollinger, RSI, MACD, etc.).
+        - Configure strategy parameters dynamically.
+        - Select Risk Management model (Position Sizing, Stop Loss).
+    - Integrated **Plotly** for interactive Equity Curve and Drawdown charts.
+    - Added a "Run Monte Carlo" checkbox to trigger the new simulation feature from the UI.
+
+### Next Session Priorities
+- **UI Enhancements**:
+    - Visualize specific trade entries/exits on the price chart.
+    - Add Walk-Forward Optimization runner to the UI.
+- **Reporting**:
+    - Generate downloadable HTML/PDF reports.

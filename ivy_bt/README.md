@@ -6,7 +6,9 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 
 - **Backtest Engine**: Efficiently processes historical data, executes strategies, and calculates performance metrics (Sharpe Ratio, Max Drawdown, Returns).
 - **Asset Support**: Built-in support for major Forex pairs and Cryptocurrencies via `yfinance`.
-- **Grid Search Optimization**: Automatically tests combinations of strategy parameters to find optimal settings.
+- **Advanced Optimization**: Walk-Forward Optimization (Rolling Window) and Grid Search.
+- **Probabilistic Validation**: Monte Carlo Simulation for drawdown and equity analysis.
+- **Web Dashboard**: Interactive research hub using Streamlit and Plotly.
 - **Visualization**: Generates heatmaps for parameter stability and equity curves for performance comparison.
 - **Portfolio Management**: Aggregates results to show portfolio-level performance and supports filtering for high-quality assets.
 - **Modular Design**: Easy to extend with new strategies using the `StrategyTemplate`.
@@ -32,6 +34,14 @@ To run a backtest:
 
 ```bash
 python main.py
+```
+
+### Web Dashboard
+
+To use the interactive dashboard:
+
+```bash
+streamlit run src/dashboard.py
 ```
 
 ### Configuration

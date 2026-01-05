@@ -10,3 +10,4 @@ pandas_ta
 pydantic
 pyyaml
 pyarrow
+streamlit

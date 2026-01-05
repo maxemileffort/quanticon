@@ -1,0 +1,9 @@
+backtest:
+  start_date: "2023-01-01"
+  end_date: "2025-12-01"
+  instrument_type: "forex"
+
+data:
+  cache_enabled: true
+  cache_dir: ".cache"
+  cache_format: "parquet"

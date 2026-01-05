@@ -10,7 +10,8 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 - **Visualization**: Generates heatmaps for parameter stability and equity curves for performance comparison.
 - **Portfolio Management**: Aggregates results to show portfolio-level performance and supports filtering for high-quality assets.
 - **Modular Design**: Easy to extend with new strategies using the `StrategyTemplate`.
-- **Risk Management**: Decoupled position sizing logic (Fixed Fractional, Volatility Targeting) via `PositionSizer`.
+- **Risk Management**: Decoupled position sizing logic (Fixed Fractional, Volatility Targeting, Kelly Criterion) and Stop Loss overlay via `PositionSizer` and `BacktestEngine`.
+- **Transaction Costs**: Supports fixed commissions and variable slippage modeling.
 - **Local Caching**: Caches downloaded data to Parquet files to improve performance and avoid rate limits.
 - **Logging**: Comprehensive logging for better observability and debugging.
 
@@ -62,7 +63,7 @@ To change strategies and parameter grids, currently modify `main.py` directly (r
 -   `src/`:
     -   `engine.py`: Contains the `BacktestEngine` class which coordinates the backtesting workflow.
     -   `strategies.py`: Implementations of trading strategies (e.g., `EMACross`, `BollingerReversion`, `RSIReversal`).
-    -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`).
+    -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`, `KellySizer`).
     -   `data_manager.py`: Handles data fetching, caching (Parquet), and cleaning.
     -   `instruments.py`: Definitions of available assets (Forex pairs, Crypto tickers).
     -   `utils.py`: Utility functions for visualization and analysis.

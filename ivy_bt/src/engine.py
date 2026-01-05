@@ -11,6 +11,7 @@ import hashlib
 import logging
 from .data_manager import DataManager
 from .risk import PositionSizer, FixedSignalSizer
+from .utils import apply_stop_loss
 
 class BacktestEngine:
     def __init__(self
@@ -19,13 +20,20 @@ class BacktestEngine:
                  , end_date=datetime.today().strftime('%Y-%m-%d')
                  , benchmark='SPY'
                  , data_config=None
-                 , position_sizer=None):
+                 , position_sizer=None
+                 , transaction_costs=None):
         self.tickers = tickers
         self.start_date = start_date
         self.end_date = end_date
         self.benchmark_ticker = benchmark
         self.data_config = data_config
         self.data_manager = DataManager(self.data_config)
+        
+        # Costs
+        # commission: Fixed $ per trade (requires assumption of account size)
+        # slippage: % of trade value (e.g., 0.001 for 0.1%)
+        self.costs = transaction_costs if transaction_costs else {'commission': 0.0, 'slippage': 0.001}
+        self.assumed_equity = 10000.0 # For fixed commission calculation
         
         # Default to Fixed Size (100% equity) if no sizer provided
         if position_sizer is None:
@@ -58,10 +66,15 @@ class BacktestEngine:
             logging.error(f"Failed to fetch benchmark data for {self.benchmark_ticker}")
             self.benchmark_data = pd.DataFrame() # Avoid NoneType errors later
 
-    def run_strategy(self, strategy_logic, name=None):
+    def run_strategy(self, strategy_logic, name=None, stop_loss=None):
         """
         Runs the strategy and stores metrics.
         Accepts either a strategy function or a StrategyTemplate class instance.
+        
+        Args:
+            strategy_logic: Function or Class Instance.
+            name: Name of strategy.
+            stop_loss: Float representing stop loss percentage (e.g., 0.05 for 5%).
         """
         # Determine the strategy name automatically if not provided
         if name:
@@ -77,6 +90,12 @@ class BacktestEngine:
                 df = strategy_logic.strat_apply(df)
             else:
                 df = strategy_logic(df)
+            
+            # Apply Engine-Level Stop Loss if requested
+            if stop_loss is not None:
+                # We currently assume fixed stop loss (not trailing) for simplicity,
+                # unless we extend the API to accept a config dict.
+                df = apply_stop_loss(df, stop_loss_pct=stop_loss, trailing=False)
 
             # Apply Position Sizing (Decoupled from Signal)
             df = self.position_sizer.size_position(df)
@@ -92,21 +111,39 @@ class BacktestEngine:
             self.results[ticker] = self.calculate_metrics(df)
 
         # Calculate Benchmark Metrics
-        self.results[f"BENCHMARK ({self.benchmark_ticker})"] = self.calculate_metrics(self.benchmark_data)
+        self.results[f"BENCHMARK ({self.benchmark_ticker})"] = self.calculate_metrics(self.benchmark_data, is_benchmark=True)
 
-    def calculate_metrics(self, df, slippage=0.001):
+    def calculate_metrics(self, df, is_benchmark=False):
         """
         Calculates metrics considering transaction costs.
-        slippage: 0.001 = 10bps (0.10%) per trade.
         """
         # Identify trades: absolute difference between today's position and yesterday's
         # Example: 0 to 1 = 1 trade, 1 to -1 = 2 trades (close long, open short)
         df['trades'] = df['position'].diff().abs().fillna(0)
 
-        # Subtract costs from the log returns
-        # We approximate: simple_ret - cost, then back to log
-        # Or more simply: df['strategy_return'] - (df['trades'] * slippage)
-        net_returns = df['strategy_return'] - (df['trades'] * slippage)
+        if is_benchmark:
+            net_returns = df['strategy_return']
+        else:
+            commission = self.costs.get('commission', 0.0)
+            slippage = self.costs.get('slippage', 0.0)
+            
+            # Commission (Fixed $) -> % impact based on assumed equity
+            comm_pct = commission / self.assumed_equity
+            
+            # Trades count tells us how many times we turned over capital.
+            # Usually trades is sum of diffs.
+            # If position goes 0 -> 1, trade=1. Cost = 1 * slippage + 1 * comm_pct.
+            # If position goes 1 -> -1, trade=2. Cost = 2 * slippage + 1 * comm_pct? 
+            # No, flipping is usually 2 transactions (Sell 1, Sell 1 more).
+            # So trade=2 is correct for slippage.
+            # Is commission per share or per order?
+            # Assuming Commission per Order.
+            # A flip 1 -> -1 might be 1 order? Or 2? 
+            # Let's assume proportional to 'trades' volume for now.
+            
+            cost_deduction = (df['trades'] * slippage) + ( (df['trades'] > 0).astype(int) * comm_pct )
+            
+            net_returns = df['strategy_return'] - cost_deduction
 
         returns = net_returns.dropna()
         cum_return = np.exp(returns.sum()) - 1
@@ -127,7 +164,7 @@ class BacktestEngine:
         }
 
     def generate_report(self):
-        """Generates a professional comparison tearsheet."""
+        """Generates a professional comparison tearsheet with Position Size."""
         # 1. Intersect results with self.tickers + always include the benchmark
         active_results = {
             k: v for k, v in self.results.items()
@@ -136,25 +173,39 @@ class BacktestEngine:
 
         # 2. Convert to DataFrame for display
         summary_df = pd.DataFrame(active_results).T
+        logging.info("\n" + str(summary_df))
 
         # Plotting
-        plt.figure(figsize=(14, 7))
+        fig, axes = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
         sns.set_style("darkgrid")
-
-        # Plot Strategy Equity Curves
+        
+        # Top: Equity Curves
+        ax0 = axes[0]
         for ticker in self.tickers:
             if ticker in self.data:
                 strat_cum = np.exp(self.data[ticker]['strategy_return'].cumsum())
-                plt.plot(strat_cum, label=f"Strategy: {ticker} / {self.strat_name}", linewidth=2)
+                ax0.plot(strat_cum, label=f"Strategy: {ticker} / {self.strat_name}", linewidth=2)
 
         # Plot Benchmark Equity Curve
         bench_cum = np.exp(self.benchmark_data['log_return'].cumsum())
-        plt.plot(bench_cum, label=f"Benchmark: {self.benchmark_ticker}",
+        ax0.plot(bench_cum, label=f"Benchmark: {self.benchmark_ticker}",
                  color='black', linestyle='--', alpha=0.7, linewidth=3)
 
-        plt.title(f"Cumulative Performance vs {self.benchmark_ticker}", fontsize=16)
-        plt.ylabel("Growth of $1")
-        plt.legend()
+        ax0.set_title(f"Cumulative Performance vs {self.benchmark_ticker}", fontsize=16)
+        ax0.set_ylabel("Growth of $1")
+        ax0.legend()
+
+        # Bottom: Position Sizes
+        ax1 = axes[1]
+        for ticker in self.tickers:
+            if ticker in self.data and 'position_size' in self.data[ticker]:
+                ax1.plot(self.data[ticker]['position_size'], label=f"{ticker} Size")
+        
+        ax1.set_title("Position Size / Leverage Over Time")
+        ax1.set_ylabel("Size")
+        ax1.legend()
+
+        plt.tight_layout()
         plt.show()
 
     def generate_portfolio_report(self):

@@ -78,3 +78,58 @@ class VolatilitySizer(PositionSizer):
         df['position_size'] = df['position_size'].fillna(0)
         
         return df
+
+class KellySizer(PositionSizer):
+    """
+    Sizes positions based on the Kelly Criterion using realized strategy returns.
+    
+    Formula: f = Mean / Variance
+    Uses an expanding window of theoretical 1-unit strategy returns.
+    """
+    def __init__(self, cap: float = 2.0, half_kelly: bool = True, min_periods: int = 50):
+        self.cap = cap
+        self.half_kelly = half_kelly
+        self.min_periods = min_periods
+
+    def size_position(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        
+        # 1. Calculate Theoretical Strategy Returns (Raw Signal)
+        # We need to know what the return WOULD have been if we traded size 1.0
+        # Position at 't' comes from signal at 't-1'
+        raw_position = df['signal'].shift(1).fillna(0)
+        log_ret = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+        
+        # Strategy return (assuming size 1)
+        strat_ret = raw_position * log_ret
+        
+        # 2. Calculate Expanding Mean and Variance
+        # We use expanding window to learn from history
+        expanding_mean = strat_ret.expanding(min_periods=self.min_periods).mean()
+        expanding_var = strat_ret.expanding(min_periods=self.min_periods).var()
+        
+        # Avoid division by zero
+        expanding_var = expanding_var.replace(0, np.nan)
+        
+        # 3. Calculate Kelly Fraction
+        kelly = expanding_mean / expanding_var
+        kelly = kelly.fillna(0)
+        
+        if self.half_kelly:
+            kelly = kelly * 0.5
+            
+        # 4. Constraints
+        # - Don't trade if Expectancy (Mean) is negative (Kelly would be negative, or misleading)
+        kelly = kelly.clip(lower=0) 
+        # - Cap leverage
+        kelly = kelly.clip(upper=self.cap)
+        
+        # 5. Apply to Current Signal
+        # The calculated 'kelly' at index 'i' is based on returns up to 'i'.
+        # We use this to size the signal at 'i' (which becomes position at 'i+1').
+        df['position_size'] = df['signal'] * kelly
+        
+        # Fill NaNs
+        df['position_size'] = df['position_size'].fillna(0)
+        
+        return df

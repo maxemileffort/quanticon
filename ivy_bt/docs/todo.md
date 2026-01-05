@@ -24,15 +24,16 @@ Refactoring the core engine to be more reliable, testable, and maintainable.
 ## Phase 2: Advanced Quant Features
 Enhancing the sophistication of the trading logic.
 
-- [ ] **Risk Management Module**
+- [x] **Risk Management Module**
     - [x] Decouple position sizing from strategy signals.
     - [ ] Implement position sizing methods:
         - [x] Fixed Fractional (Risk % of Account).
         - [x] Volatility Targeting (Inverse Volatility).
-        - [ ] Kelly Criterion.
-- [ ] **Transaction Cost Modeling**
-    - [ ] Support fixed commissions per trade (e.g., $1/trade).
-    - [ ] Support variable spread modeling (dynamic slippage based on volatility).
+        - [x] Kelly Criterion.
+    - [x] Implement Stop Loss logic (Engine-level overlay).
+- [x] **Transaction Cost Modeling**
+    - [x] Support fixed commissions per trade (e.g., $1/trade).
+    - [x] Support variable spread modeling (dynamic slippage based on volatility).
 - [ ] **Strategy Framework Extensions**
     - [ ] **Multi-Timeframe Analysis**: Allow strategies to look at Daily and Hourly data simultaneously.
     - [ ] **Portfolio Optimization**: Implement Mean-Variance Optimization (MVO) or Hierarchical Risk Parity (HRP) for asset allocation *after* signals are generated.
@@ -112,3 +113,29 @@ Features needed for a production/distributed environment.
 ### Notes
 - **Architecture**: Position sizing is now a distinct step after signal generation. This allows for modular risk management strategies (e.g., scale down leverage when volatility is high) without changing the core strategy logic.
 - **Testing**: Added `tests/__init__.py` to ensure `unittest` correctly discovers tests in the `tests/` directory and avoids traversing into virtual environments.
+
+## Session Summary (2026-01-04) - Session 3
+
+### Accomplished
+- **Risk Management**:
+    - Implemented `KellySizer` in `src/risk.py`, calculating optimal leverage based on expanding window strategy returns.
+    - Implemented `apply_stop_loss` in `src/utils.py` and integrated it into `BacktestEngine` (engine-level stop loss overlay).
+- **Transaction Costs**:
+    - Updated `BacktestEngine` to support fixed commissions and variable slippage.
+    - Updated `calculate_metrics` to deduct these costs from returns.
+- **Reporting**:
+    - Enhanced `generate_report` to include a subplot for "Position Size / Leverage Over Time".
+- **Testing**:
+    - Created `tests/test_risk.py` to cover new sizing logic.
+    - Expanded `tests/test_engine.py` to cover costs and stop loss logic.
+
+### Next Session Priorities
+- **Strategy Framework Extensions**:
+    - Implement Multi-Timeframe Analysis support.
+    - Explore Portfolio Optimization (MVO/HRP).
+- **Optimization Improvements**:
+    - Implement Walk-Forward Optimization.
+
+### Notes
+- **Architecture**: `BacktestEngine` now accepts a `transaction_costs` dictionary and `stop_loss` parameter in `run_strategy`. Defaults preserve previous behavior (no costs, no stop).
+- **Testing**: Consolidated new tests into `tests/test_risk.py` and `tests/test_engine.py`.

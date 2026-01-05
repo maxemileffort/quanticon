@@ -26,6 +26,14 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
     pip install -r requirements.txt
     ```
 
+## Testing
+
+To run the test suite:
+
+```bash
+python -m unittest discover tests
+```
+
 ## Usage
 
 The main entry point for the application is `main.py`.

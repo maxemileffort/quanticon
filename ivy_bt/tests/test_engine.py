@@ -122,5 +122,41 @@ class TestBacktestEngine(unittest.TestCase):
         def parse_pct(s): return float(s.strip('%'))
         self.assertLess(parse_pct(res_exp['Total Return']), parse_pct(res_free['Total Return']))
 
+    def test_optimize_portfolio_selection(self):
+        # Setup results manually
+        self.engine.results = {
+            "GOOD": {"Sharpe Ratio": 2.0},
+            "BAD": {"Sharpe Ratio": 0.1},
+            "BENCHMARK": {"Sharpe Ratio": 1.0}
+        }
+        self.engine.tickers = ["GOOD", "BAD"]
+        
+        selected = self.engine.optimize_portfolio_selection(sharpe_threshold=1.0)
+        self.assertIn("GOOD", selected)
+        self.assertNotIn("BAD", selected)
+        self.assertEqual(self.engine.tickers, ["GOOD"])
+
+    def test_generate_empty_grid(self):
+        grid = self.engine.generate_empty_grid(MockStrategy)
+        self.assertIn('param1', grid)
+        self.assertNotIn('self', grid)
+
+    def test_run_grid_search(self):
+        param_grid = {'param1': [10, 20]}
+        
+        # We need a strategy that uses param1. MockStrategy does.
+        # run_grid_search returns a DataFrame
+        
+        # Need to ensure self.data has data for tickers
+        # self.ticker is "TEST"
+        # self.engine.data has "TEST"
+        
+        res_df = self.engine.run_grid_search(MockStrategy, param_grid)
+        
+        self.assertFalse(res_df.empty)
+        self.assertIn('param1', res_df.columns)
+        self.assertIn('Sharpe', res_df.columns)
+        self.assertEqual(len(res_df), 2) # 2 combinations
+
 if __name__ == '__main__':
     unittest.main()

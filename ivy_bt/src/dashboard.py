@@ -13,6 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.engine import BacktestEngine
 from src.strategies import EMACross, BollingerReversion, RSIReversal, Newsom10Strategy, MACDReversal, MACDTrend
 from src.risk import FixedSignalSizer, VolatilitySizer, KellySizer
+from src.instruments import crypto_assets, forex_assets
 
 # Strategy Map
 STRATEGIES = {
@@ -36,9 +37,28 @@ st.title("IvyBT Research Hub")
 # Sidebar: Config
 st.sidebar.header("Configuration")
 
-# Tickers
-tickers_input = st.sidebar.text_input("Tickers (comma separated)", "SPY,QQQ")
-tickers = [t.strip() for t in tickers_input.split(',')]
+# Asset Selection
+PRESETS = {
+    "Custom": [],
+    "Forex (All)": forex_assets,
+    "Crypto (All)": crypto_assets,
+    "Major Forex": ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X"],
+    "Blue Chip Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"]
+}
+
+if 'ticker_str' not in st.session_state:
+    st.session_state.ticker_str = "SPY,QQQ"
+
+def on_preset_change():
+    preset = st.session_state.preset_selection
+    if preset != "Custom":
+        st.session_state.ticker_str = ",".join(PRESETS[preset])
+
+preset = st.sidebar.selectbox("Asset Universe", list(PRESETS.keys()), key="preset_selection", on_change=on_preset_change)
+
+# Tickers Input
+tickers_input = st.sidebar.text_input("Tickers (comma separated)", key="ticker_str")
+tickers = [t.strip() for t in tickers_input.split(',') if t.strip()]
 
 # Dates
 col1, col2 = st.sidebar.columns(2)
@@ -132,15 +152,11 @@ if st.sidebar.button("Run Backtest"):
                     fig.add_trace(go.Scatter(x=strat_cum.index, y=strat_cum, mode='lines', name=f"{ticker}"))
                     
             fig.update_layout(title="Growth of $1", template="plotly_white", hovermode="x unified")
-            # st.plotly_chart(fig, use_container_width=True) # Deprecated
-            st.plotly_chart(fig, width=None) # Default width or let streamlit handle it.
-            # Actually, the warning suggests using config or theme. Let's stick to use_container_width for now but suppress or just leave it as it works.
-            # The warning says: "For use_container_width=True, use width='stretch' usually refers to st.image or others".
-            # For st.plotly_chart, the param is still use_container_width in many versions.
-            # Let's try the new parameter if supported, or revert to use_container_width if it fails.
-            # Given I cannot restart the server easily to test, I will stick to what works and note the warning.
-            # But the user saw the warning.
-            # Let's try to pass key-value arguments that might be accepted.
+            
+            # Handle deprecation warning for use_container_width
+            # Streamlit 1.52 warning suggests width='stretch' if container width is desired for other elements.
+            # But st.plotly_chart(use_container_width=True) is still the standard.
+            # We will use it for now.
             st.plotly_chart(fig, use_container_width=True)
             
             # 3. Drawdown Chart

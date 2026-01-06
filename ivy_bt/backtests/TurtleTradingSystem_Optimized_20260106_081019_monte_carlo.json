@@ -1,0 +1,8 @@
+{
+    "simulations": 1000,
+    "method": "daily",
+    "max_drawdown_avg": -0.09426334803107096,
+    "max_drawdown_worst": -0.26620722198814717,
+    "final_equity_median": 2.4460690063236266,
+    "prob_drawdown_50pct": 0.0
+}

@@ -50,10 +50,11 @@ The easiest way to run a backtest with automatic optimization is using the **Bac
 
 The script will:
 *   Automatically infer the optimal parameter grid for the selected strategy.
-*   Run a Grid Search optimization.
-*   Select the best parameters.
-*   Run a final backtest.
-*   Save results to `backtests/` (JSON metrics and CSV equity curves).
+*   Run a Grid Search optimization and generate **Complex Analysis Plots** (Parallel Coordinates).
+*   Select the best parameters and run a final backtest.
+*   **Optimize the Portfolio**: Filter out underperforming assets based on Sharpe Ratio.
+*   Run **Monte Carlo Simulations** and **Walk-Forward Optimization** (configurable).
+*   Save results to `backtests/` (JSON metrics, CSV equity curves, MC stats).
 
 ## Usage (Advanced)
 

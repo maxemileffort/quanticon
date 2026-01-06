@@ -16,7 +16,7 @@ from src.strategies import (
 from src.instruments import get_assets
 from src.config import DataConfig
 import logging
-from src.utils import setup_logging
+from src.utils import setup_logging, analyze_complex_grid
 
 # ==========================================
 # USER CONFIGURATION SECTION
@@ -28,7 +28,7 @@ STRATEGY_CLASS = TurtleTradingSystem
 
 # 2. Select Instruments
 # Options: "forex", "crypto", "stocks" (SP500)
-INSTRUMENT_TYPE = "forex" 
+INSTRUMENT_TYPE = "stocks" 
 CUSTOM_TICKERS = [] # Leave empty to use INSTRUMENT_TYPE
 
 # 3. Date Range
@@ -38,7 +38,13 @@ END_DATE = datetime.today().strftime('%Y-%m-%d')
 # 4. Optimization Settings
 METRIC = 'Sharpe' # Metric to optimize for: 'Sharpe', 'Return'
 
-# 5. Paths
+# 5. Advanced Features
+ENABLE_PORTFOLIO_OPT = True   # Filter out low-Sharpe assets after backtest
+ENABLE_MONTE_CARLO = True     # Run Monte Carlo simulations
+ENABLE_WFO = False            # Run Walk-Forward Optimization (Computationally Intensive)
+ENABLE_PLOTTING = True        # Show plots (Heatmaps, Equity Curves)
+
+# 6. Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 BACKTEST_DIR = os.path.join(BASE_DIR, 'backtests')
@@ -132,8 +138,27 @@ def run_backtest():
         grid_path = os.path.join(BACKTEST_DIR, f"{run_id}_grid_results.csv")
         grid_results.to_csv(grid_path)
         logging.info(f"Grid search results saved to: {grid_path}")
+        
+        # Grid Search Visualization
+        if ENABLE_PLOTTING:
+             logging.info("Generating Complex Grid Analysis...")
+             try:
+                 # We pass the metric used for optimization
+                 analyze_complex_grid(grid_results, target_metric=METRIC)
+             except Exception as e:
+                 logging.error(f"Failed to generate grid analysis: {e}")
 
-    # 9. Save Final Results
+    # 9. Portfolio Optimization (Optional)
+    if ENABLE_PORTFOLIO_OPT:
+        logging.info("--- Optimizing Portfolio Selection ---")
+        # Filter tickers with Sharpe < 0.5 (configurable default)
+        engine.optimize_portfolio_selection(sharpe_threshold=0.5)
+
+    # 10. Generate Report
+    if ENABLE_PLOTTING:
+        engine.generate_portfolio_report()
+
+    # 11. Save Final Results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # If run_id wasn't set in the else block (case: no grid)
     if 'run_id' not in locals():
@@ -174,6 +199,39 @@ def run_backtest():
         equity_path = os.path.join(BACKTEST_DIR, f"{run_id}_equity.csv")
         equity_curve.to_csv(equity_path)
         logging.info(f"Equity curve saved to: {equity_path}")
+
+    # 12. Monte Carlo Simulation
+    if ENABLE_MONTE_CARLO:
+        logging.info("--- Starting Monte Carlo Simulation ---")
+        mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=ENABLE_PLOTTING)
+        
+        mc_path = os.path.join(BACKTEST_DIR, f"{run_id}_monte_carlo.json")
+        with open(mc_path, 'w') as f:
+            json.dump(mc_metrics, f, indent=4)
+        logging.info(f"Monte Carlo metrics saved to: {mc_path}")
+
+    # 13. Walk-Forward Optimization
+    if ENABLE_WFO:
+        logging.info("--- Starting Walk-Forward Optimization ---")
+        # Ensure we have a grid to use
+        if not param_grid:
+            param_grid = STRATEGY_CLASS.get_default_grid()
+            
+        oos_equity, wfo_log = engine.run_walk_forward_optimization(
+            STRATEGY_CLASS, 
+            param_grid, 
+            window_size_days=252, 
+            step_size_days=63, 
+            metric=METRIC
+        )
+        
+        if not oos_equity.empty:
+            wfo_path = os.path.join(BACKTEST_DIR, f"{run_id}_wfo_equity.csv")
+            oos_equity.to_csv(wfo_path)
+            logging.info(f"WFO Equity saved to: {wfo_path}")
+            
+            wfo_log_path = os.path.join(BACKTEST_DIR, f"{run_id}_wfo_params.csv")
+            wfo_log.to_csv(wfo_log_path)
 
     logging.info("Backtest Complete.")
 

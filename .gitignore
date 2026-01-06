@@ -40,6 +40,6 @@ alfactora
 twsq
 
 # IvyBT
-quanticon/ivy_bt/backtests/
-quanticon/ivy_bt/data/
+ivy_bt/backtests/
+ivy_bt/data/
 ivy_bt.log

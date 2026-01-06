@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-04
+Last Updated: 2026-01-06
 
 This document outlines the path from the current scripting-based backtester to a commercial-grade quantitative research hub.
 
@@ -38,6 +38,7 @@ Enhancing the sophistication of the trading logic.
 - [x] **Strategy Framework Extensions**
     - [x] **Multi-Timeframe Analysis**: Added helper methods `get_resampled_data` and `normalize_resampled_data` to `StrategyTemplate`.
     - [x] **Portfolio Optimization**: Implemented `PortfolioOptimizer` class (MVO, Min Variance, Inverse Volatility).
+    - [x] **Self-Describing Strategies**: Added `get_default_grid()` to strategy classes to support automatic parameter inference.
 - [x] **Optimization Improvements**
     - [x] **Walk-Forward Optimization**: Implemented `run_walk_forward_optimization` in `BacktestEngine` with rolling train/test windows.
     - [x] **Monte Carlo Simulation**: Implemented `run_monte_carlo_simulation` in `BacktestEngine` (supports both daily return and trade return shuffling).
@@ -71,23 +72,27 @@ Features needed for a production/distributed environment.
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
+## ✅ Completed in This Session
+- [x] **Backtest Template**: Created `backtest_template.py`, a dedicated entry point for running backtests with automatic setup of data and result paths.
+- [x] **Auto-Optimization**: Integrated automatic parameter grid inference. Strategies now define their own default optimization ranges via `get_default_grid`.
+- [x] **Result Persistence**: Implemented JSON and CSV saving for backtest metrics and equity curves in the `backtests/` directory.
+
 ## Notes for Future Developers
 
 ### Known Limitations
 - **Environment Issues**: The `pandas_ta` library installation in the current environment appears broken (`ImportError` due to `importlib` issue). Tests (`test_strategies.py` and `test_monte_carlo.py`) have been configured to mock this library to ensure CI/CD reliability. Care should be taken when running in production to ensure a compatible version of `pandas_ta` is installed.
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 
-## Session Summary (2026-01-04) - Session 7
+## Session Summary (2026-01-06) - Session 8
 
 ### Accomplished
-- **Critical Fixes**:
-    - **Monte Carlo & Aggregation**: Fixed a mathematical error in `BacktestEngine` where arithmetic mean of log returns was used instead of geometric aggregation. This ensures accurate portfolio metrics across Monte Carlo, Grid Search, and WFO.
-    - **Dashboard Integration**: Fixed an issue where running Monte Carlo from the dashboard would reset the session state. Implemented persistence using `st.session_state`.
-- **UI Expansion (Phase 3)**:
-    - **Optimization Tab**: Added a dedicated tab for Grid Search Optimization, featuring dynamic parameter range inputs and interactive Plotly Heatmaps for result visualization.
-    - **Walk-Forward Tab**: Implemented a UI for Walk-Forward Optimization, allowing users to configure train/test windows and visualize out-of-sample equity curves.
-    - **Portfolio Selection**: Added an "Optimize Universe" tool to filter the asset list based on performance thresholds.
-    - **Refactoring**: Restructured `dashboard.py` into a clean, multi-tab application.
+- **Research Workflow Template**:
+    - Created `backtest_template.py` to streamline the process of testing strategies.
+    - The template automatically handles data caching (in `data/`) and result storage (in `backtests/`).
+    - Integrated an auto-optimization loop: users select a strategy class, and the script runs a Grid Search over extensive default parameters defined in the class itself.
+- **Strategy Enhancements**:
+    - Updated all strategies in `src/strategies.py` to include `get_default_grid()` class methods.
+    - Defined comprehensive, extensive parameter ranges (using `numpy`) for `EMACross`, `BollingerReversion`, `RSIReversal`, `Newsom10`, `MACD`, and `Turtle` strategies.
 
 ### Next Session Priorities
 - **Reporting**:
@@ -95,7 +100,8 @@ Features needed for a production/distributed environment.
     - PDF export for strategy performance reports.
 - **Visualization**:
     - Display trade logs (buy/sell markers) on the main price chart.
+- **Random Search**:
+    - As hinted by the user, implementing Random Search optimization to handle the now extensive parameter grids more efficiently than exhaustive Grid Search.
 
 ### Notes
-- **Testing**: Run tests using `python -m unittest discover tests`.
-- **Dashboard**: Run dashboard using `streamlit run src/dashboard.py`.
+- **Usage**: Use `python backtest_template.py` to run the new workflow.

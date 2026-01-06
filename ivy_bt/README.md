@@ -34,11 +34,32 @@ To run the test suite:
 python -m unittest discover tests
 ```
 
-## Usage
+## Quick Start (Research Workflow)
 
-The main entry point for the application is `main.py`.
+The easiest way to run a backtest with automatic optimization is using the **Backtest Template**.
 
-To run a backtest:
+1.  Open `backtest_template.py`.
+2.  Select your strategy in the configuration section:
+    ```python
+    STRATEGY_CLASS = EMACross  # or BollingerReversion, etc.
+    ```
+3.  Run the script:
+    ```bash
+    python backtest_template.py
+    ```
+
+The script will:
+*   Automatically infer the optimal parameter grid for the selected strategy.
+*   Run a Grid Search optimization.
+*   Select the best parameters.
+*   Run a final backtest.
+*   Save results to `backtests/` (JSON metrics and CSV equity curves).
+
+## Usage (Advanced)
+
+For more custom workflows, you can use `main.py` or the interactive dashboard.
+
+To run the default `main.py` flow:
 
 ```bash
 python main.py
@@ -77,11 +98,10 @@ data:
   cache_format: "parquet"
 ```
 
-To change strategies and parameter grids, currently modify `main.py` directly (roadmap item to move this to config).
-
 ## Project Structure
 
--   `main.py`: The primary script to configure and run backtests and optimizations.
+-   `backtest_template.py`: The primary research entry point. Use this to plug in strategies and run auto-optimized backtests.
+-   `main.py`: The legacy script to configure and run backtests and optimizations.
 -   `config.yaml`: Configuration file for backtest parameters.
 -   `src/`:
     -   `engine.py`: Contains the `BacktestEngine` class which coordinates the backtesting workflow.
@@ -100,6 +120,8 @@ To change strategies and parameter grids, currently modify `main.py` directly (r
 -   **BollingerReversion**: Mean reversion strategy based on Bollinger Bands.
 -   **RSIReversal**: Reversal strategy based on the Relative Strength Index (RSI).
 -   **Newsom10Strategy**: A complex strategy combining ATR, EMA, and volatility filters.
+-   **MACDReversal**: Classic MACD signal line crossover strategy.
+-   **TurtleTradingSystem**: The famous Donchian Channel breakout system.
 
 ## Disclaimer
 

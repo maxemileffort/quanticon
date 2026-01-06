@@ -7,6 +7,11 @@ class StrategyTemplate:
     def __init__(self, **params):
         self.params = params
         self.name = f"{self.__class__.__name__}_{params}"
+    
+    @classmethod
+    def get_default_grid(cls):
+        """Returns a default parameter grid for optimization."""
+        return {}
 
     def strat_apply(self, df):
         raise NotImplementedError("Each strategy must implement strat_apply().")
@@ -44,6 +49,13 @@ class StrategyTemplate:
         return aligned
 
 class EMACross(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'fast': np.arange(5, 45, 1),
+            'slow': np.arange(50, 200, 2)
+        }
+
     def strat_apply(self, df):
         # Access parameters from the params dictionary
         fast = int(self.params.get('fast', 10))
@@ -66,6 +78,13 @@ class EMACross(StrategyTemplate):
         return df
 
 class BollingerReversion(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'length': np.arange(10, 101, 2),
+            'std': np.linspace(1.5, 3.5, 21)
+        }
+
     def strat_apply(self, df):
         # 1. Parameter Extraction
         length = self.params.get('length', 20)
@@ -114,6 +133,14 @@ class BollingerReversion(StrategyTemplate):
         return df
 
 class RSIReversal(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'length': np.arange(5, 31, 1),
+            'lower': np.arange(15, 46, 1),
+            'upper': np.arange(55, 86, 1)
+        }
+
     def strat_apply(self, df):
         # 1. Parameter Extraction
         length = self.params.get('length', 14)
@@ -158,6 +185,13 @@ class RSIReversal(StrategyTemplate):
         return df
 
 class Newsom10Strategy(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'atr_mult': np.linspace(1.5, 5.0, 15),
+            'ema_length': np.arange(5, 51, 2)
+        }
+
     def strat_apply(self, df):
         # 1. Parameter Extraction
         atr_period = self.params.get('atr_period', 22)
@@ -256,6 +290,14 @@ class Newsom10Strategy(StrategyTemplate):
         return df
 
 class MACDReversal(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'fast': np.arange(5, 30, 1),
+            'slow': np.arange(30, 100, 2),
+            'signal': np.arange(5, 20, 1)
+        }
+
     def strat_apply(self, df):
         # 1. Parameter Extraction
         fast = self.params.get('fast', 12)
@@ -305,6 +347,14 @@ class MACDReversal(StrategyTemplate):
         return df
     
 class MACDTrend(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'fast': np.arange(5, 30, 1),
+            'slow': np.arange(30, 100, 2),
+            'signal_period': np.arange(5, 20, 1)
+        }
+
     def strat_apply(self, df):
         # 1. Parameter Extraction
         fast = self.params.get('fast', 12)
@@ -351,5 +401,60 @@ class MACDTrend(StrategyTemplate):
         # 6. Final Persistence
         # Ensure the '0' (Cash) state is held until a new entry trigger occurs
         df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df
+
+class TurtleTradingSystem(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'entry_window': np.arange(10, 100, 5),
+            'exit_window': np.arange(5, 50, 2)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        # System 1 defaults: Entry 20, Exit 10
+        # System 2 defaults: Entry 55, Exit 20
+        entry_window = self.params.get('entry_window', 20)
+        exit_window = self.params.get('exit_window', 10)
+
+        # 2. Indicator Calculation (Donchian Channels)
+        # Shift(1) is critical to ensure we are trading the breakout of the PREVIOUS windows
+        df['entry_high'] = df['high'].shift(1).rolling(window=entry_window).max()
+        df['entry_low'] = df['low'].shift(1).rolling(window=entry_window).min()
+        
+        df['exit_high'] = df['high'].shift(1).rolling(window=exit_window).max()
+        df['exit_low'] = df['low'].shift(1).rolling(window=exit_window).min()
+
+        # 3. Signal Logic Initialization
+        df['signal'] = np.nan
+
+        # 4. Entry Conditions (Breakouts)
+        long_entry = df['close'] > df['entry_high']
+        short_entry = df['close'] < df['entry_low']
+
+        df.loc[long_entry, 'signal'] = 1
+        df.loc[short_entry, 'signal'] = -1
+
+        # Initial forward fill to carry the directional bias
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 5. Exit Logic (Vectorized)
+        # Long Exit: Price penetrates the low of the shorter exit window
+        long_exit = (df['signal'] == 1) & (df['close'] < df['exit_low'])
+        # Short Exit: Price penetrates the high of the shorter exit window
+        short_exit = (df['signal'] == -1) & (df['close'] > df['exit_high'])
+
+        # Apply exits by masking current signals to 0 (Cash)
+        df['signal'] = df['signal'].mask(long_exit | short_exit, 0)
+
+        # 6. Final Persistence
+        # Ensure the exit state (0) persists until the next 20 or 55-day breakout
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # Cleanup temporary columns to keep the DataFrame lean
+        df.drop(columns=['entry_high', 'entry_low', 'exit_low', 'exit_high'], 
+                inplace=True, errors='ignore')
 
         return df

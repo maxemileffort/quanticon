@@ -50,8 +50,38 @@ forex_crosswalk = pd.DataFrame([
 
 forex_assets = forex_crosswalk['yfinance_symbol'].to_list()
 
+def get_sp500_crosswalk():
+    """
+    Scrapes Wikipedia to create a crosswalk of S&P 500 companies.
+    Includes Tickers, Security Names, Sectors, and CIK codes.
+    """
+    # 1. Scrape the constituents table from Wikipedia
+    url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+    tables = pd.read_html(url)
+    df = tables[0]
+
+    # 2. Standardize Column Names (Refactoring to lowercase for consistency)
+    df.columns = [col.lower().replace(' ', '_') for col in df.columns]
+    
+    # 3. Clean Ticker Symbols 
+    # (Some tickers use '.' instead of '-' which can break certain APIs)
+    df['symbol'] = df['symbol'].str.replace('.', '-', regex=False)
+
+    # 4. Filter for relevant "Crosswalk" columns
+    crosswalk = df[['symbol', 'security', 'gics_sector', 'gics_sub-industry', 'cik']].copy()
+    
+    # Rename for clarity and for use the the engine
+    crosswalk.columns = ['yfinance_symbol', 'company_name', 'sector', 'sub_industry', 'cik']
+    
+    return crosswalk
+
+# Execution
+sp500_assets = get_sp500_crosswalk()
+
 def get_assets(instrument_type="forex"):
     if instrument_type == "crypto":
         return crypto_assets
+    elif instrument_type == "stocks":
+        return sp500_assets
     else:
         return forex_assets

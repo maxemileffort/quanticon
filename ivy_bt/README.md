@@ -5,7 +5,7 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 ## Features
 
 - **Backtest Engine**: Efficiently processes historical data, executes strategies, and calculates performance metrics (Sharpe Ratio, Max Drawdown, Returns).
-- **Asset Support**: Built-in support for major Forex pairs and Cryptocurrencies via `yfinance`.
+- **Asset Support**: Built-in support for major Forex pairs and Cryptocurrencies via `yfinance`. Includes robust S&P 500 ticker fetching with caching.
 - **Advanced Optimization**: Walk-Forward Optimization (Rolling Window) and Grid Search.
 - **Probabilistic Validation**: Monte Carlo Simulation for drawdown and equity analysis.
 - **Web Dashboard**: Interactive research hub using Streamlit and Plotly.
@@ -82,7 +82,7 @@ The dashboard now features three modes:
 
 Configuration is managed via `config.yaml`. You can customize:
 
--   **Backtest Settings**: `start_date`, `end_date`, and `instrument_type` (forex/crypto).
+-   **Backtest Settings**: `start_date`, `end_date`, and `instrument_type` (forex/crypto/stocks).
 -   **Data Settings**: Enable/disable caching and set cache directory.
 
 Example `config.yaml`:
@@ -108,7 +108,7 @@ data:
     -   `strategies.py`: Implementations of trading strategies (e.g., `EMACross`, `BollingerReversion`, `RSIReversal`).
     -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`, `KellySizer`).
     -   `data_manager.py`: Handles data fetching, caching (Parquet), and cleaning.
-    -   `instruments.py`: Definitions of available assets (Forex pairs, Crypto tickers).
+    -   `instruments.py`: Definitions of available assets (Forex pairs, Crypto tickers, S&P 500).
     -   `utils.py`: Utility functions for visualization and analysis.
     -   `config.py`: Configuration loading and validation using Pydantic.
 -   `tests/`: Unit tests for the codebase.

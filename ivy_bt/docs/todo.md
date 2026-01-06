@@ -76,6 +76,7 @@ Features needed for a production/distributed environment.
 - [x] **Backtest Template**: Created `backtest_template.py`, a dedicated entry point for running backtests with automatic setup of data and result paths.
 - [x] **Auto-Optimization**: Integrated automatic parameter grid inference. Strategies now define their own default optimization ranges via `get_default_grid`.
 - [x] **Result Persistence**: Implemented JSON and CSV saving for backtest metrics and equity curves in the `backtests/` directory.
+- [x] **S&P 500 Integration**: Fixed the S&P 500 scraper in `instruments.py` to bypass 403 blocks using User-Agent headers, with fallback and caching.
 
 ## Notes for Future Developers
 
@@ -93,6 +94,8 @@ Features needed for a production/distributed environment.
 - **Strategy Enhancements**:
     - Updated all strategies in `src/strategies.py` to include `get_default_grid()` class methods.
     - Defined comprehensive, extensive parameter ranges (using `numpy`) for `EMACross`, `BollingerReversion`, `RSIReversal`, `Newsom10`, `MACD`, and `Turtle` strategies.
+- **Data Reliability**:
+    - Patched `src/instruments.py` to reliably fetch S&P 500 tickers by spoofing browser headers, avoiding 403 errors from Wikipedia. Added local caching to prevent repeated scraping.
 
 ### Next Session Priorities
 - **Reporting**:

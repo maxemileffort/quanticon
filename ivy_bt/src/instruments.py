@@ -1,4 +1,8 @@
 import pandas as pd
+import os
+import logging
+import requests
+import io
 
 crypto_crosswalk = pd.DataFrame([
     ("AAVEUSD", "AAVE-USD"),    ("ADAUSD", "ADA-USD"),    ("AIXBTUSD", "AIXBT-USD"),
@@ -52,36 +56,75 @@ forex_assets = forex_crosswalk['yfinance_symbol'].to_list()
 
 def get_sp500_crosswalk():
     """
-    Scrapes Wikipedia to create a crosswalk of S&P 500 companies.
-    Includes Tickers, Security Names, Sectors, and CIK codes.
+    Retrieves S&P 500 tickers.
+    1. Tries to load from local CSV cache.
+    2. If missing, scrapes Wikipedia (using requests to avoid 403 Forbidden).
+    3. Saves cache for future use.
+    4. Fallback to top 10 tickers if everything fails.
     """
-    # 1. Scrape the constituents table from Wikipedia
-    url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
-    tables = pd.read_html(url)
-    df = tables[0]
-
-    # 2. Standardize Column Names (Refactoring to lowercase for consistency)
-    df.columns = [col.lower().replace(' ', '_') for col in df.columns]
+    cache_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'sp500_tickers.csv')
     
-    # 3. Clean Ticker Symbols 
-    # (Some tickers use '.' instead of '-' which can break certain APIs)
-    df['symbol'] = df['symbol'].str.replace('.', '-', regex=False)
+    # 1. Try Cache
+    if os.path.exists(cache_path):
+        try:
+            logging.info(f"Loading S&P 500 tickers from cache: {cache_path}")
+            return pd.read_csv(cache_path)
+        except Exception as e:
+            logging.warning(f"Failed to load S&P 500 cache: {e}")
 
-    # 4. Filter for relevant "Crosswalk" columns
-    crosswalk = df[['symbol', 'security', 'gics_sector', 'gics_sub-industry', 'cik']].copy()
-    
-    # Rename for clarity and for use the the engine
-    crosswalk.columns = ['yfinance_symbol', 'company_name', 'sector', 'sub_industry', 'cik']
-    
-    return crosswalk
+    # 2. Scrape Wikipedia
+    try:
+        logging.info("Scraping S&P 500 tickers from Wikipedia...")
+        url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+        
+        # Use headers to mimic a browser and avoid 403 Forbidden errors
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        
+        # Use StringIO to avoid FutureWarning
+        tables = pd.read_html(io.StringIO(r.text))
+        df = tables[0]
 
-# Execution
-sp500_assets = get_sp500_crosswalk()
+        # Standardize Column Names
+        df.columns = [col.lower().replace(' ', '_') for col in df.columns]
+        
+        # Clean Ticker Symbols
+        df['symbol'] = df['symbol'].str.replace('.', '-', regex=False)
+
+        # Filter and Rename
+        crosswalk = df[['symbol', 'security', 'gics_sector', 'gics_sub-industry', 'cik']].copy()
+        crosswalk.columns = ['yfinance_symbol', 'company_name', 'sector', 'sub_industry', 'cik']
+        
+        # 3. Save Cache
+        try:
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            crosswalk.to_csv(cache_path, index=False)
+            logging.info(f"Saved S&P 500 tickers to cache: {cache_path}")
+        except Exception as e:
+            logging.warning(f"Could not save S&P 500 cache: {e}")
+            
+        return crosswalk
+
+    except Exception as e:
+        logging.error(f"Failed to scrape S&P 500 tickers: {e}")
+        
+        # 4. Fallback
+        logging.warning("Using fallback list of top 10 US stocks.")
+        fallback_data = {
+            'yfinance_symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK-B', 'LLY', 'V'],
+            'company_name': ['Apple', 'Microsoft', 'Alphabet', 'Amazon', 'Nvidia', 'Meta', 'Tesla', 'Berkshire Hathaway', 'Eli Lilly', 'Visa']
+        }
+        return pd.DataFrame(fallback_data)
 
 def get_assets(instrument_type="forex"):
     if instrument_type == "crypto":
         return crypto_assets
     elif instrument_type == "stocks":
-        return sp500_assets
+        # Lazy load to avoid import-time network requests/errors
+        df = get_sp500_crosswalk()
+        return df['yfinance_symbol'].to_list()
     else:
         return forex_assets

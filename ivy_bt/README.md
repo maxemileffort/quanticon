@@ -54,7 +54,8 @@ The script will:
 *   Select the best parameters and run a final backtest.
 *   **Optimize the Portfolio**: Filter out underperforming assets based on Sharpe Ratio.
 *   Run **Monte Carlo Simulations** and **Walk-Forward Optimization** (configurable).
-*   Save results to `backtests/` (JSON metrics, CSV equity curves, MC stats).
+*   Save results to `backtests/` (JSON metrics, CSV equity curves, MC stats, **Interactive HTML Plots**).
+*   **Save Presets**: Extract and save the top 5 performing parameter sets to `presets/` for future reference.
 
 ## Usage (Advanced)
 

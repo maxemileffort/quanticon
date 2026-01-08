@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import itertools
 from src.engine import BacktestEngine
 from src.strategies import (
     EMACross, 
@@ -11,7 +12,8 @@ from src.strategies import (
     Newsom10Strategy, 
     MACDReversal, 
     MACDTrend, 
-    TurtleTradingSystem
+    TurtleTradingSystem,
+    IchimokuCloudBreakout
 )
 from src.instruments import get_assets
 from src.config import DataConfig
@@ -24,15 +26,15 @@ from src.utils import setup_logging, analyze_complex_grid
 
 # 1. Select Strategy
 # The script will automatically infer the parameter grid using .get_default_grid()
-STRATEGY_CLASS = TurtleTradingSystem
+STRATEGY_CLASS = RSIReversal
 
 # 2. Select Instruments
 # Options: "forex", "crypto", "stocks" (SP500)
-INSTRUMENT_TYPE = "stocks" 
+INSTRUMENT_TYPE = "forex" 
 CUSTOM_TICKERS = [] # Leave empty to use INSTRUMENT_TYPE
 
 # 3. Date Range
-START_DATE = "2023-01-01"
+START_DATE = "2020-01-01"
 END_DATE = datetime.today().strftime('%Y-%m-%d')
 
 # 4. Optimization Settings
@@ -104,9 +106,18 @@ def run_backtest():
         engine.run_strategy(final_strat, name=strat_name)
         best_params = final_strat.params
     else:
-        # 6. Run Grid Search Optimization
-        logging.info(f"Running Grid Search...")
-        grid_results = engine.run_grid_search(STRATEGY_CLASS, param_grid)
+        keys, values = zip(*param_grid.items())
+        combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+        if len(combinations) < 500:
+
+            # 6. Run Grid Search Optimization
+            logging.info(f"Running Grid Search...")
+            grid_results = engine.run_grid_search(STRATEGY_CLASS, param_grid)
+        else:
+            # 6. Run Random Search Optimization
+            logging.info(f"Running Random Search...")
+            grid_results = engine.run_random_search(STRATEGY_CLASS, param_grid)
         
         if grid_results.empty:
             logging.error("Grid search returned no results.")
@@ -134,25 +145,44 @@ def run_backtest():
 
         # Save Grid Search Results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{strat_name}_Optimized_{timestamp}"
+        run_id = f"{strat_name}_{INSTRUMENT_TYPE}_Optimized_{timestamp}"
         grid_path = os.path.join(BACKTEST_DIR, f"{run_id}_grid_results.csv")
         grid_results.to_csv(grid_path)
         logging.info(f"Grid search results saved to: {grid_path}")
+
+        # Save Top 5 Presets
+        presets_dir = os.path.join(BASE_DIR, 'presets')
+        os.makedirs(presets_dir, exist_ok=True)
+        
+        top_5 = grid_results.sort_values(by=METRIC, ascending=False).head(5)
+        # Convert to list of dicts
+        top_5_list = top_5.to_dict(orient='records')
+        
+        presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
+        with open(presets_path, 'w') as f:
+            json.dump(top_5_list, f, indent=4)
+        logging.info(f"Top 5 presets saved to: {presets_path}")
         
         # Grid Search Visualization
         if ENABLE_PLOTTING:
              logging.info("Generating Complex Grid Analysis...")
              try:
                  # We pass the metric used for optimization
-                 analyze_complex_grid(grid_results, target_metric=METRIC)
+                 grid_results_clean = grid_results.dropna()
+                 analyze_complex_grid(grid_results_clean, target_metric=METRIC, output_dir=BACKTEST_DIR, run_id=run_id)
              except Exception as e:
                  logging.error(f"Failed to generate grid analysis: {e}")
 
     # 9. Portfolio Optimization (Optional)
     if ENABLE_PORTFOLIO_OPT:
         logging.info("--- Optimizing Portfolio Selection ---")
-        # Filter tickers with Sharpe < 0.5 (configurable default)
-        engine.optimize_portfolio_selection(sharpe_threshold=0.5)
+        # Filter tickers by Sharpe (configurable default)
+        ticker_hold = engine.tickers
+        engine.optimize_portfolio_selection(sharpe_threshold=0.3)
+        if not engine.tickers:
+            # Sometimes the optimizer removes all the tickers. This 
+            # fixes that by reverting to the entire portfolio again.
+            engine.tickers = ticker_hold
 
     # 10. Generate Report
     if ENABLE_PLOTTING:
@@ -181,6 +211,7 @@ def run_backtest():
     
     with open(metrics_path, 'w') as f:
         json.dump(output_data, f, indent=4)
+    logging.info(f"Backtest Metrics: {output_data}")
     logging.info(f"Metrics saved to: {metrics_path}")
 
     # Save Equity Curve (CSV)

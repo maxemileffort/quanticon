@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import itertools
+import random
 import inspect
 import os
 import hashlib
@@ -640,6 +641,98 @@ class BacktestEngine:
           grid_results.append({**params, 'Sharpe': sharpe, 'Return': ann_ret})
 
       return pd.DataFrame(grid_results)
+
+    def run_random_search(self, strategy_class, param_grid, n_iter=100):
+        """
+        Runs a Random Search over the parameter grid.
+        
+        Args:
+            strategy_class: The strategy class to optimize.
+            param_grid: Dictionary of parameter names and lists of values.
+            n_iter: Number of random combinations to try.
+            
+        Returns:
+            pd.DataFrame: Results including parameters and metrics.
+        """
+        keys = list(param_grid.keys())
+        values = list(param_grid.values())
+        
+        # Calculate total possible combinations
+        total_combinations = 1
+        for v in values:
+            total_combinations *= len(v)
+            
+        # If the grid is small enough, just run exhaustive search
+        if total_combinations <= n_iter:
+            logging.info(f"Random Search: Requested {n_iter} iterations but only {total_combinations} possible. Running full grid search.")
+            return self.run_grid_search(strategy_class, param_grid)
+
+        # Generate unique random combinations
+        combinations = set()
+        max_attempts = n_iter * 5 # Avoid infinite loop
+        attempts = 0
+        
+        while len(combinations) < n_iter and attempts < max_attempts:
+            # Sample one value from each parameter list
+            combo = tuple(random.choice(v) for v in values)
+            combinations.add(combo)
+            attempts += 1
+            
+        # Convert back to list of dicts
+        combo_dicts = [dict(zip(keys, c)) for c in combinations]
+        
+        logging.info(f"Starting Random Search: {len(combo_dicts)} combinations (sampled from {total_combinations})...")
+        
+        grid_results = []
+
+        for params in combo_dicts:
+            strat = strategy_class(**params)
+            run_returns = {} # Use a dict to keep track of ticker names
+
+            for ticker in self.tickers:
+                try:
+                    df = self.data[ticker].copy()
+                    df = strat.strat_apply(df)
+                    
+                    # Apply Position Sizing
+                    df = self.position_sizer.size_position(df)
+                    
+                    df = df.dropna()
+
+                    # Signal Shift & Return Calculation
+                    df['position'] = df['position_size'].shift(1).fillna(0)
+                    df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                    # Store in dict with ticker as key
+                    run_returns[ticker] = df['position'] * df['log_return']
+                except Exception as e:
+                    logging.error(f"Error processing {ticker}: {e}")
+                    continue
+
+            if not run_returns:
+                continue
+
+            # FIX: Align all tickers by Date Index before taking the mean
+            all_log_rets_df = pd.DataFrame(run_returns).fillna(0)
+            
+            # Convert to simple returns for portfolio aggregation
+            all_simple_rets_df = np.exp(all_log_rets_df) - 1
+            portfolio_simple_rets = all_simple_rets_df.mean(axis=1)
+            
+            # Convert back to log returns for metrics calculation
+            portfolio_rets = np.log1p(portfolio_simple_rets)
+
+            # Calculate Metrics (Dropping the first NaN from the shift)
+            clean_rets = portfolio_rets.dropna()
+            if len(clean_rets) > 0:
+                ann_ret = np.exp(clean_rets.mean() * 252) - 1
+                ann_vol = clean_rets.std() * np.sqrt(252)
+                sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
+            else:
+                ann_ret, sharpe = 0, 0
+
+            grid_results.append({**params, 'Sharpe': sharpe, 'Return': ann_ret})
+
+        return pd.DataFrame(grid_results)
 
     def plot_heatmap(self, grid_df, param_x, param_y, metric='Sharpe'):
         """Visualizes the grid search results to find stable plateaus."""

@@ -458,3 +458,89 @@ class TurtleTradingSystem(StrategyTemplate):
                 inplace=True, errors='ignore')
 
         return df
+
+class IchimokuCloudBreakout(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'tenkan': np.arange(7, 12, 1),
+            'kijun': np.arange(20, 31, 1),
+            # 'senkou_b': np.arange(40, 61, 2),
+            'displacement': np.arange(20, 31, 1)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        tenkan = self.params.get('tenkan', 9)
+        kijun = self.params.get('kijun', 26)
+        senkou_b = self.params.get('senkou_b', 52)
+        displacement = self.params.get('displacement', 26)
+
+        # 2. Indicator Calculation
+        # pandas_ta returns a tuple: (DataFrame with components, series)
+        # Components naming: ISA_9, ISB_26, ITS_9, IKS_26, ICS_26
+        ichi = ta.ichimoku(
+            df['high'], 
+            df['low'], 
+            df['close'], 
+            tenkan=tenkan, 
+            kijun=kijun, 
+            senkou_b=senkou_b, 
+            displacement=displacement
+        )[0]
+
+        # Mapping components based on pandas_ta dynamic naming
+        span_a = ichi[f'ISA_{tenkan}']
+        span_b = ichi[f'ISB_{kijun}']
+        lagging_span = ichi[f'ICS_{kijun}']
+
+        # The Cloud at the current price position
+        # ISA and ISB are projected forward by 'displacement'. We shift back to align with current price.
+        cloud_at_price_a = span_a.shift(displacement)
+        cloud_at_price_b = span_b.shift(displacement)
+        
+        cloud_top = np.maximum(cloud_at_price_a, cloud_at_price_b)
+        cloud_bottom = np.minimum(cloud_at_price_a, cloud_at_price_b)
+
+        # 3. Define Conditions
+        # Price relation to cloud
+        price_above_cloud = df['close'] > cloud_top
+        price_below_cloud = df['close'] < cloud_bottom
+
+        # Lagging span relation to cloud at its historical position
+        # We compare the lagging span (shifted back) to the cloud that existed back then
+        lagging_above_cloud = lagging_span > cloud_top.shift(displacement)
+        lagging_below_cloud = lagging_span < cloud_bottom.shift(displacement)
+
+        # Future cloud (the projected span currently being plotted)
+        future_cloud_bullish = span_a > span_b
+        future_cloud_bearish = span_a < span_b
+
+        # 4. Signal Logic
+        df['signal'] = np.nan
+
+        long_condition = (
+            price_above_cloud & 
+            lagging_above_cloud & 
+            future_cloud_bullish
+        )
+        
+        short_condition = (
+            price_below_cloud & 
+            lagging_below_cloud & 
+            future_cloud_bearish
+        )
+
+        # Exit condition: price returns inside the cloud boundaries
+        exit_condition = (df['close'] <= cloud_top) & (df['close'] >= cloud_bottom)
+
+        # Apply logic
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+        df.loc[exit_condition, 'signal'] = 0
+
+        # 5. Final Persistence
+        # Ensure the strategy holds positions until a counter-signal or exit occurs
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

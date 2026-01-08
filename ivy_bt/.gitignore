@@ -4,3 +4,4 @@ docs/*prompt.md
 *.log
 
 /data
+/presets

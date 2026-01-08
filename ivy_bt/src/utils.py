@@ -131,10 +131,18 @@ def apply_stop_loss(df: pd.DataFrame, stop_loss_pct: float, trailing: bool = Fal
     df['signal'] = new_signal
     return df
 
-def analyze_complex_grid(grid_df, target_metric='Sharpe'):
+def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_id=None):
     """
     Visualizes high-dimensional grid search results.
     """
+    import os
+
+    # SANITIZE: Ensure standard python types for Plotly
+    # Convert all columns to numeric, forcing standard types
+    # This avoids issues where Numpy scalars might cause serialization errors or
+    # 'ERR_CONNECTION_REFUSED' if fig.show() fails to serve them correctly.
+    grid_df = grid_df.apply(pd.to_numeric, errors='ignore')
+
     # 1. Parallel Coordinates Plot
     # This shows how paths through parameters lead to high/low returns
     fig = px.parallel_coordinates(
@@ -143,7 +151,15 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe'):
         color_continuous_scale=px.colors.diverging.Tealrose,
         title=f"Multi-Dimensional Strategy Optimization ({target_metric})"
     )
-    fig.show()
+    
+    if output_dir and run_id:
+        html_path = os.path.join(output_dir, f"{run_id}_parallel_coords.html")
+        # Use auto_open=False to just save the file. The user can open it if they wish.
+        # This prevents the local server startup which was causing ERR_CONNECTION_REFUSED.
+        fig.write_html(html_path, auto_open=False)
+        logging.info(f"Saved Parallel Coordinates plot to {html_path}")
+    else:
+        fig.show()
 
     # 2. Parameter Importance Logic
     # We use a Random Forest to see which inputs actually 'drive' the Sharpe ratio
@@ -162,6 +178,13 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe'):
     plt.figure(figsize=(10, 6))
     sns.barplot(x='Importance', y='Feature', data=importance_df, palette='viridis')
     plt.title("Which Parameters Actually Matter?")
-    plt.show()
+    
+    if output_dir and run_id:
+        png_path = os.path.join(output_dir, f"{run_id}_param_importance.png")
+        plt.savefig(png_path)
+        logging.info(f"Saved Parameter Importance plot to {png_path}")
+        plt.close()
+    else:
+        plt.show()
 
     return importance_df

@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-06
+Last Updated: 2026-01-07
 
 This document outlines the path from the current scripting-based backtester to a commercial-grade quantitative research hub.
 
@@ -72,39 +72,36 @@ Features needed for a production/distributed environment.
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 9)
-- [x] **Advanced Backtest Template**: Enhanced `backtest_template.py` to include a full research pipeline:
-    - [x] **Complex Visualization**: Integrated `analyze_complex_grid` for multi-dimensional parameter analysis (Parallel Coordinates, Feature Importance).
-    - [x] **Portfolio Optimization**: Added logic to automatically filter underperforming assets based on Sharpe Ratio and re-run the strategy on the "Elite" portfolio.
-    - [x] **Reporting**: Integrated aggregate portfolio reporting (`generate_portfolio_report`).
-    - [x] **Risk Analysis**: Integrated Monte Carlo Simulation (`run_monte_carlo_simulation`) and Walk-Forward Optimization (`run_walk_forward_optimization`) into the main workflow.
+## ✅ Completed in This Session (Session 10)
+- [x] **Visualization Stability**:
+    - [x] Fixed `ERR_CONNECTION_REFUSED` issues with Plotly by switching from `fig.show()` (local server) to `fig.write_html()` (file-based).
+    - [x] Implemented robust data type sanitization for Grid Search results to prevent serialization errors.
+- [x] **Analysis Enhancements**:
+    - [x] Automatically save Grid Search Analysis plots (Parallel Coordinates HTML, Feature Importance PNG) to `backtests/`.
+    - [x] Implemented "Top 5 Presets" extraction: Top performing parameter sets are now saved to `presets/{run_id}_presets.json` for easy retrieval.
 
 ## Notes for Future Developers
 
 ### Known Limitations
 - **Environment Issues**: The `pandas_ta` library installation in the current environment appears broken (`ImportError` due to `importlib` issue). Tests (`test_strategies.py` and `test_monte_carlo.py`) have been configured to mock this library to ensure CI/CD reliability. Care should be taken when running in production to ensure a compatible version of `pandas_ta` is installed.
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
+- **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-06) - Session 9
+## Session Summary (2026-01-07) - Session 10
 
 ### Accomplished
-- **Advanced Research Pipeline**:
-    - Upgraded `backtest_template.py` to be a comprehensive research tool.
-    - It now performs **Portfolio Optimization** (filtering tickers by Sharpe Ratio) and **Complex Grid Analysis** (Heatmaps/Parallel Coordinates) automatically.
-    - Added **Monte Carlo Simulation** and **Walk-Forward Optimization** capabilities, configurable via flags.
-- **Results**:
-    - Ran a full test of the `TurtleTradingSystem`.
-    - Successfully optimized the S&P 500 universe down to 85 high-performing assets, significantly improving portfolio Sharpe Ratio from ~0.6 to 2.9.
-    - Generated full artifacts: Grid Results, Equity Curves, Metrics JSON, and Monte Carlo stats.
+- **Visualization Fix**: Resolved browser connection errors when generating complex grid analysis charts.
+- **Workflow Enhancement**:
+    - The `backtest_template.py` now automatically saves all analysis artifacts (HTML plots, PNG charts, JSON presets) to disk.
+    - Top 5 parameter sets are isolated and saved for rapid reuse.
 
 ### Next Session Priorities
 - **Reporting**:
-    - Generate comprehensive HTML tearsheets (similar to QuantStats) or PDF exports.
+    - Generate comprehensive HTML tearsheets.
 - **Visualization**:
-    - Display trade logs (buy/sell markers) on the main price chart.
-- **Optimization Strategy**:
-    - Implement Random Search or Bayesian Optimization to handle large parameter spaces more efficiently than Grid Search.
+    - Display trade logs on charts.
 
 ### Notes
 - **Usage**: Run `python quanticon/ivy_bt/backtest_template.py`.
-- **Configuration**: Use the flags at the top of the script (`ENABLE_MONTE_CARLO`, `ENABLE_WFO`, etc.) to toggle features.
+- **Output**: Check `quanticon/ivy_bt/backtests/` for plots and reports, and `quanticon/ivy_bt/presets/` for optimized parameters.
+

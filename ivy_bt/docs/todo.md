@@ -89,6 +89,7 @@ Features needed for a production/distributed environment and live signal generat
         - [x] Apply the saved strategy + parameters.
         - [x] Extract the last row's signal (Buy/Sell/Hold).
     - [x] **CLI Tool**: `python run_signals.py --preset presets/MyStrategy.json` -> Outputs table of signals.
+    - [ ] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
 - [ ] **Live Trading Bridge**
     - [ ] Connect signals to broker APIs (Alpaca, Interactive Brokers, OANDA).
     - [ ] Paper trading mode.

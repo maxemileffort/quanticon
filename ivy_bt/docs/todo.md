@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-07
+Last Updated: 2026-01-10
 
 This document outlines the path from the current scripting-based backtester to a commercial-grade quantitative research hub.
 
@@ -10,6 +10,12 @@ Refactoring the core engine to be more reliable, testable, and maintainable.
 - [x] **Data Management Layer**
     - [x] Implement local caching (SQLite or Parquet) to store downloaded `yfinance` data. Avoids rate limits and speeds up repeated backtests.
     - [x] Create a `DataManager` class to handle fetching, cleaning, and updating asset data.
+    - [ ] **Expand Instrument Universe**:
+        - [ ] Add support for "iwm" (Russell 2000 ETF).
+        - [ ] Add support for "xlf" (Financial Sector ETF).
+        - [ ] Add support for "xlv" (Healthcare Sector ETF).
+        - [ ] Add support for "xle" (Energy Sector ETF).
+        - [ ] Add support for "xlk" (Tech Sector ETF).
 - [x] **Configuration System**
     - [x] Move hardcoded variables (dates, asset lists, API keys) from `main.py` to a `config.yaml` or `.env` file.
     - [x] Use `pydantic` for config validation.
@@ -32,6 +38,9 @@ Enhancing the sophistication of the trading logic.
         - [x] Volatility Targeting (Inverse Volatility).
         - [x] Kelly Criterion.
     - [x] Implement Stop Loss logic (Engine-level overlay).
+- [x] **Market Regime Analysis**
+    - [x] Implement AR(1) and AR(1)-GARCH(1,1) filters for regime classification (`regime_filters.py`).
+    - [x] Integrate regime signals (`regime_vol`, `regime_dir`) into the main data pipeline (`engine.py`).
 - [x] **Transaction Cost Modeling**
     - [x] Support fixed commissions per trade (e.g., $1/trade).
     - [x] Support variable spread modeling (dynamic slippage based on volatility).
@@ -72,7 +81,13 @@ Features needed for a production/distributed environment.
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 10)
+## ✅ Completed in This Session (Session 11)
+- [x] **Regime Filter Integration**:
+    - [x] Analyzed and refactored `regime_filters.py`.
+    - [x] Integrated `add_ar_garch_regime_filter` into `BacktestEngine.fetch_data()`.
+    - [x] Verified that regime columns (`regime_dir`, `regime_vol`, `combined_regime`, `cond_vol`) are automatically added to all asset DataFrames.
+
+## ✅ Completed in Previous Session (Session 10)
 - [x] **Visualization Stability**:
     - [x] Fixed `ERR_CONNECTION_REFUSED` issues with Plotly by switching from `fig.show()` (local server) to `fig.write_html()` (file-based).
     - [x] Implemented robust data type sanitization for Grid Search results to prevent serialization errors.
@@ -87,21 +102,20 @@ Features needed for a production/distributed environment.
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-07) - Session 10
+## Session Summary (2026-01-10) - Session 11
 
 ### Accomplished
-- **Visualization Fix**: Resolved browser connection errors when generating complex grid analysis charts.
-- **Workflow Enhancement**:
-    - The `backtest_template.py` now automatically saves all analysis artifacts (HTML plots, PNG charts, JSON presets) to disk.
-    - Top 5 parameter sets are isolated and saved for rapid reuse.
+- **Regime Awareness**: The engine now automatically tags data with market regime info (Trend, Volatility, Risk-Off).
+    - This allows strategies to adapt their logic based on the broader market context (e.g., "Only buy if `regime_dir == momentum`").
 
 ### Next Session Priorities
+- **Data Expansion**:
+    - Update `instruments.py` to support the expanded stock universe (IWM, XLF, XLV, XLE, XLK) as outlined in `main.py`.
+- **Strategy Enhancement**:
+    - Create a strategy that explicitly uses the new regime columns (e.g., a "Regime Switching" strategy).
 - **Reporting**:
     - Generate comprehensive HTML tearsheets.
-- **Visualization**:
-    - Display trade logs on charts.
 
 ### Notes
-- **Usage**: Run `python quanticon/ivy_bt/backtest_template.py`.
-- **Output**: Check `quanticon/ivy_bt/backtests/` for plots and reports, and `quanticon/ivy_bt/presets/` for optimized parameters.
+- **New Columns**: Strategies can now access `df['regime_dir']`, `df['regime_vol']`, etc.
 

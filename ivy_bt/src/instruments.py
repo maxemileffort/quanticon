@@ -122,7 +122,7 @@ def get_sp500_crosswalk():
 def get_assets(instrument_type="forex"):
     if instrument_type == "crypto":
         return crypto_assets
-    elif instrument_type == "stocks":
+    elif instrument_type == "spy":
         # Lazy load to avoid import-time network requests/errors
         df = get_sp500_crosswalk()
         return df['yfinance_symbol'].to_list()

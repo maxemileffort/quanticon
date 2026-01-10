@@ -5,6 +5,7 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 ## Features
 
 - **Backtest Engine**: Efficiently processes historical data, executes strategies, and calculates performance metrics (Sharpe Ratio, Max Drawdown, Returns).
+- **Market Regime Analysis**: Automatically detects market regimes (Momentum vs. Mean Reversion, High vs. Low Volatility) using AR-GARCH filters.
 - **Asset Support**: Built-in support for major Forex pairs and Cryptocurrencies via `yfinance`. Includes robust S&P 500 ticker fetching with caching.
 - **Advanced Optimization**: Walk-Forward Optimization (Rolling Window) and Grid Search.
 - **Probabilistic Validation**: Monte Carlo Simulation for drawdown and equity analysis.
@@ -108,6 +109,7 @@ data:
 -   `src/`:
     -   `engine.py`: Contains the `BacktestEngine` class which coordinates the backtesting workflow.
     -   `strategies.py`: Implementations of trading strategies (e.g., `EMACross`, `BollingerReversion`, `RSIReversal`).
+    -   `regime_filters.py`: Logic for detecting market regimes (AR, GARCH).
     -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`, `KellySizer`).
     -   `data_manager.py`: Handles data fetching, caching (Parquet), and cleaning.
     -   `instruments.py`: Definitions of available assets (Forex pairs, Crypto tickers, S&P 500).

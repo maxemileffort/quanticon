@@ -13,6 +13,7 @@ import logging
 from .data_manager import DataManager
 from .risk import PositionSizer, FixedSignalSizer
 from .utils import apply_stop_loss
+from .regime_filters import add_ar_garch_regime_filter
 
 class BacktestEngine:
     def __init__(self
@@ -52,6 +53,16 @@ class BacktestEngine:
         # Use DataManager to fetch asset data
         logging.info("Fetching asset data via DataManager...")
         self.data = self.data_manager.fetch_data(self.tickers, self.start_date, self.end_date)
+        
+        # Apply Regime Filters
+        logging.info("Applying AR-GARCH Regime Filters...")
+        for ticker, df in self.data.items():
+            if not df.empty:
+                try:
+                    # DataManager converts columns to lowercase
+                    self.data[ticker] = add_ar_garch_regime_filter(df, price_col='close')
+                except Exception as e:
+                    logging.warning(f"Failed to apply regime filter for {ticker}: {e}")
 
         # Fetch Benchmark
         logging.info(f"Fetching benchmark data ({self.benchmark_ticker})...")

@@ -99,7 +99,13 @@ if selected_run:
     if equity_file:
         st.subheader("Equity Curve")
         df_equity = pd.read_csv(os.path.join(BACKTESTS_DIR, equity_file), parse_dates=['Date'], index_col='Date')
-        st.line_chart(df_equity['Equity'])
+        # Check for 'Portfolio' or 'Equity' column, or default to first column
+        if 'Portfolio' in df_equity.columns:
+            st.line_chart(df_equity['Portfolio'])
+        elif 'Equity' in df_equity.columns:
+            st.line_chart(df_equity['Equity'])
+        else:
+            st.line_chart(df_equity)
 
     # 3. Monte Carlo
     if mc_file:
@@ -135,6 +141,6 @@ if selected_run:
     if pc_file:
         st.subheader("Complex Analysis")
         st.info(f"Interactive Parallel Coordinates plot available: {pc_file}")
-        with open(os.path.join(BACKTESTS_DIR, pc_file), 'r') as f:
+        with open(os.path.join(BACKTESTS_DIR, pc_file), 'r', encoding='utf-8') as f:
             html_content = f.read()
             st.components.v1.html(html_content, height=600, scrolling=True)

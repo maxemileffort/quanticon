@@ -29,22 +29,42 @@ strat_name = config['strat_name']
 StrategyClass = config['StrategyClass']
 sizer = config['sizer']
 
-st.title(f"Grid Optimization: {strat_name}")
+st.title(f"Optimization: {strat_name}")
 
 # --- GRID CONFIG ---
 st.markdown("##### Define Parameter Ranges")
 grid_params = utils.render_param_grid_inputs(strat_name, key_prefix="opt")
 
-if st.button("Run Grid Search", type="primary"):
+# Calculate total combinations
+total_combinations = 1
+if grid_params:
+    for v in grid_params.values():
+        total_combinations *= len(v)
+    st.info(f"Total Grid Combinations: {total_combinations:,}")
+
+col_search1, col_search2 = st.columns(2)
+with col_search1:
+    search_method = st.radio("Search Method", ["Grid Search", "Random Search"], horizontal=True)
+with col_search2:
+    if search_method == "Random Search":
+        n_iter = st.number_input("Max Iterations", 10, 2000, 50, step=10)
+    else:
+        n_iter = 0
+
+if st.button(f"Run {search_method}", type="primary"):
     if not grid_params:
         st.error("No parameters to optimize.")
     else:
-        with st.spinner("Running Grid Search... (This may take a while)"):
+        with st.spinner(f"Running {search_method}..."):
             opt_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
             opt_engine.position_sizer = sizer
             opt_engine.fetch_data()
             
-            results_df = opt_engine.run_grid_search(StrategyClass, grid_params)
+            if search_method == "Grid Search":
+                results_df = opt_engine.run_grid_search(StrategyClass, grid_params)
+            else:
+                results_df = opt_engine.run_random_search(StrategyClass, grid_params, n_iter=n_iter)
+                
             st.session_state['grid_results'] = results_df
             st.session_state['grid_params_keys'] = list(grid_params.keys())
 

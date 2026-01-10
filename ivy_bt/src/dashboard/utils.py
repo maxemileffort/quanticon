@@ -96,74 +96,50 @@ def render_sidebar():
 
 def render_param_grid_inputs(strat_name, key_prefix="grid"):
     """Renders inputs for parameter ranges and returns the param_grid dict."""
+    StrategyClass = STRATEGIES.get(strat_name)
+    if not StrategyClass:
+        return {}
+        
+    default_grid = StrategyClass.get_default_grid()
     grid_params = {}
     
-    if strat_name == "EMA Cross":
-        c1, c2 = st.columns(2)
-        with c1: 
-            f_start = st.number_input("Fast Start", 5, 50, 5, key=f"{key_prefix}_f_start")
-            f_end = st.number_input("Fast End", 5, 50, 20, key=f"{key_prefix}_f_end")
-            f_step = st.number_input("Fast Step", 1, 10, 5, key=f"{key_prefix}_f_step")
-        with c2:
-            s_start = st.number_input("Slow Start", 20, 100, 20, key=f"{key_prefix}_s_start")
-            s_end = st.number_input("Slow End", 20, 100, 50, key=f"{key_prefix}_s_end")
-            s_step = st.number_input("Slow Step", 1, 20, 10, key=f"{key_prefix}_s_step")
-        grid_params = {
-            'fast': range(int(f_start), int(f_end) + 1, int(f_step)),
-            'slow': range(int(s_start), int(s_end) + 1, int(s_step))
-        }
+    if not default_grid:
+        st.warning("No default grid defined for this strategy.")
+        return {}
         
-    elif strat_name == "Bollinger Reversion":
-        c1, c2 = st.columns(2)
-        with c1:
-            l_start = st.number_input("Length Start", 10, 50, 10, key=f"{key_prefix}_l_start")
-            l_end = st.number_input("Length End", 10, 50, 30, key=f"{key_prefix}_l_end")
-            l_step = st.number_input("Length Step", 1, 10, 5, key=f"{key_prefix}_l_step")
-        with c2:
-            std_start = st.number_input("Std Start", 1.0, 3.0, 1.5, key=f"{key_prefix}_std_start")
-            std_end = st.number_input("Std End", 1.0, 3.0, 2.5, key=f"{key_prefix}_std_end")
-            std_step = st.number_input("Std Step", 0.1, 1.0, 0.5, key=f"{key_prefix}_std_step")
-        
-        std_range = [round(x, 1) for x in np.arange(std_start, std_end + 0.01, std_step)]
-        grid_params = {
-            'length': range(int(l_start), int(l_end) + 1, int(l_step)),
-            'std': std_range
-        }
-        
-    elif strat_name == "RSI Reversal":
-        c1, c2 = st.columns(2)
-        with c1:
-            len_start = st.number_input("Length Start", 5, 30, 10, key=f"{key_prefix}_len_start")
-            len_end = st.number_input("Length End", 5, 30, 20, key=f"{key_prefix}_len_end")
-            len_step = st.number_input("Length Step", 1, 5, 2, key=f"{key_prefix}_len_step")
-        with c2:
-            low_start = st.number_input("Lower Start", 20, 40, 25, key=f"{key_prefix}_low_start")
-            low_end = st.number_input("Lower End", 20, 40, 35, key=f"{key_prefix}_low_end")
-            low_step = st.number_input("Lower Step", 1, 10, 5, key=f"{key_prefix}_low_step")
-        
-        grid_params = {
-            'length': range(int(len_start), int(len_end) + 1, int(len_step)),
-            'lower': range(int(low_start), int(low_end) + 1, int(low_step)),
-            'upper': [70] # Fixed upper for simplicity in this demo, or add inputs
-        }
+    # Dynamically generate inputs in 2 columns
+    cols = st.columns(2)
     
-    elif strat_name == "Ichimoku Breakout":
-         # 'tenkan': np.arange(7, 12, 1),
-         # 'kijun': np.arange(20, 31, 1),
-         c1, c2 = st.columns(2)
-         with c1:
-             t_start = st.number_input("Tenkan Start", 5, 20, 7, key=f"{key_prefix}_t_start")
-             t_end = st.number_input("Tenkan End", 5, 20, 12, key=f"{key_prefix}_t_end")
-         with c2:
-             k_start = st.number_input("Kijun Start", 15, 60, 20, key=f"{key_prefix}_k_start")
-             k_end = st.number_input("Kijun End", 15, 60, 30, key=f"{key_prefix}_k_end")
-             
-         grid_params = {
-             'tenkan': range(int(t_start), int(t_end) + 1),
-             'kijun': range(int(k_start), int(k_end) + 1)
-         }
-
-    else:
-        st.warning("Grid Search UI not fully implemented for this strategy yet.")
-        
+    for i, (param, values) in enumerate(default_grid.items()):
+        col = cols[i % 2]
+        with col:
+            st.markdown(f"**{param}**")
+            # If values is a range-like object (list, np.array)
+            if len(values) > 0:
+                v_min = float(min(values))
+                v_max = float(max(values))
+                
+                # Estimate step
+                step = 1.0
+                if len(values) > 1:
+                    step = float(values[1] - values[0])
+                
+                # Inputs
+                # Use a unique key for every input
+                p_start = st.number_input(f"Start", value=v_min, key=f"{key_prefix}_{param}_start")
+                p_end = st.number_input(f"End", value=v_max, key=f"{key_prefix}_{param}_end")
+                p_step = st.number_input(f"Step", value=step, key=f"{key_prefix}_{param}_step")
+                
+                # Heuristic to determine if integer or float
+                # Check if default values are all integers
+                is_int = all(isinstance(x, (int, np.integer)) for x in values)
+                
+                if is_int and p_step.is_integer():
+                    # Use integer range
+                    grid_params[param] = range(int(p_start), int(p_end) + 1, int(p_step))
+                else:
+                    # Use numpy float range
+                    # Rounding to avoid floating point issues
+                    grid_params[param] = [round(x, 2) for x in np.arange(p_start, p_end + p_step/1000, p_step)]
+    
     return grid_params

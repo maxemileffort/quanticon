@@ -102,6 +102,7 @@ Features needed for a production/distributed environment and live signal generat
 - [x] **Dashboard Enhancements**:
     - [x] **Results Viewer**: Created `pages/4_Results.py` to browse and visualize saved backtest artifacts.
     - [x] **Presets Loader**: Added logic to `pages/1_Backtest.py` to load strategy parameters from JSON presets.
+    - [x] **Optimization Upgrade**: Added **Random Search** option, iteration counter, and dynamic parameter inputs based on strategy defaults.
 - [x] **Reporting**:
     - [x] **HTML Tearsheets**: Implemented `src/reporting.py` to generate standalone HTML reports with interactive Plotly charts.
 
@@ -141,6 +142,7 @@ Features needed for a production/distributed environment and live signal generat
 
 ### Accomplished
 - **Dashboard Completion**: The dashboard now supports the full research loop: Backtest -> Optimize -> Save -> View Results -> Load Presets.
+- **Optimization Upgrades**: Added Random Search and dynamic parameter inference to make the optimization workflow more flexible and user-friendly.
 - **Reporting**: Added a standalone reporting module that generates professional HTML tearsheets for any backtest.
 
 ### Next Session Priorities

@@ -138,7 +138,8 @@ class RSIReversal(StrategyTemplate):
         return {
             'length': np.arange(5, 31, 1),
             'lower': np.arange(15, 46, 1),
-            'upper': np.arange(55, 86, 1)
+            'upper': np.arange(55, 86, 1),
+            'midline': np.arange(40, 60, 1),
         }
 
     def strat_apply(self, df):
@@ -188,8 +189,12 @@ class Newsom10Strategy(StrategyTemplate):
     @classmethod
     def get_default_grid(cls):
         return {
+            'atr_length': np.arange(5, 51, 2),
             'atr_mult': np.linspace(1.5, 5.0, 15),
-            'ema_length': np.arange(5, 51, 2)
+            'bb_length': np.arange(5, 51, 2),
+            'bb_mult': np.linspace(1.5, 5.0, 15),
+            'ema_length': np.arange(5, 51, 2),
+            'vol_ema_length': np.arange(5, 51, 2),
         }
 
     def strat_apply(self, df):

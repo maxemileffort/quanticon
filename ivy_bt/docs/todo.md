@@ -60,8 +60,8 @@ Moving towards a user-friendly product.
     - [x] **Modularize**: Split monolithic `dashboard.py` into a multi-page Streamlit app.
     - [ ] **Dynamic Loading**: Auto-detect strategies from `src/strategies.py` instead of hardcoding.
     - [x] **Config Integration**: Load assets and defaults from `config.yaml` or `src/instruments.py`.
-    - [ ] **Results Viewer**: New page to browse and load saved backtests/plots from `backtests/`.
-    - [ ] **Presets Loader**: UI to load saved presets from `presets/` to pre-fill backtest parameters.
+    - [x] **Results Viewer**: New page to browse and load saved backtests/plots from `backtests/`.
+    - [x] **Presets Loader**: UI to load saved presets from `presets/` to pre-fill backtest parameters.
 - [ ] **Web Dashboard Features**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
     - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
@@ -74,8 +74,8 @@ Moving towards a user-friendly product.
 - [ ] **Interactive Visualization**
     - [x] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** (Plotly used in Streamlit).
     - [ ] Display trade logs on the chart (buy/sell markers).
-- [ ] **Reporting**
-    - [ ] Generate comprehensive HTML tearsheets (similar to QuantStats).
+- [x] **Reporting**
+    - [x] Generate comprehensive HTML tearsheets (similar to QuantStats).
     - [ ] PDF export for strategy performance reports.
 
 ## Phase 4: Commercialization & Live Operations
@@ -90,6 +90,7 @@ Features needed for a production/distributed environment and live signal generat
         - [x] Extract the last row's signal (Buy/Sell/Hold).
     - [x] **CLI Tool**: `python run_signals.py --preset presets/MyStrategy.json` -> Outputs table of signals.
     - [ ] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
+    - [ ] **Further CLI Development**: `python main.py <series of flags and inputs>` -> Runs new backtests based on inputs.
 - [ ] **Live Trading Bridge**
     - [ ] Connect signals to broker APIs (Alpaca, Interactive Brokers, OANDA).
     - [ ] Paper trading mode.
@@ -97,7 +98,14 @@ Features needed for a production/distributed environment and live signal generat
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 12)
+## ✅ Completed in This Session (Session 13)
+- [x] **Dashboard Enhancements**:
+    - [x] **Results Viewer**: Created `pages/4_Results.py` to browse and visualize saved backtest artifacts.
+    - [x] **Presets Loader**: Added logic to `pages/1_Backtest.py` to load strategy parameters from JSON presets.
+- [x] **Reporting**:
+    - [x] **HTML Tearsheets**: Implemented `src/reporting.py` to generate standalone HTML reports with interactive Plotly charts.
+
+## ✅ Completed in Previous Session (Session 12)
 - [x] **Live Signal Generation**:
     - [x] Created `src/signals.py` to generate trading signals from saved presets.
     - [x] Verified output format and signal logic.
@@ -129,23 +137,22 @@ Features needed for a production/distributed environment and live signal generat
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-10) - Session 12
+## Session Summary (2026-01-10) - Session 13
 
 ### Accomplished
-- **Live Signals**: The system can now generate actionable "Buy/Sell/Hold" signals for "Today" using optimized strategy presets.
-- **Modular Dashboard**: The research hub is now a multi-page Streamlit app, making it easier to navigate and maintain.
-- **Expanded Universe**: Added key Sector ETFs to allow for sector rotation or correlation strategies.
+- **Dashboard Completion**: The dashboard now supports the full research loop: Backtest -> Optimize -> Save -> View Results -> Load Presets.
+- **Reporting**: Added a standalone reporting module that generates professional HTML tearsheets for any backtest.
 
 ### Next Session Priorities
-- **Dashboard Enhancements**:
-    - Implement "Results Viewer" to load saved backtests.
-    - Add "Presets Loader" to the UI.
-- **Live Trading Bridge**:
-    - Connect `src/signals.py` output to a paper trading API (e.g., Alpaca).
-- **Reporting**:
-    - Generate HTML tearsheets for backtests.
+- **Leftovers from Phase 1**:
+    - Complete config usage updates (better utilization of `config.yaml`).
+- **Finishing Phase 3**:
+    - Implement Dynamic Loading of strategies.
+    - Enhance visualization with trade logs on charts.
+- **Phase 4 Preparation**:
+    - Begin work on the Live Trading Bridge (Alpaca).
 
 ### Notes
-- **Running the Dashboard**: Use `streamlit run quanticon/ivy_bt/src/dashboard/Home.py`.
-- **Generating Signals**: Use `python quanticon/ivy_bt/src/signals.py path/to/preset.json`.
+- **Results Viewer**: Navigate to the "Results Viewer" page in the dashboard to analyze past runs.
+- **Reporting**: `generate_html_report(engine)` can be called to produce a file in `backtests/`.
 

@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import sys
 import os
+import json
 
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -34,6 +35,55 @@ StrategyClass = config['StrategyClass']
 sizer = config['sizer']
 stop_loss = config['stop_loss']
 
+# --- PRESETS LOADER ---
+PRESETS_DIR = os.path.join(os.getcwd(), "quanticon", "ivy_bt", "presets")
+if os.path.exists(PRESETS_DIR):
+    with st.sidebar.expander("Load Preset"):
+        preset_files = [f for f in os.listdir(PRESETS_DIR) if f.endswith('.json')]
+        # Filter presets that match current strategy name (simple check)
+        # Filename: {Strategy}_...
+        relevant_presets = [f for f in preset_files if f.startswith(strat_name.replace(" ", ""))]
+        
+        selected_preset_file = st.selectbox("Select Preset File", ["None"] + relevant_presets)
+        
+        if selected_preset_file != "None":
+            with open(os.path.join(PRESETS_DIR, selected_preset_file), 'r') as f:
+                presets_data = json.load(f)
+            
+            # Create options list
+            preset_options = []
+            for i, p in enumerate(presets_data[:5]): # Top 5
+                label = f"#{i+1}: Sharpe={p.get('Sharpe', 0):.2f}, Ret={p.get('Return', 0):.2%}"
+                preset_options.append((label, p))
+            
+            selected_preset_tuple = st.selectbox("Select Param Set", preset_options, format_func=lambda x: x[0])
+            
+            if st.button("Apply Preset"):
+                params = selected_preset_tuple[1]
+                # Map params to session state keys
+                if strat_name == "EMA Cross":
+                    st.session_state['ema_fast'] = int(params.get('fast', 10))
+                    st.session_state['ema_slow'] = int(params.get('slow', 50))
+                elif strat_name == "Bollinger Reversion":
+                    st.session_state['bb_length'] = int(params.get('length', 20))
+                    st.session_state['bb_std'] = float(params.get('std', 2.0))
+                elif strat_name == "RSI Reversal":
+                    st.session_state['rsi_length'] = int(params.get('length', 14))
+                    st.session_state['rsi_lower'] = int(params.get('lower', 30))
+                    st.session_state['rsi_upper'] = int(params.get('upper', 70))
+                elif "MACD" in strat_name:
+                    st.session_state['macd_fast'] = int(params.get('fast', 12))
+                    st.session_state['macd_slow'] = int(params.get('slow', 26))
+                    st.session_state['macd_signal'] = int(params.get('signal', 9))
+                elif strat_name == "Ichimoku Breakout":
+                    st.session_state['ichi_tenkan'] = int(params.get('tenkan', 9))
+                    st.session_state['ichi_kijun'] = int(params.get('kijun', 26))
+                    st.session_state['ichi_disp'] = int(params.get('displacement', 26))
+                
+                st.success("Parameters applied!")
+                st.rerun()
+
+
 st.title(f"Backtest: {strat_name}")
 
 # --- PARAMETERS ---
@@ -43,29 +93,29 @@ param_dict = {}
 col_p1, col_p2, col_p3 = st.columns(3)
 
 if strat_name == "EMA Cross":
-    with col_p1: fast = st.number_input("Fast MA", 5, 200, 10)
-    with col_p2: slow = st.number_input("Slow MA", 10, 500, 50)
+    with col_p1: fast = st.number_input("Fast MA", 5, 200, 10, key="ema_fast")
+    with col_p2: slow = st.number_input("Slow MA", 10, 500, 50, key="ema_slow")
     param_dict = {'fast': fast, 'slow': slow}
 elif strat_name == "Bollinger Reversion":
-    with col_p1: length = st.number_input("Length", 5, 200, 20)
-    with col_p2: std = st.number_input("Std Dev", 0.1, 5.0, 2.0)
+    with col_p1: length = st.number_input("Length", 5, 200, 20, key="bb_length")
+    with col_p2: std = st.number_input("Std Dev", 0.1, 5.0, 2.0, key="bb_std")
     param_dict = {'length': length, 'std': std}
 elif strat_name == "RSI Reversal":
-    with col_p1: length = st.number_input("Length", 2, 50, 14)
-    with col_p2: lower = st.number_input("Lower Bound", 10, 40, 30)
-    with col_p3: upper = st.number_input("Upper Bound", 60, 90, 70)
+    with col_p1: length = st.number_input("Length", 2, 50, 14, key="rsi_length")
+    with col_p2: lower = st.number_input("Lower Bound", 10, 40, 30, key="rsi_lower")
+    with col_p3: upper = st.number_input("Upper Bound", 60, 90, 70, key="rsi_upper")
     param_dict = {'length': length, 'lower': lower, 'upper': upper}
 elif "MACD" in strat_name:
-    with col_p1: fast = st.number_input("Fast", 5, 50, 12)
-    with col_p2: slow = st.number_input("Slow", 10, 100, 26)
-    with col_p3: signal = st.number_input("Signal", 2, 50, 9)
+    with col_p1: fast = st.number_input("Fast", 5, 50, 12, key="macd_fast")
+    with col_p2: slow = st.number_input("Slow", 10, 100, 26, key="macd_slow")
+    with col_p3: signal = st.number_input("Signal", 2, 50, 9, key="macd_signal")
     param_dict = {'fast': fast, 'slow': slow, 'signal': signal if 'Trend' not in strat_name else 9}
     if 'Trend' in strat_name:
          param_dict['signal_period'] = signal
 elif strat_name == "Ichimoku Breakout":
-    with col_p1: tenkan = st.number_input("Tenkan", 5, 20, 9)
-    with col_p2: kijun = st.number_input("Kijun", 20, 60, 26)
-    with col_p3: displacement = st.number_input("Displacement", 20, 30, 26)
+    with col_p1: tenkan = st.number_input("Tenkan", 5, 20, 9, key="ichi_tenkan")
+    with col_p2: kijun = st.number_input("Kijun", 20, 60, 26, key="ichi_kijun")
+    with col_p3: displacement = st.number_input("Displacement", 20, 30, 26, key="ichi_disp")
     param_dict = {'tenkan': tenkan, 'kijun': kijun, 'displacement': displacement}
 else:
     st.info("Using default parameters.")

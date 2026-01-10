@@ -54,6 +54,8 @@ forex_crosswalk = pd.DataFrame([
 
 forex_assets = forex_crosswalk['yfinance_symbol'].to_list()
 
+sector_etfs = ["IWM", "XLF", "XLV", "XLE", "XLK"]
+
 def get_sp500_crosswalk():
     """
     Retrieves S&P 500 tickers.
@@ -126,5 +128,7 @@ def get_assets(instrument_type="forex"):
         # Lazy load to avoid import-time network requests/errors
         df = get_sp500_crosswalk()
         return df['yfinance_symbol'].to_list()
+    elif instrument_type == "etf":
+        return sector_etfs
     else:
         return forex_assets

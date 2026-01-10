@@ -7,17 +7,18 @@ This document outlines the path from the current scripting-based backtester to a
 ## Phase 1: Foundation & Robustness (Immediate Priority)
 Refactoring the core engine to be more reliable, testable, and maintainable.
 
-- [x] **Data Management Layer**
+- [ ] **Data Management Layer**
     - [x] Implement local caching (SQLite or Parquet) to store downloaded `yfinance` data. Avoids rate limits and speeds up repeated backtests.
     - [x] Create a `DataManager` class to handle fetching, cleaning, and updating asset data.
-    - [ ] **Expand Instrument Universe**:
-        - [ ] Add support for "iwm" (Russell 2000 ETF).
-        - [ ] Add support for "xlf" (Financial Sector ETF).
-        - [ ] Add support for "xlv" (Healthcare Sector ETF).
-        - [ ] Add support for "xle" (Energy Sector ETF).
-        - [ ] Add support for "xlk" (Tech Sector ETF).
-- [x] **Configuration System**
+    - [x] **Expand Instrument Universe**:
+        - [x] Add support for "iwm" (Russell 2000 ETF).
+        - [x] Add support for "xlf" (Financial Sector ETF).
+        - [x] Add support for "xlv" (Healthcare Sector ETF).
+        - [x] Add support for "xle" (Energy Sector ETF).
+        - [x] Add support for "xlk" (Tech Sector ETF).
+- [ ] **Configuration System**
     - [x] Move hardcoded variables (dates, asset lists, API keys) from `main.py` to a `config.yaml` or `.env` file.
+    - [ ] **Config Usage Updates**: Restructure project to make better use of `config.py` and `config.yaml`.
     - [x] Use `pydantic` for config validation.
 - [x] **Testing Suite**
     - [x] Add `tests/` directory.
@@ -55,7 +56,13 @@ Enhancing the sophistication of the trading logic.
 ## Phase 3: UI & Interaction (The Research Hub)
 Moving towards a user-friendly product.
 
-- [ ] **Web Dashboard**
+- [x] **Web Dashboard Refactor** (Priority)
+    - [x] **Modularize**: Split monolithic `dashboard.py` into a multi-page Streamlit app.
+    - [ ] **Dynamic Loading**: Auto-detect strategies from `src/strategies.py` instead of hardcoding.
+    - [x] **Config Integration**: Load assets and defaults from `config.yaml` or `src/instruments.py`.
+    - [ ] **Results Viewer**: New page to browse and load saved backtests/plots from `backtests/`.
+    - [ ] **Presets Loader**: UI to load saved presets from `presets/` to pre-fill backtest parameters.
+- [ ] **Web Dashboard Features**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
     - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
     - [x] **Optimization UI**:
@@ -71,9 +78,17 @@ Moving towards a user-friendly product.
     - [ ] Generate comprehensive HTML tearsheets (similar to QuantStats).
     - [ ] PDF export for strategy performance reports.
 
-## Phase 4: Commercialization Prep
-Features needed for a production/distributed environment.
+## Phase 4: Commercialization & Live Operations
+Features needed for a production/distributed environment and live signal generation.
 
+- [x] **Live Signal Generation (Presets Implementation)** (Priority)
+    - [x] **Plan**: Design workflow to use `presets/*.json` to generate "Today's Signals".
+    - [x] **Implementation**: Create `src/signals.py` or `src/live_engine.py`.
+        - [x] Function to load a specific preset file.
+        - [x] Logic to fetch *latest* data (up to current minute/day).
+        - [x] Apply the saved strategy + parameters.
+        - [x] Extract the last row's signal (Buy/Sell/Hold).
+    - [x] **CLI Tool**: `python run_signals.py --preset presets/MyStrategy.json` -> Outputs table of signals.
 - [ ] **Live Trading Bridge**
     - [ ] Connect signals to broker APIs (Alpaca, Interactive Brokers, OANDA).
     - [ ] Paper trading mode.
@@ -81,7 +96,18 @@ Features needed for a production/distributed environment.
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 11)
+## ✅ Completed in This Session (Session 12)
+- [x] **Live Signal Generation**:
+    - [x] Created `src/signals.py` to generate trading signals from saved presets.
+    - [x] Verified output format and signal logic.
+- [x] **Web Dashboard Refactor**:
+    - [x] Migrated from monolithic `dashboard.py` to modular `src/dashboard/` structure.
+    - [x] Created `Home.py`, `utils.py`, and `pages/` for Backtest, Optimization, and WFO.
+- [x] **Data Expansion**:
+    - [x] Added support for Sector ETFs (IWM, XLF, etc.) in `instruments.py`.
+    - [x] Integrated new assets into the Dashboard presets.
+
+## ✅ Completed in Previous Session (Session 11)
 - [x] **Regime Filter Integration**:
     - [x] Analyzed and refactored `regime_filters.py`.
     - [x] Integrated `add_ar_garch_regime_filter` into `BacktestEngine.fetch_data()`.
@@ -102,20 +128,23 @@ Features needed for a production/distributed environment.
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-10) - Session 11
+## Session Summary (2026-01-10) - Session 12
 
 ### Accomplished
-- **Regime Awareness**: The engine now automatically tags data with market regime info (Trend, Volatility, Risk-Off).
-    - This allows strategies to adapt their logic based on the broader market context (e.g., "Only buy if `regime_dir == momentum`").
+- **Live Signals**: The system can now generate actionable "Buy/Sell/Hold" signals for "Today" using optimized strategy presets.
+- **Modular Dashboard**: The research hub is now a multi-page Streamlit app, making it easier to navigate and maintain.
+- **Expanded Universe**: Added key Sector ETFs to allow for sector rotation or correlation strategies.
 
 ### Next Session Priorities
-- **Data Expansion**:
-    - Update `instruments.py` to support the expanded stock universe (IWM, XLF, XLV, XLE, XLK) as outlined in `main.py`.
-- **Strategy Enhancement**:
-    - Create a strategy that explicitly uses the new regime columns (e.g., a "Regime Switching" strategy).
+- **Dashboard Enhancements**:
+    - Implement "Results Viewer" to load saved backtests.
+    - Add "Presets Loader" to the UI.
+- **Live Trading Bridge**:
+    - Connect `src/signals.py` output to a paper trading API (e.g., Alpaca).
 - **Reporting**:
-    - Generate comprehensive HTML tearsheets.
+    - Generate HTML tearsheets for backtests.
 
 ### Notes
-- **New Columns**: Strategies can now access `df['regime_dir']`, `df['regime_vol']`, etc.
+- **Running the Dashboard**: Use `streamlit run quanticon/ivy_bt/src/dashboard/Home.py`.
+- **Generating Signals**: Use `python quanticon/ivy_bt/src/signals.py path/to/preset.json`.
 

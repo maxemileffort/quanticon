@@ -39,14 +39,14 @@ python -m unittest discover tests
 
 The easiest way to run a backtest with automatic optimization is using the **Backtest Template**.
 
-1.  Open `backtest_template.py`.
+1.  Open `main.py`.
 2.  Select your strategy in the configuration section:
     ```python
     STRATEGY_CLASS = EMACross  # or BollingerReversion, etc.
     ```
 3.  Run the script:
     ```bash
-    python backtest_template.py
+    python main.py
     ```
 
 The script will:
@@ -58,28 +58,28 @@ The script will:
 *   Save results to `backtests/` (JSON metrics, CSV equity curves, MC stats, **Interactive HTML Plots**).
 *   **Save Presets**: Extract and save the top 5 performing parameter sets to `presets/` for future reference.
 
-## Usage (Advanced)
-
-For more custom workflows, you can use `main.py` or the interactive dashboard.
-
-To run the default `main.py` flow:
-
-```bash
-python main.py
-```
-
 ### Web Dashboard
 
 To use the interactive dashboard:
 
 ```bash
-streamlit run src/dashboard.py
+streamlit run src/dashboard/Home.py
 ```
 
 The dashboard now features three modes:
 1.  **Backtest**: Run single simulations, visualize equity curves, drawdowns, and run Monte Carlo analysis. Includes an "Optimize Universe" tool to filter assets.
 2.  **Grid Optimization**: Run parameter sweeps (Grid Search) and visualize results with interactive heatmaps.
 3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
+
+### Live Signals
+
+To generate actionable "Buy/Sell/Hold" signals for the current day using a saved preset:
+
+```bash
+python src/signals.py presets/MyStrategy_Preset.json
+```
+
+This will fetch the latest data, run the strategy with the optimized parameters, and output the signal for the most recent close.
 
 ### Configuration
 
@@ -103,8 +103,7 @@ data:
 
 ## Project Structure
 
--   `backtest_template.py`: The primary research entry point. Use this to plug in strategies and run auto-optimized backtests.
--   `main.py`: The legacy script to configure and run backtests and optimizations.
+-   `main.py`: The primary research entry point. Use this to plug in strategies and run auto-optimized backtests.
 -   `config.yaml`: Configuration file for backtest parameters.
 -   `src/`:
     -   `engine.py`: Contains the `BacktestEngine` class which coordinates the backtesting workflow.

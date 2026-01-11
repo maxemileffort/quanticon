@@ -20,6 +20,7 @@ class BacktestEngine:
                  , tickers
                  , start_date
                  , end_date=datetime.today().strftime('%Y-%m-%d')
+                 , interval='1d'
                  , benchmark='SPY'
                  , data_config=None
                  , position_sizer=None
@@ -27,6 +28,7 @@ class BacktestEngine:
         self.tickers = tickers
         self.start_date = start_date
         self.end_date = end_date
+        self.interval = interval
         self.benchmark_ticker = benchmark
         self.data_config = data_config
         self.data_manager = DataManager(self.data_config)
@@ -48,11 +50,27 @@ class BacktestEngine:
         self.benchmark_data = None
         self.strat_name = 'MyStrategy'
 
+    @property
+    def annualization_factor(self):
+        """Returns the annualization factor based on the data interval."""
+        if self.interval == '1m': return 252 * 390
+        if self.interval == '2m': return 252 * 195
+        if self.interval == '5m': return 252 * 78
+        if self.interval == '15m': return 252 * 26
+        if self.interval == '30m': return 252 * 13
+        if self.interval in ['60m', '1h']: return 252 * 7
+        if self.interval == '90m': return 252 * 4
+        if self.interval == '1d': return 252
+        if self.interval in ['5d', '1wk']: return 52
+        if self.interval == '1mo': return 12
+        if self.interval == '3mo': return 4
+        return 252
+
     def fetch_data(self):
         """Downloads data for assets and the benchmark."""
         # Use DataManager to fetch asset data
-        logging.info("Fetching asset data via DataManager...")
-        self.data = self.data_manager.fetch_data(self.tickers, self.start_date, self.end_date)
+        logging.info(f"Fetching asset data via DataManager (Interval: {self.interval})...")
+        self.data = self.data_manager.fetch_data(self.tickers, self.start_date, self.end_date, self.interval)
         
         # Apply Regime Filters
         logging.info("Applying AR-GARCH Regime Filters...")
@@ -66,7 +84,9 @@ class BacktestEngine:
 
         # Fetch Benchmark
         logging.info(f"Fetching benchmark data ({self.benchmark_ticker})...")
-        bench = self.data_manager.fetch_benchmark(self.benchmark_ticker, self.start_date, self.end_date)
+        # Benchmark usually daily, but if we are sub-daily, we might want sub-daily benchmark if available?
+        # For now, keep benchmark at same interval as data for correlation checks
+        bench = self.data_manager.fetch_data([self.benchmark_ticker], self.start_date, self.end_date, self.interval).get(self.benchmark_ticker)
         
         if bench is not None and not bench.empty:
             bench['log_return'] = np.log(bench['close'] / bench['close'].shift(1))
@@ -171,8 +191,8 @@ class BacktestEngine:
         # 3. Sortino Ratio (Downside Deviation)
         # Target return = 0
         downside_rets = simple_rets[simple_rets < 0]
-        downside_dev = np.sqrt((downside_rets**2).mean()) * np.sqrt(252)
-        ann_ret = np.exp(returns.mean() * 252) - 1
+        downside_dev = np.sqrt((downside_rets**2).mean()) * np.sqrt(self.annualization_factor)
+        ann_ret = np.exp(returns.mean() * self.annualization_factor) - 1
         sortino = ann_ret / downside_dev if downside_dev != 0 else 0
         
         # 4. Calmar Ratio
@@ -227,8 +247,8 @@ class BacktestEngine:
 
         returns = net_returns.dropna()
         cum_return = np.exp(returns.sum()) - 1
-        ann_return = np.exp(returns.mean() * 252) - 1
-        ann_vol = returns.std() * np.sqrt(252)
+        ann_return = np.exp(returns.mean() * self.annualization_factor) - 1
+        ann_vol = returns.std() * np.sqrt(self.annualization_factor)
         sharpe = ann_return / ann_vol if ann_vol != 0 else 0
 
         cum_rets = np.exp(returns.cumsum())
@@ -308,8 +328,8 @@ class BacktestEngine:
 
         # 3. Portfolio Metrics
         port_total_ret = portfolio_cum_growth.iloc[-1] - 1
-        port_ann_ret = np.exp(portfolio_log_returns.mean() * 252) - 1
-        port_ann_vol = portfolio_log_returns.std() * np.sqrt(252)
+        port_ann_ret = np.exp(portfolio_log_returns.mean() * self.annualization_factor) - 1
+        port_ann_vol = portfolio_log_returns.std() * np.sqrt(self.annualization_factor)
         port_sharpe = port_ann_ret / port_ann_vol if port_ann_vol != 0 else 0
 
         logging.info(f"\n=== AGGREGATE PORTFOLIO REPORT: {self.strat_name} ===")
@@ -711,8 +731,8 @@ class BacktestEngine:
           # Calculate Metrics (Dropping the first NaN from the shift)
           clean_rets = portfolio_rets.dropna()
           if len(clean_rets) > 0:
-              ann_ret = np.exp(clean_rets.mean() * 252) - 1
-              ann_vol = clean_rets.std() * np.sqrt(252)
+              ann_ret = np.exp(clean_rets.mean() * self.annualization_factor) - 1
+              ann_vol = clean_rets.std() * np.sqrt(self.annualization_factor)
               sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
           else:
               ann_ret, sharpe = 0, 0
@@ -803,8 +823,8 @@ class BacktestEngine:
             # Calculate Metrics (Dropping the first NaN from the shift)
             clean_rets = portfolio_rets.dropna()
             if len(clean_rets) > 0:
-                ann_ret = np.exp(clean_rets.mean() * 252) - 1
-                ann_vol = clean_rets.std() * np.sqrt(252)
+                ann_ret = np.exp(clean_rets.mean() * self.annualization_factor) - 1
+                ann_vol = clean_rets.std() * np.sqrt(self.annualization_factor)
                 sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
             else:
                 ann_ret, sharpe = 0, 0

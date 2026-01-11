@@ -108,28 +108,80 @@ if 'grid_results' in st.session_state and not st.session_state['grid_results'].e
     else:
         st.info("Need at least 2 parameters to plot a heatmap.")
 
-    # --- SAVE PRESETS ---
-    st.subheader("Save Results")
-    if st.button("Save Top 5 Presets"):
-        # Create Presets Directory
-        presets_dir = os.path.join(project_root, 'presets')
-        os.makedirs(presets_dir, exist_ok=True)
-        
-        # Determine Instrument Type from Session State or Default
-        instrument_type = st.session_state.get('preset_selection', 'Custom').replace(" ", "")
-        
-        # Generate Filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{strat_name}_{instrument_type}_Optimized_{timestamp}"
-        presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
-        
-        # Extract Top 5
-        top_5 = df_res.sort_values(by="Sharpe", ascending=False).head(5)
-        top_5_list = top_5.to_dict(orient='records')
-        
+    # --- PARALLEL COORDINATES ---
+    if st.checkbox("Show Parallel Coordinates"):
         try:
-            with open(presets_path, 'w') as f:
-                json.dump(top_5_list, f, indent=4)
-            st.success(f"Top 5 presets saved to: {presets_path}")
+            # Determine color column
+            color_col = "Sharpe"
+            if "Sharpe" not in df_res.columns and "Return" in df_res.columns:
+                color_col = "Return"
+            
+            # Select dimensions: Params + Metric
+            dims = keys + [color_col]
+            fig_pc = px.parallel_coordinates(df_res, color=color_col, dimensions=dims,
+                                             color_continuous_scale=px.colors.diverging.Tealrose)
+            st.plotly_chart(fig_pc, use_container_width=True)
         except Exception as e:
-            st.error(f"Failed to save presets: {e}")
+            st.warning(f"Could not generate Parallel Coordinates: {e}")
+
+    # --- SAVE RESULTS ---
+    st.subheader("Save Results")
+    col_save1, col_save2 = st.columns(2)
+    
+    with col_save1:
+        if st.button("Save Top 5 Presets"):
+            # Create Presets Directory
+            presets_dir = os.path.join(project_root, 'presets')
+            os.makedirs(presets_dir, exist_ok=True)
+            
+            # Determine Instrument Type from Session State or Default
+            instrument_type = st.session_state.get('preset_selection', 'Custom').replace(" ", "")
+            
+            # Generate Filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            run_id = f"{strat_name}_{instrument_type}_Optimized_{timestamp}"
+            presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
+            
+            # Extract Top 5
+            top_5 = df_res.sort_values(by="Sharpe", ascending=False).head(5)
+            top_5_list = top_5.to_dict(orient='records')
+            
+            try:
+                with open(presets_path, 'w') as f:
+                    json.dump(top_5_list, f, indent=4)
+                st.success(f"Top 5 presets saved to: {presets_path}")
+            except Exception as e:
+                st.error(f"Failed to save presets: {e}")
+
+    with col_save2:
+        if st.button("Save Full Optimization Results"):
+            # Use standardized structure: backtests/{run_id}/
+            backtests_dir = os.path.join(project_root, 'backtests')
+            os.makedirs(backtests_dir, exist_ok=True)
+            
+            instrument_type = st.session_state.get('preset_selection', 'Custom').replace(" ", "")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            run_id = f"{strat_name}_{instrument_type}_Optimized_{timestamp}"
+            
+            run_dir = os.path.join(backtests_dir, run_id)
+            os.makedirs(run_dir, exist_ok=True)
+            
+            try:
+                # 1. Save CSV
+                csv_path = os.path.join(run_dir, "grid_results.csv")
+                df_res.to_csv(csv_path, index=False)
+                
+                # 2. Save Parallel Coords HTML if possible
+                try:
+                    color_col = "Sharpe"
+                    dims = keys + [color_col]
+                    fig_pc = px.parallel_coordinates(df_res, color=color_col, dimensions=dims,
+                                                     color_continuous_scale=px.colors.diverging.Tealrose)
+                    html_path = os.path.join(run_dir, "parallel_coords.html")
+                    fig_pc.write_html(html_path)
+                except:
+                    pass
+                
+                st.success(f"Results saved to backtests/{run_id}/")
+            except Exception as e:
+                st.error(f"Failed to save optimization results: {e}")

@@ -9,7 +9,7 @@ class DataManager:
     def __init__(self, config: DataConfig):
         self.config = config
 
-    def fetch_data(self, tickers, start_date, end_date):
+    def fetch_data(self, tickers, start_date, end_date, interval='1d'):
         """
         Fetches data for multiple tickers, handling caching and basic cleaning.
         Returns a dictionary of DataFrames {ticker: df}.
@@ -20,9 +20,9 @@ class DataManager:
         df = None
         # Cache Handling
         if self.config and self.config.cache_enabled:
-            # Create unique hash for this request
+            # Create unique hash for this request including interval
             ticker_str = "".join(sorted(tickers))
-            req_hash = hashlib.md5(f"{ticker_str}{start_date}{end_date}".encode()).hexdigest()
+            req_hash = hashlib.md5(f"{ticker_str}{start_date}{end_date}{interval}".encode()).hexdigest()
             cache_file = f"cache_{req_hash}.parquet"
             cache_path = os.path.join(self.config.cache_dir, cache_file)
             
@@ -37,14 +37,14 @@ class DataManager:
                     logging.warning(f"Error reading cache: {e}")
             
             if df is None:
-                logging.info("Downloading data from yfinance...")
-                df = yf.download(tickers, start=start_date, end=end_date, group_by='ticker')
+                logging.info(f"Downloading data from yfinance (Interval: {interval})...")
+                df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
                 try:
                     df.to_parquet(cache_path)
                 except Exception as e:
                     logging.warning(f"Error saving cache: {e}")
         else:
-            df = yf.download(tickers, start=start_date, end=end_date, group_by='ticker')
+            df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
 
         data = {}
         # yfinance with group_by='ticker' returns a MultiIndex DataFrame if multiple tickers are requested.

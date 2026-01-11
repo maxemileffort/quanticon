@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-10
+Last Updated: 2026-01-11
 
 This document outlines the path from the current scripting-based backtester to a commercial-grade quantitative research hub.
 
@@ -162,29 +162,40 @@ Features needed for a production/distributed environment and live signal generat
 - **Signals**: Added Volatility-Weighted Sizing to `signals.py` for risk-adjusted trade sizing.
 - **Optimization**: Implemented "Save Top 5 Presets" in the Optimization dashboard to persist grid search results.
 
-## ✅ Completed in This Session (Session 16)
-- [x] **Backtest Dashboard**:
-    - [x] Implemented "Risk Analysis" section (VaR, Sortino, Calmar, Win Rate).
-    - [x] Added "Save Results" functionality (Saves Metrics JSON, Equity Curve CSV, and HTML Report).
-    - [x] **Ad Hoc**: Added "Import Preset" feature to load JSON strategy parameters.
-- [x] **Reporting**:
-    - [x] Implemented PDF Tearsheet generation using Matplotlib (`src/reporting.py`).
-- [x] **Testing**:
-    - [x] Created `tests/test_signals.py` covering signal generation logic.
+## ✅ Completed in This Session (Session 17)
+- [x] **Multi-Timeframe Support**:
+    - [x] Added `interval` support to Config, DataManager, and Engine.
+    - [x] Implemented dynamic annualization factor based on data frequency (e.g., 1h, 5m).
+    - [x] Verified with `tests/test_intraday.py`.
+- [x] **Refactoring**:
+    - [x] Split monolithic `engine.py` into a modular package `src/engine/` containing:
+        - `core.py`: Main `BacktestEngine` class.
+        - `optimization.py`: Optimization logic (Grid, Random, WFO).
+        - `analysis.py`: Risk metrics and Monte Carlo.
+        - `reporting.py`: Plotting and report generation.
+    - [x] Renamed original `src/engine.py` to `src/engine_legacy.py`.
+- [x] **Standardize Result Saving**:
+    - [x] Updated `main.py` to save results in timestamped subdirectories (`backtests/{run_id}/`).
+    - [x] Updated `4_Results.py` dashboard page to parse and load from subdirectories.
+- [x] **Optimization UI Improvements**:
+    - [x] Added **Parallel Coordinates** plot to `2_Optimization.py`.
+    - [x] Added "Save Full Optimization Results" functionality to the UI.
+- [x] **Comparison UI**:
+    - [x] Created `5_Comparison.py` to compare metrics and equity curves of multiple backtest runs side-by-side.
 
-## Session Summary (2026-01-10) - Session 16
+## Session Summary (2026-01-11) - Session 17
 
 ### Accomplished
-- **Risk Metrics**: Added advanced risk metrics (VaR, Sortino, Calmar) to `engine.py`.
-- **Dashboard Upgrade**: Integrated risk analysis and results saving into the Backtest dashboard.
-- **Preset Import**: Added file uploader to "Backtest" page to import strategy presets from JSON files.
-- **Reporting**: Added PDF export functionality.
-- **Reliability**: Verified signal generation with new unit tests.
+- **Modular Architecture**: Successfully refactored the core engine into a maintainable package structure using Mixins.
+- **Intraday Backtesting**: Enabled testing strategies on lower timeframes (1h, 15m, etc.) with correct annualization.
+- **Enhanced Analysis**: Added powerful visualization tools (Parallel Coordinates) and comparison capabilities.
+- **Standardization**: Unified how results are saved and accessed across the CLI and Dashboard.
 
 ### Next Session Priorities
-- **More timeframes**: Currently we can only do daily time frames. Add support for lower timeframes, down to 1 minute on yfinance.
-- **Optimization UI Improvements**: Add toggle to also view parallel coordinates. Parallel coordinates also needs to be included in the optimization results outputs.
-- **Comparison UI**: Build a page to compare multiple backtest runs.
-- **Refactoring**: 
-    - [ ] Split `engine.py` into smaller modules.
-    - [ ] **Standardize Result Saving**: Align `main.py` and `1_Backtest.py` output formats. `main.py` saves flat files, while `1_Backtest.py` uses timestamped subdirectories. `4_Results.py` needs to support the subdirectory structure.
+- **Live Trading Bridge**: Begin implementing the connection to broker APIs (Alpaca/IBKR) for paper trading.
+- **Strategy Expansion**: Implement more sophisticated strategies (e.g., Pairs Trading using Cointegration) leveraging the new multi-asset/timeframe capabilities.
+- **Documentation**: Update docstrings and generate API documentation for the new modular engine.
+
+## Architecture Decisions
+- **Engine Split**: `BacktestEngine` uses a Mixin pattern (`OptimizationMixin`, `AnalysisMixin`, `ReportingMixin`) to separate concerns while maintaining a unified API surface.
+- **Result Structure**: All backtest artifacts are now strictly saved in `backtests/{run_id}/` directories to support scalability and easier management.

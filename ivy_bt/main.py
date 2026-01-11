@@ -68,7 +68,7 @@ def run_backtest(strat_override = None, instrument_override = None):
     setup_logging()
     logging.info(f"--- Starting Backtest Template with Auto-Optimization ---")
 
-    # TODO: implement override logics from argparser.
+    # TODO: finish, clean up, and document implementation of override logics from argparser.
     accepted_strat_overrides = {
         'ema': EMACross,
         'bb': BollingerReversion, 
@@ -182,7 +182,12 @@ def run_backtest(strat_override = None, instrument_override = None):
         # Save Grid Search Results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{strat_name}_{INSTRUMENT_TYPE}_Optimized_{timestamp}"
-        grid_path = os.path.join(BACKTEST_DIR, f"{run_id}_grid_results.csv")
+        
+        # Create Run Directory
+        run_dir = os.path.join(BACKTEST_DIR, run_id)
+        os.makedirs(run_dir, exist_ok=True)
+        
+        grid_path = os.path.join(run_dir, "grid_results.csv")
         grid_results.to_csv(grid_path)
         logging.info(f"Grid search results saved to: {grid_path}")
 
@@ -205,7 +210,11 @@ def run_backtest(strat_override = None, instrument_override = None):
              try:
                  # We pass the metric used for optimization
                  grid_results_clean = grid_results.dropna()
-                 analyze_complex_grid(grid_results_clean, target_metric=METRIC, output_dir=BACKTEST_DIR, run_id=run_id)
+                 # analyze_complex_grid saves as {run_id}_parallel_coords.html in output_dir
+                 # We want it in run_dir as parallel_coords.html. 
+                 # We might need to adjust analyze_complex_grid or just let it save and move it.
+                 # For now, let's point it to run_dir
+                 analyze_complex_grid(grid_results_clean, target_metric=METRIC, output_dir=run_dir, run_id="analysis")
              except Exception as e:
                  logging.error(f"Failed to generate grid analysis: {e}")
 
@@ -229,9 +238,11 @@ def run_backtest(strat_override = None, instrument_override = None):
     # If run_id wasn't set in the else block (case: no grid)
     if 'run_id' not in locals():
         run_id = f"{strat_name}_{timestamp}"
+        run_dir = os.path.join(BACKTEST_DIR, run_id)
+        os.makedirs(run_dir, exist_ok=True)
 
     # Save Best Run Metrics (JSON)
-    metrics_path = os.path.join(BACKTEST_DIR, f"{run_id}_metrics.json")
+    metrics_path = os.path.join(run_dir, "metrics.json")
     output_data = {
         "metadata": {
             "strategy": strat_name,
@@ -263,7 +274,7 @@ def run_backtest(strat_override = None, instrument_override = None):
         df_rets['Portfolio'] = df_rets.mean(axis=1)
         equity_curve = np.exp(df_rets['Portfolio'].cumsum())
         
-        equity_path = os.path.join(BACKTEST_DIR, f"{run_id}_equity.csv")
+        equity_path = os.path.join(run_dir, "equity_curve.csv")
         equity_curve.to_csv(equity_path)
         logging.info(f"Equity curve saved to: {equity_path}")
 
@@ -272,7 +283,7 @@ def run_backtest(strat_override = None, instrument_override = None):
         logging.info("--- Starting Monte Carlo Simulation ---")
         mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=ENABLE_PLOTTING)
         
-        mc_path = os.path.join(BACKTEST_DIR, f"{run_id}_monte_carlo.json")
+        mc_path = os.path.join(run_dir, "monte_carlo.json")
         with open(mc_path, 'w') as f:
             json.dump(mc_metrics, f, indent=4)
         logging.info(f"Monte Carlo metrics saved to: {mc_path}")
@@ -293,11 +304,11 @@ def run_backtest(strat_override = None, instrument_override = None):
         )
         
         if not oos_equity.empty:
-            wfo_path = os.path.join(BACKTEST_DIR, f"{run_id}_wfo_equity.csv")
+            wfo_path = os.path.join(run_dir, "wfo_equity.csv")
             oos_equity.to_csv(wfo_path)
             logging.info(f"WFO Equity saved to: {wfo_path}")
             
-            wfo_log_path = os.path.join(BACKTEST_DIR, f"{run_id}_wfo_params.csv")
+            wfo_log_path = os.path.join(run_dir, "wfo_params.csv")
             wfo_log.to_csv(wfo_log_path)
 
     logging.info("Backtest Complete.")

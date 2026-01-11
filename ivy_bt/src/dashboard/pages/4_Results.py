@@ -18,18 +18,25 @@ if not os.path.exists(BACKTESTS_DIR):
 
 # Helper to parse filenames
 def parse_backtest_files(directory):
-    files = os.listdir(directory)
+    items = os.listdir(directory)
     runs = {}
     
-    for f in files:
-        if f.endswith(('.csv', '.json', '.html', '.png')):
-            # Expected format: {Strategy}_{InstrumentType}_Optimized_{Timestamp}_{Type}.{ext}
-            # Or just {Strategy}_...
-            # We look for the timestamp part to group them.
-            # Splitting by '_'
+    for item in items:
+        item_path = os.path.join(directory, item)
+        
+        # 1. Check for Subdirectories (Standard Format)
+        if os.path.isdir(item_path):
+            run_id = item
+            # List files inside
+            files = os.listdir(item_path)
+            # Store relative paths from BACKTESTS_DIR
+            runs[run_id] = [os.path.join(run_id, f) for f in files]
+            
+        # 2. Check for Flat Files (Legacy Format)
+        elif item.endswith(('.csv', '.json', '.html', '.png')):
+            f = item
             parts = f.split('_')
             
-            # Find the timestamp part (usually 2026xxxx)
             timestamp_idx = -1
             for i, part in enumerate(parts):
                 if len(part) == 8 and part.isdigit() and part.startswith('20'):
@@ -37,21 +44,10 @@ def parse_backtest_files(directory):
                     break
             
             if timestamp_idx != -1 and timestamp_idx + 1 < len(parts):
-                # Run ID includes up to the time part (which is usually after the date)
-                # Timestamp format in filenames: YYYYMMDD_HHMMSS
-                # So we look for the date, then the next part is likely time.
-                date_part = parts[timestamp_idx]
-                time_part = parts[timestamp_idx + 1]
-                
                 run_id = "_".join(parts[:timestamp_idx + 2])
-                file_type = "_".join(parts[timestamp_idx + 2:])
-                
                 if run_id not in runs:
                     runs[run_id] = []
                 runs[run_id].append(f)
-            else:
-                # Fallback or different naming convention
-                pass
                 
     return runs
 
@@ -63,7 +59,18 @@ if not runs:
 
 # Sort runs by timestamp (newest first)
 # Run ID format usually ends with YYYYMMDD_HHMMSS
-sorted_run_ids = sorted(runs.keys(), key=lambda x: x.split('_')[-2] + x.split('_')[-1], reverse=True)
+def get_sort_key(run_id):
+    try:
+        parts = run_id.split('_')
+        # Attempt to find date and time at end
+        if len(parts) >= 2 and parts[-2].isdigit() and len(parts[-2]) == 8 and parts[-1].isdigit() and len(parts[-1]) == 6:
+             return parts[-2] + parts[-1]
+        else:
+             return run_id
+    except:
+        return run_id
+
+sorted_run_ids = sorted(runs.keys(), key=get_sort_key, reverse=True)
 
 selected_run = st.selectbox("Select Backtest Run", sorted_run_ids)
 

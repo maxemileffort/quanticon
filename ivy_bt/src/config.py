@@ -5,6 +5,7 @@ from typing import Literal
 class BacktestConfig(BaseModel):
     start_date: str
     end_date: str
+    interval: str = "1d"
     instrument_type: Literal["forex", "crypto", "spy", "iwm", "xlf", "xlv", "xle", "xlk"]
 
 class DataConfig(BaseModel):

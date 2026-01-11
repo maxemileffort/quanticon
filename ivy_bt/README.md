@@ -68,10 +68,11 @@ To use the interactive dashboard:
 streamlit run src/dashboard/Home.py
 ```
 
-The dashboard now features three modes:
+The dashboard now features four modes:
 1.  **Backtest**: Run single simulations, visualize equity curves, drawdowns, and run Monte Carlo analysis. Includes an "Optimize Universe" tool to filter assets.
-2.  **Grid Optimization**: Run parameter sweeps (Grid Search), visualize results with interactive heatmaps, and **save top performing parameter sets**.
+2.  **Grid Optimization**: Run parameter sweeps (Grid Search), visualize results with interactive heatmaps and **Parallel Coordinates**, and save results.
 3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
+4.  **Comparison**: Select multiple backtest runs to compare their metrics and equity curves side-by-side.
 
 ### Live Signals
 
@@ -93,7 +94,7 @@ This will fetch the latest data, run the strategy with the optimized parameters,
 
 Configuration is managed via `config.yaml`. You can customize:
 
--   **Backtest Settings**: `start_date`, `end_date`, and `instrument_type` (forex/crypto/stocks).
+-   **Backtest Settings**: `start_date`, `end_date`, `interval` (1d, 1h, 5m), and `instrument_type`.
 -   **Data Settings**: Enable/disable caching and set cache directory.
 
 Example `config.yaml`:
@@ -101,6 +102,7 @@ Example `config.yaml`:
 backtest:
   start_date: "2023-01-01"
   end_date: "2025-12-01"
+  interval: "1d"
   instrument_type: "forex"
 
 data:
@@ -121,7 +123,7 @@ optimization:
 -   `main.py`: The primary research entry point. Use this to plug in strategies and run auto-optimized backtests.
 -   `config.yaml`: Configuration file for backtest parameters.
 -   `src/`:
-    -   `engine.py`: Contains the `BacktestEngine` class which coordinates the backtesting workflow.
+    -   `engine/`: Core engine package containing `BacktestEngine` (refactored into modular components).
     -   `strategies.py`: Implementations of trading strategies (e.g., `EMACross`, `BollingerReversion`, `RSIReversal`).
     -   `regime_filters.py`: Logic for detecting market regimes (AR, GARCH).
     -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`, `KellySizer`).

@@ -1,8 +1,9 @@
 docs/*guidelines*.md
 docs/*prompt.md
-docs/ideas.md
+docs/ideas*.md
 
 *.log
+.cache
 
 /data
 /presets

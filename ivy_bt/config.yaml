@@ -1,6 +1,6 @@
 backtest:
   start_date: "2020-01-01"
-  end_date: "2025-12-01"
+  end_date: "2026-01-10"
   instrument_type: "forex"
 
 data:

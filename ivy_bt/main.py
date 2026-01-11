@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -13,7 +14,8 @@ from src.strategies import (
     MACDReversal, 
     MACDTrend, 
     TurtleTradingSystem,
-    IchimokuCloudBreakout
+    IchimokuCloudBreakout,
+    TradingMadeSimpleTDIHeikinAshi
 )
 from src.instruments import get_assets
 from src.config import load_config
@@ -29,7 +31,7 @@ config = load_config()
 
 # 1. Select Strategy
 # The script will automatically infer the parameter grid using .get_default_grid()
-STRATEGY_CLASS = RSIReversal
+STRATEGY_CLASS = TradingMadeSimpleTDIHeikinAshi
 
 # 2. Select Instruments
 # Options: "forex", "crypto", 
@@ -61,10 +63,41 @@ BACKTEST_DIR = os.path.join(BASE_DIR, 'backtests')
 # MAIN EXECUTION
 # ==========================================
 
-def run_backtest():
+def run_backtest(strat_override = None, instrument_override = None):
     # Setup logging
     setup_logging()
     logging.info(f"--- Starting Backtest Template with Auto-Optimization ---")
+
+    # TODO: implement override logics from argparser.
+    accepted_strat_overrides = {
+        'ema': EMACross,
+        'bb': BollingerReversion, 
+        'rsi': RSIReversal, 
+        'newsom': Newsom10Strategy, 
+        'macdr': MACDReversal, 
+        'macdt': MACDTrend, 
+        'turtle': TurtleTradingSystem,
+        'ichi': IchimokuCloudBreakout,
+        'tms': TradingMadeSimpleTDIHeikinAshi
+    }
+    accepted_inst_overrides = {
+        'forex': 'forex',
+        'crypto': 'crypto', 
+        'spy': 'spy', 
+        'etf': 'etf'
+        
+    }
+    if strat_override:
+        if strat_override in accepted_strat_overrides.keys():
+            STRATEGY_CLASS = accepted_strat_overrides[strat_override]
+        else: 
+            pass
+
+    if instrument_override:
+        if instrument_override in accepted_inst_overrides.keys():
+            INSTRUMENT_TYPE = accepted_inst_overrides[instrument_override]
+        else:
+            pass
     
     # 1. Determine Tickers
     if CUSTOM_TICKERS:
@@ -120,7 +153,7 @@ def run_backtest():
         else:
             # 6. Run Random Search Optimization
             logging.info(f"Running Random Search...")
-            grid_results = engine.run_random_search(STRATEGY_CLASS, param_grid)
+            grid_results = engine.run_random_search(STRATEGY_CLASS, param_grid, n_iter=500)
         
         if grid_results.empty:
             logging.error("Grid search returned no results.")
@@ -270,4 +303,10 @@ def run_backtest():
     logging.info("Backtest Complete.")
 
 if __name__ == "__main__":
-    run_backtest()
+    parser = argparse.ArgumentParser(description="Generate Live Signals from Preset")
+    parser.add_argument("--strat_override", "-so", type=str, help="Use specific strategy", default=None)
+    parser.add_argument("--instrument_override", "-ino", type=str, help="Use specific instrument group", default=None)
+    
+    args = parser.parse_args()
+
+    run_backtest(args.strat_override, args.instrument_override)

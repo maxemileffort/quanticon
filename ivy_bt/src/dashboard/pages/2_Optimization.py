@@ -73,6 +73,8 @@ if st.button(f"Run {search_method}", type="primary"):
 # --- RESULTS ---
 if 'grid_results' in st.session_state and not st.session_state['grid_results'].empty:
     df_res = st.session_state['grid_results']
+    reorder_cols = ['Sharpe', 'Return'] + [c for c in df_res.columns if c != 'Sharpe' and c != 'Return']
+    df_res = df_res[reorder_cols]
     
     st.subheader("Top Results")
     st.dataframe(df_res.sort_values(by="Sharpe", ascending=False).head(10))

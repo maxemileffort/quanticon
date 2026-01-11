@@ -162,15 +162,6 @@ Features needed for a production/distributed environment and live signal generat
 - **Signals**: Added Volatility-Weighted Sizing to `signals.py` for risk-adjusted trade sizing.
 - **Optimization**: Implemented "Save Top 5 Presets" in the Optimization dashboard to persist grid search results.
 
-### Next Session Priorities
-- **Web Dashboard**:
-    - [ ] Implement "Compare Backtests" page (overlay multiple saved runs).
-    - [ ] Add "Live Trading" tab to view today's signals directly in dashboard.
-- **Documentation**:
-    - [ ] Write a tutorial on "How to Add a New Strategy".
-- **Refactoring**:
-    - [ ] Move `BacktestEngine` classes into separate files (split `engine.py`).
-
 ## ✅ Completed in This Session (Session 16)
 - [x] **Backtest Dashboard**:
     - [x] Implemented "Risk Analysis" section (VaR, Sortino, Calmar, Win Rate).
@@ -191,8 +182,9 @@ Features needed for a production/distributed environment and live signal generat
 - **Reliability**: Verified signal generation with new unit tests.
 
 ### Next Session Priorities
+- **More timeframes**: Currently we can only do daily time frames. Add support for lower timeframes, down to 1 minute on yfinance.
+- **Optimization UI Improvements**: Add toggle to also view parallel coordinates. Parallel coordinates also needs to be included in the optimization results outputs.
 - **Comparison UI**: Build a page to compare multiple backtest runs.
-- **Live Signals UI**: Integrate `signals.py` output into the dashboard.
 - **Refactoring**: 
     - [ ] Split `engine.py` into smaller modules.
     - [ ] **Standardize Result Saving**: Align `main.py` and `1_Backtest.py` output formats. `main.py` saves flat files, while `1_Backtest.py` uses timestamped subdirectories. `4_Results.py` needs to support the subdirectory structure.

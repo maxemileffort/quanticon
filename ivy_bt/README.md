@@ -99,6 +99,13 @@ data:
   cache_enabled: true
   cache_dir: ".cache"
   cache_format: "parquet"
+
+optimization:
+  metric: "Sharpe"
+  enable_portfolio_opt: true
+  enable_monte_carlo: true
+  enable_wfo: false
+  enable_plotting: true
 ```
 
 ## Project Structure

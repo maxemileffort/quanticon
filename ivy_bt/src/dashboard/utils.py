@@ -11,21 +11,12 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.strategies import EMACross, BollingerReversion, RSIReversal, Newsom10Strategy, MACDReversal, MACDTrend, TurtleTradingSystem, IchimokuCloudBreakout
+from src.strategies import get_all_strategies
 from src.risk import FixedSignalSizer, VolatilitySizer, KellySizer
 from src.instruments import crypto_assets, forex_assets, sector_etfs
 
-# Strategy Map
-STRATEGIES = {
-    "EMA Cross": EMACross,
-    "Bollinger Reversion": BollingerReversion,
-    "RSI Reversal": RSIReversal,
-    "MACD Reversal": MACDReversal,
-    "MACD Trend": MACDTrend,
-    "Newsom 10": Newsom10Strategy,
-    "Turtle Trading": TurtleTradingSystem,
-    "Ichimoku Breakout": IchimokuCloudBreakout
-}
+# Strategy Map (Dynamic)
+STRATEGIES = get_all_strategies()
 
 RISK_MODELS = {
     "Fixed Size (100%)": FixedSignalSizer,
@@ -93,6 +84,47 @@ def render_sidebar():
         "sizer": sizer,
         "stop_loss": stop_loss
     }
+
+def render_strategy_params(strat_name):
+    """
+    Renders inputs for a single strategy instance based on its default grid.
+    Returns a dictionary of selected parameters.
+    """
+    StrategyClass = STRATEGIES.get(strat_name)
+    if not StrategyClass:
+        return {}
+        
+    default_grid = StrategyClass.get_default_grid()
+    params = {}
+    
+    if not default_grid:
+        st.info("No parameters to configure.")
+        return {}
+
+    cols = st.columns(3)
+    for i, (param, values) in enumerate(default_grid.items()):
+        col = cols[i % 3]
+        with col:
+            # Determine defaults
+            if len(values) > 0:
+                v_min = float(min(values))
+                v_max = float(max(values))
+                default_val = float(values[len(values)//2]) # Median-ish
+                step = 1.0
+                if len(values) > 1:
+                    step = float(values[1] - values[0])
+                
+                # Check integer heuristic
+                is_int = all(isinstance(x, (int, np.integer)) for x in values)
+                
+                if is_int and step.is_integer():
+                    val = st.number_input(f"{param}", min_value=int(v_min), max_value=int(v_max), value=int(default_val), step=int(step), key=f"single_{param}")
+                    params[param] = int(val)
+                else:
+                    val = st.number_input(f"{param}", min_value=v_min, max_value=v_max, value=default_val, step=step, key=f"single_{param}")
+                    params[param] = float(val)
+    
+    return params
 
 def render_param_grid_inputs(strat_name, key_prefix="grid"):
     """Renders inputs for parameter ranges and returns the param_grid dict."""

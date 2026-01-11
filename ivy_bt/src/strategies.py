@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import pandas_ta as ta
+import inspect
+import sys
 
 class StrategyTemplate:
     """Base class to allow dynamic parameter passing for Grid Search."""
@@ -549,3 +551,19 @@ class IchimokuCloudBreakout(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+
+def get_all_strategies():
+    """
+    Returns a dictionary of all strategy classes defined in this module.
+    Excludes StrategyTemplate itself.
+    """
+    current_module = sys.modules[__name__]
+    strategies = {}
+    
+    for name, obj in inspect.getmembers(current_module):
+        if (inspect.isclass(obj) and 
+            issubclass(obj, StrategyTemplate) and 
+            obj is not StrategyTemplate):
+            strategies[name] = obj
+            
+    return strategies

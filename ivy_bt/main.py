@@ -16,13 +16,16 @@ from src.strategies import (
     IchimokuCloudBreakout
 )
 from src.instruments import get_assets
-from src.config import DataConfig
+from src.config import load_config
 import logging
 from src.utils import setup_logging, analyze_complex_grid
 
 # ==========================================
 # USER CONFIGURATION SECTION
 # ==========================================
+
+# Load Configuration
+config = load_config()
 
 # 1. Select Strategy
 # The script will automatically infer the parameter grid using .get_default_grid()
@@ -33,21 +36,21 @@ STRATEGY_CLASS = RSIReversal
 # "spy" (SP500), "iwm" (Russell2000)
 # "xlf" (FinancialSectorEtf), "xlv" (HealthcareSectorEtf)
 # "xle" (EnergySectorEtf), "xlk" (TechSectorEtf)
-INSTRUMENT_TYPE = "forex" 
+INSTRUMENT_TYPE = config.backtest.instrument_type
 CUSTOM_TICKERS = [] # Leave empty to use INSTRUMENT_TYPE
 
 # 3. Date Range
-START_DATE = "2020-01-01"
-END_DATE = datetime.today().strftime('%Y-%m-%d')
+START_DATE = config.backtest.start_date
+END_DATE = config.backtest.end_date
 
 # 4. Optimization Settings
-METRIC = 'Sharpe' # Metric to optimize for: 'Sharpe', 'Return'
+METRIC = config.optimization.metric # Metric to optimize for: 'Sharpe', 'Return'
 
 # 5. Advanced Features
-ENABLE_PORTFOLIO_OPT = True   # Filter out low-Sharpe assets after backtest
-ENABLE_MONTE_CARLO = True     # Run Monte Carlo simulations
-ENABLE_WFO = False            # Run Walk-Forward Optimization (Computationally Intensive)
-ENABLE_PLOTTING = True        # Show plots (Heatmaps, Equity Curves)
+ENABLE_PORTFOLIO_OPT = config.optimization.enable_portfolio_opt   # Filter out low-Sharpe assets after backtest
+ENABLE_MONTE_CARLO = config.optimization.enable_monte_carlo     # Run Monte Carlo simulations
+ENABLE_WFO = config.optimization.enable_wfo            # Run Walk-Forward Optimization (Computationally Intensive)
+ENABLE_PLOTTING = config.optimization.enable_plotting        # Show plots (Heatmaps, Equity Curves)
 
 # 6. Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,11 +75,8 @@ def run_backtest():
     logging.info(f"Selected {len(tickers)} tickers (Type: {INSTRUMENT_TYPE})")
 
     # 2. Configure Data Path
-    data_config = DataConfig(
-        cache_enabled=True,
-        cache_dir=DATA_DIR,
-        cache_format="parquet"
-    )
+    # data_config is already loaded as config.data but we need to pass it or ensure engine uses it
+    # The engine expects a DataConfig object. config.data is a DataConfig object.
     
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(BACKTEST_DIR, exist_ok=True)
@@ -86,7 +86,7 @@ def run_backtest():
         tickers=tickers,
         start_date=START_DATE,
         end_date=END_DATE,
-        data_config=data_config
+        data_config=config.data
     )
 
     # 4. Fetch Data

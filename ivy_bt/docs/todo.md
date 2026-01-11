@@ -18,8 +18,6 @@ Refactoring the core engine to be more reliable, testable, and maintainable.
         - [x] Add support for "xlk" (Tech Sector ETF).
 - [ ] **Configuration System**
     - [x] Move hardcoded variables (dates, asset lists, API keys) from `main.py` to a `config.yaml` or `.env` file.
-    - [ ] **Config Usage Updates**: Restructure project to make better use of `config.py` and `config.yaml`.
-    - [x] Use `pydantic` for config validation.
 - [x] **Testing Suite**
     - [x] Add `tests/` directory.
     - [x] Write unit tests for `BacktestEngine` (logic verification).
@@ -58,7 +56,6 @@ Moving towards a user-friendly product.
 
 - [x] **Web Dashboard Refactor** (Priority)
     - [x] **Modularize**: Split monolithic `dashboard.py` into a multi-page Streamlit app.
-    - [ ] **Dynamic Loading**: Auto-detect strategies from `src/strategies.py` instead of hardcoding.
     - [x] **Config Integration**: Load assets and defaults from `config.yaml` or `src/instruments.py`.
     - [x] **Results Viewer**: New page to browse and load saved backtests/plots from `backtests/`.
     - [x] **Presets Loader**: UI to load saved presets from `presets/` to pre-fill backtest parameters.
@@ -73,7 +70,6 @@ Moving towards a user-friendly product.
         - [x] Add "Optimize Universe" button that runs `optimize_portfolio_selection` to filter best assets from the current backtest.
 - [ ] **Interactive Visualization**
     - [x] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** (Plotly used in Streamlit).
-    - [ ] Display trade logs on the chart (buy/sell markers).
 - [x] **Reporting**
     - [x] Generate comprehensive HTML tearsheets (similar to QuantStats).
     - [ ] PDF export for strategy performance reports.
@@ -92,13 +88,23 @@ Features needed for a production/distributed environment and live signal generat
     - [ ] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
     - [ ] **Further CLI Development**: `python main.py <series of flags and inputs>` -> Runs new backtests based on inputs.
 - [ ] **Live Trading Bridge**
-    - [ ] Connect signals to broker APIs (Alpaca, Interactive Brokers, OANDA).
+    - [ ] Add broker(Alpaca, Interactive Brokers) connection parameters to `config.py` and / or `config.yaml` and / or `.env`.
+    - [ ] Translate signals from `signals.py` to order flow in broker APIs.
+    - [ ] Create `rebalance.py` to automate signals.
     - [ ] Paper trading mode.
 - [ ] **User Management**
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 13)
+## ✅ Completed in This Session (Session 14)
+- [x] **Config Usage Updates**: Restructure project to make better use of `config.py` and `config.yaml`.
+    - [x] Use `pydantic` for config validation.
+- [x] **Dynamic Strategy Loading**:
+    - [x] Auto-detect strategies from `src/strategies.py` instead of hardcoding in dashboard.
+- [x] **Visualization**:
+    - [x] Display trade logs (Buy/Sell markers) on the price chart in dashboard.
+
+## ✅ Completed in Previous Session (Session 13)
 - [x] **Dashboard Enhancements**:
     - [x] **Results Viewer**: Created `pages/4_Results.py` to browse and visualize saved backtest artifacts.
     - [x] **Presets Loader**: Added logic to `pages/1_Backtest.py` to load strategy parameters from JSON presets.
@@ -138,23 +144,14 @@ Features needed for a production/distributed environment and live signal generat
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-10) - Session 13
+## Session Summary (2026-01-10) - Session 14
 
 ### Accomplished
-- **Dashboard Completion**: The dashboard now supports the full research loop: Backtest -> Optimize -> Save -> View Results -> Load Presets.
-- **Optimization Upgrades**: Added Random Search and dynamic parameter inference to make the optimization workflow more flexible and user-friendly.
-- **Reporting**: Added a standalone reporting module that generates professional HTML tearsheets for any backtest.
+- **Refactoring**: Moved hardcoded configuration from `main.py` to `config.yaml` and standardized `config.py` usage.
+- **Architecture**: Implemented dynamic strategy loading using `inspect` in `src/strategies.py`, removing the need to manually register strategies in the dashboard.
+- **Visualization**: Added "Price & Trade Analysis" to the Backtest dashboard, plotting asset prices with Buy/Sell markers.
 
 ### Next Session Priorities
-- **Leftovers from Phase 1**:
-    - Complete config usage updates (better utilization of `config.yaml`).
-- **Finishing Phase 3**:
-    - Implement Dynamic Loading of strategies.
-    - Enhance visualization with trade logs on charts.
-- **Phase 4 Preparation**:
-    - Begin work on the Live Trading Bridge (Alpaca).
-
-### Notes
+- **Phase 4 Kickoff**: Begin work on Live Trading Bridge or User Management.
+- **Enhancement**: Add Volatility-Weighted Sizing to `signals.py`.
 - **Results Viewer**: Navigate to the "Results Viewer" page in the dashboard to analyze past runs.
-- **Reporting**: `generate_html_report(engine)` can be called to produce a file in `backtests/`.
-

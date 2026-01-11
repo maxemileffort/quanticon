@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import sys
 import os
+import json
+from datetime import datetime
 
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -103,3 +105,29 @@ if 'grid_results' in st.session_state and not st.session_state['grid_results'].e
             st.warning(f"Could not generate heatmap: {e}")
     else:
         st.info("Need at least 2 parameters to plot a heatmap.")
+
+    # --- SAVE PRESETS ---
+    st.subheader("Save Results")
+    if st.button("Save Top 5 Presets"):
+        # Create Presets Directory
+        presets_dir = os.path.join(project_root, 'presets')
+        os.makedirs(presets_dir, exist_ok=True)
+        
+        # Determine Instrument Type from Session State or Default
+        instrument_type = st.session_state.get('preset_selection', 'Custom').replace(" ", "")
+        
+        # Generate Filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_id = f"{strat_name}_{instrument_type}_Optimized_{timestamp}"
+        presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
+        
+        # Extract Top 5
+        top_5 = df_res.sort_values(by="Sharpe", ascending=False).head(5)
+        top_5_list = top_5.to_dict(orient='records')
+        
+        try:
+            with open(presets_path, 'w') as f:
+                json.dump(top_5_list, f, indent=4)
+            st.success(f"Top 5 presets saved to: {presets_path}")
+        except Exception as e:
+            st.error(f"Failed to save presets: {e}")

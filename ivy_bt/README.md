@@ -68,7 +68,7 @@ streamlit run src/dashboard/Home.py
 
 The dashboard now features three modes:
 1.  **Backtest**: Run single simulations, visualize equity curves, drawdowns, and run Monte Carlo analysis. Includes an "Optimize Universe" tool to filter assets.
-2.  **Grid Optimization**: Run parameter sweeps (Grid Search) and visualize results with interactive heatmaps.
+2.  **Grid Optimization**: Run parameter sweeps (Grid Search), visualize results with interactive heatmaps, and **save top performing parameter sets**.
 3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
 
 ### Live Signals
@@ -77,6 +77,12 @@ To generate actionable "Buy/Sell/Hold" signals for the current day using a saved
 
 ```bash
 python src/signals.py presets/MyStrategy_Preset.json
+```
+
+You can also apply **Volatility Targeting** to adjust position sizes based on recent volatility:
+
+```bash
+python src/signals.py presets/MyStrategy_Preset.json --vol_target 0.15
 ```
 
 This will fetch the latest data, run the strategy with the optimized parameters, and output the signal for the most recent close.

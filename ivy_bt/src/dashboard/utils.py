@@ -118,10 +118,10 @@ def render_strategy_params(strat_name):
                 is_int = all(isinstance(x, (int, np.integer)) for x in values)
                 
                 if is_int and step.is_integer():
-                    val = st.number_input(f"{param}", min_value=int(v_min), max_value=int(v_max), value=int(default_val), step=int(step), key=f"single_{param}")
+                    val = st.number_input(f"{param}", min_value=int(min(0.0, v_min)), max_value=int(v_max), value=int(default_val), step=int(step), key=f"single_{param}")
                     params[param] = int(val)
                 else:
-                    val = st.number_input(f"{param}", min_value=v_min, max_value=v_max, value=default_val, step=step, key=f"single_{param}")
+                    val = st.number_input(f"{param}", min_value=min(0.0, v_min), max_value=v_max, value=default_val, step=step, key=f"single_{param}")
                     params[param] = float(val)
     
     return params
@@ -158,7 +158,7 @@ def render_param_grid_inputs(strat_name, key_prefix="grid"):
                 
                 # Inputs
                 # Use a unique key for every input
-                p_start = st.number_input(f"Start", value=v_min, key=f"{key_prefix}_{param}_start")
+                p_start = st.number_input(f"Start", value=min(0, v_min), key=f"{key_prefix}_{param}_start")
                 p_end = st.number_input(f"End", value=v_max, key=f"{key_prefix}_{param}_end")
                 p_step = st.number_input(f"Step", value=step, key=f"{key_prefix}_{param}_step")
                 

@@ -11,6 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.engine import BacktestEngine
 from src.instruments import get_assets
+from src.risk import VolatilitySizer
 import src.strategies as strategies
 
 # Setup basic logging
@@ -43,7 +44,7 @@ def parse_preset_filename(filename):
     
     return strategy_name, instrument_type
 
-def generate_signals(preset_path):
+def generate_signals(preset_path, target_vol=None):
     """
     Generates trading signals for the current day based on the preset.
     """
@@ -90,6 +91,12 @@ def generate_signals(preset_path):
     start_date = (datetime.today() - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
     
     engine = BacktestEngine(tickers, start_date, end_date)
+    
+    # Configure Sizer
+    if target_vol:
+        logging.info(f"Applying Volatility Targeting (Target={target_vol})")
+        engine.position_sizer = VolatilitySizer(target_vol=target_vol)
+    
     engine.fetch_data()
 
     # 6. Run Strategy
@@ -105,32 +112,37 @@ def generate_signals(preset_path):
                 continue
                 
             last_row = df.iloc[-1]
-            prev_row = df.iloc[-2] if len(df) > 1 else last_row
             
-            # Signal is usually shifted in backtest (trade on next open)
-            # engine.run_strategy does: df['position'] = df['position_size'].shift(1)
-            # So 'position' at index T is the holding for day T, decided at T-1.
-            # We want the decision for "Tomorrow" based on "Today's" close.
-            # The 'signal' column in strategy usually represents the target position (1, -1, 0)
+            # 'position_size' at index T is the Target Size for T+1
+            # 'position' at index T is the Actual Holding for T (decided at T-1)
             
-            current_signal = last_row.get('signal', 0)
-            current_position = last_row.get('position', 0)
+            target_size = last_row.get('position_size', 0)
+            current_holding = last_row.get('position', 0)
+            raw_signal = last_row.get('signal', 0)
             
-            # Determine Action
+            # Determine Action based on Target Size
+            # Threshold for action to avoid noise
             action = "HOLD"
-            if current_signal == 1 and current_position <= 0:
+            
+            if target_size > 0 and current_holding <= 0:
                 action = "BUY"
-            elif current_signal == -1 and current_position >= 0:
+            elif target_size < 0 and current_holding >= 0:
                 action = "SELL_SHORT"
-            elif current_signal == 0 and current_position != 0:
+            elif target_size == 0 and current_holding != 0:
                 action = "CLOSE"
+            elif (target_size > 0 and current_holding > 0) or (target_size < 0 and current_holding < 0):
+                # We are already in position, but size might change significantly
+                # Only flag as REBALANCE if change is significant (>10%)
+                if abs(target_size - current_holding) > 0.1:
+                    action = "REBALANCE"
             
             signals.append({
                 'Ticker': ticker,
                 'Date': last_row.name.date(),
                 'Close': last_row['close'],
-                'Signal': current_signal,
-                'Current_Pos': current_position,
+                'Raw_Signal': raw_signal,
+                'Target_Size': round(target_size, 3),
+                'Current_Hold': round(current_holding, 3),
                 'Action': action
             })
 
@@ -140,10 +152,11 @@ def generate_signals(preset_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Live Signals from Preset")
     parser.add_argument("preset_path", help="Path to the preset JSON file")
+    parser.add_argument("--vol_target", type=float, help="Target Annualized Volatility (e.g. 0.15 for 15%%)", default=None)
     
     args = parser.parse_args()
     
-    df = generate_signals(args.preset_path)
+    df = generate_signals(args.preset_path, target_vol=args.vol_target)
     
     if df is not None and not df.empty:
         print("\n=== GENERATED SIGNALS ===")

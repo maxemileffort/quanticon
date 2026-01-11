@@ -7,7 +7,7 @@ This document outlines the path from the current scripting-based backtester to a
 ## Phase 1: Foundation & Robustness (Immediate Priority)
 Refactoring the core engine to be more reliable, testable, and maintainable.
 
-- [ ] **Data Management Layer**
+- [x] **Data Management Layer**
     - [x] Implement local caching (SQLite or Parquet) to store downloaded `yfinance` data. Avoids rate limits and speeds up repeated backtests.
     - [x] Create a `DataManager` class to handle fetching, cleaning, and updating asset data.
     - [x] **Expand Instrument Universe**:
@@ -16,7 +16,7 @@ Refactoring the core engine to be more reliable, testable, and maintainable.
         - [x] Add support for "xlv" (Healthcare Sector ETF).
         - [x] Add support for "xle" (Energy Sector ETF).
         - [x] Add support for "xlk" (Tech Sector ETF).
-- [ ] **Configuration System**
+- [x] **Configuration System**
     - [x] Move hardcoded variables (dates, asset lists, API keys) from `main.py` to a `config.yaml` or `.env` file.
 - [x] **Testing Suite**
     - [x] Add `tests/` directory.
@@ -62,17 +62,19 @@ Moving towards a user-friendly product.
 - [ ] **Web Dashboard Features**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
     - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
-    - [x] **Optimization UI**:
+    - [ ] **Optimization UI**:
         - [x] Implement Grid Search Runner in Streamlit (select params range, run `run_grid_search`).
         - [x] Visualize Grid Search results (Heatmap using `plot_heatmap` logic but in Plotly).
         - [x] Implement Walk-Forward Optimization Runner in UI.
+        - [x] Implement 'Save as Preset' functionality after user finds promising set of presets.
     - [x] **Portfolio Selection UI**:
         - [x] Add "Optimize Universe" button that runs `optimize_portfolio_selection` to filter best assets from the current backtest.
-- [ ] **Interactive Visualization**
+- [x] **Interactive Visualization**
     - [x] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** (Plotly used in Streamlit).
 - [x] **Reporting**
     - [x] Generate comprehensive HTML tearsheets (similar to QuantStats).
     - [ ] PDF export for strategy performance reports.
+    - [ ] FIX: Results page has 0s for all the KPIs. It does render charts correctly.
 
 ## Phase 4: Commercialization & Live Operations
 Features needed for a production/distributed environment and live signal generation.
@@ -85,7 +87,7 @@ Features needed for a production/distributed environment and live signal generat
         - [x] Apply the saved strategy + parameters.
         - [x] Extract the last row's signal (Buy/Sell/Hold).
     - [x] **CLI Tool**: `python run_signals.py --preset presets/MyStrategy.json` -> Outputs table of signals.
-    - [ ] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
+    - [x] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
     - [ ] **Further CLI Development**: `python main.py <series of flags and inputs>` -> Runs new backtests based on inputs.
 - [ ] **Live Trading Bridge**
     - [ ] Add broker(Alpaca, Interactive Brokers) connection parameters to `config.py` and / or `config.yaml` and / or `.env`.
@@ -96,7 +98,16 @@ Features needed for a production/distributed environment and live signal generat
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
-## ✅ Completed in This Session (Session 14)
+## ✅ Completed in This Session (Session 15)
+- [x] **Backtest Dashboard Fix**:
+    - [x] Fixed `StreamlitAPIException` in `pages/1_Backtest.py` by implementing a callback for the "Optimize Universe" button.
+- [x] **Live Signals Enhancement**:
+    - [x] Implemented Volatility-Weighted Sizing in `src/signals.py` via `--vol_target` argument.
+    - [x] Output now includes Target Size vs Current Holding.
+- [x] **Optimization UI**:
+    - [x] Added "Save Top 5 Presets" functionality to `pages/2_Optimization.py`.
+
+## ✅ Completed in Previous Session (Session 14)
 - [x] **Config Usage Updates**: Restructure project to make better use of `config.py` and `config.yaml`.
     - [x] Use `pydantic` for config validation.
 - [x] **Dynamic Strategy Loading**:
@@ -144,14 +155,18 @@ Features needed for a production/distributed environment and live signal generat
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-10) - Session 14
+## Session Summary (2026-01-10) - Session 15
 
 ### Accomplished
-- **Refactoring**: Moved hardcoded configuration from `main.py` to `config.yaml` and standardized `config.py` usage.
-- **Architecture**: Implemented dynamic strategy loading using `inspect` in `src/strategies.py`, removing the need to manually register strategies in the dashboard.
-- **Visualization**: Added "Price & Trade Analysis" to the Backtest dashboard, plotting asset prices with Buy/Sell markers.
+- **Fixes**: Resolved Streamlit session state bug in Backtest dashboard by using callbacks.
+- **Signals**: Added Volatility-Weighted Sizing to `signals.py` for risk-adjusted trade sizing.
+- **Optimization**: Implemented "Save Top 5 Presets" in the Optimization dashboard to persist grid search results.
 
 ### Next Session Priorities
-- **Phase 4 Kickoff**: Begin work on Live Trading Bridge or User Management.
-- **Enhancement**: Add Volatility-Weighted Sizing to `signals.py`.
-- **Results Viewer**: Navigate to the "Results Viewer" page in the dashboard to analyze past runs.
+- **Commercialization**: Start Phase 4.
+    - [ ] Live Trading Bridge (Alpaca/IBKR).
+    - [ ] Paper Trading mode.
+- **Reporting**:
+    - [ ] Implement PDF export for tearsheets.
+- **Testing**:
+    - [ ] Expand unit test coverage for `signals.py`.

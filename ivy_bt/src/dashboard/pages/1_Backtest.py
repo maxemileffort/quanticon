@@ -134,12 +134,20 @@ if 'engine' in st.session_state:
     # Portfolio Optimizer
     st.markdown("### Tools")
     col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        if st.button("Optimize Universe (Filter Sharpe > 0.3)"):
-            passed_tickers = engine.optimize_portfolio_selection(sharpe_threshold=0.3)
-            st.success(f"Optimized Universe: {len(passed_tickers)} assets selected.")
+    
+    def optimize_universe_callback():
+        if 'engine' in st.session_state:
+            engine_inst = st.session_state['engine']
+            passed_tickers = engine_inst.optimize_portfolio_selection(sharpe_threshold=0.3)
             st.session_state.ticker_str = ",".join(passed_tickers)
-            st.rerun()
+            st.session_state['opt_msg'] = f"Optimized Universe: {len(passed_tickers)} assets selected."
+
+    with col_t1:
+        st.button("Optimize Universe (Filter Sharpe > 0.3)", on_click=optimize_universe_callback)
+        
+    if 'opt_msg' in st.session_state:
+        st.success(st.session_state['opt_msg'])
+        del st.session_state['opt_msg']
         
     # Trade Markers on Price Chart
     st.subheader("Price & Trade Analysis")

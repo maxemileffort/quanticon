@@ -113,6 +113,16 @@ class AnalysisMixin:
     def run_monte_carlo_simulation(self, n_sims=1000, method='daily', plot=False):
         """
         Runs Monte Carlo Simulation to estimate risk metrics.
+        
+        Args:
+            n_sims (int): Number of simulated equity curves.
+            method (str): Sampling method. 
+                          'daily': Shuffles daily returns of the portfolio.
+                          'trade': Shuffles discrete trade returns (requires trade log).
+            plot (bool): If True, displays a plot of the simulation paths.
+            
+        Returns:
+            dict: Metrics from the simulation (Average Max Drawdown, Median Equity, etc.).
         """
         logging.info(f"Running Monte Carlo Simulation ({n_sims} runs, method={method})...")
         

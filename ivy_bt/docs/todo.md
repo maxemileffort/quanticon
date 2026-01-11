@@ -2,151 +2,33 @@
 
 Last Updated: 2026-01-11
 
-This document outlines the path from the current scripting-based backtester to a commercial-grade quantitative research hub.
-
-## Phase 1: Foundation & Robustness (Immediate Priority)
-Refactoring the core engine to be more reliable, testable, and maintainable.
-
-- [x] **Data Management Layer**
-    - [x] Implement local caching (SQLite or Parquet) to store downloaded `yfinance` data. Avoids rate limits and speeds up repeated backtests.
-    - [x] Create a `DataManager` class to handle fetching, cleaning, and updating asset data.
-    - [x] **Expand Instrument Universe**:
-        - [x] Add support for "iwm" (Russell 2000 ETF).
-        - [x] Add support for "xlf" (Financial Sector ETF).
-        - [x] Add support for "xlv" (Healthcare Sector ETF).
-        - [x] Add support for "xle" (Energy Sector ETF).
-        - [x] Add support for "xlk" (Tech Sector ETF).
-- [x] **Configuration System**
-    - [x] Move hardcoded variables (dates, asset lists, API keys) from `main.py` to a `config.yaml` or `.env` file.
-- [x] **Testing Suite**
-    - [x] Add `tests/` directory.
-    - [x] Write unit tests for `BacktestEngine` (logic verification).
-    - [x] Write unit tests for indicators in `strategies.py`.
-    - [x] Achieve high test coverage for core engine features (Grid Search, Optimization, Monte Carlo).
-- [x] **Logging & Error Handling**
-    - [x] Replace `print()` statements with a proper `logging` setup (file + console output).
-    - [x] Better error handling for missing data or calculation errors (e.g., NaN handling).
-
-## Phase 2: Advanced Quant Features
-Enhancing the sophistication of the trading logic.
-
-- [x] **Risk Management Module**
-    - [x] Decouple position sizing from strategy signals.
-    - [x] Implement position sizing methods:
-        - [x] Fixed Fractional (Risk % of Account).
-        - [x] Volatility Targeting (Inverse Volatility).
-        - [x] Kelly Criterion.
-    - [x] Implement Stop Loss logic (Engine-level overlay).
-- [x] **Market Regime Analysis**
-    - [x] Implement AR(1) and AR(1)-GARCH(1,1) filters for regime classification (`regime_filters.py`).
-    - [x] Integrate regime signals (`regime_vol`, `regime_dir`) into the main data pipeline (`engine.py`).
-- [x] **Transaction Cost Modeling**
-    - [x] Support fixed commissions per trade (e.g., $1/trade).
-    - [x] Support variable spread modeling (dynamic slippage based on volatility).
-- [x] **Strategy Framework Extensions**
-    - [x] **Multi-Timeframe Analysis**: Added helper methods `get_resampled_data` and `normalize_resampled_data` to `StrategyTemplate`.
-    - [x] **Portfolio Optimization**: Implemented `PortfolioOptimizer` class (MVO, Min Variance, Inverse Volatility).
-    - [x] **Self-Describing Strategies**: Added `get_default_grid()` to strategy classes to support automatic parameter inference.
-- [x] **Optimization Improvements**
-    - [x] **Walk-Forward Optimization**: Implemented `run_walk_forward_optimization` in `BacktestEngine` with rolling train/test windows.
-    - [x] **Monte Carlo Simulation**: Implemented `run_monte_carlo_simulation` in `BacktestEngine` (supports both daily return and trade return shuffling).
+This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
 ## Phase 3: UI & Interaction (The Research Hub)
 Moving towards a user-friendly product.
 
-- [x] **Web Dashboard Refactor** (Priority)
-    - [x] **Modularize**: Split monolithic `dashboard.py` into a multi-page Streamlit app.
-    - [x] **Config Integration**: Load assets and defaults from `config.yaml` or `src/instruments.py`.
-    - [x] **Results Viewer**: New page to browse and load saved backtests/plots from `backtests/`.
-    - [x] **Presets Loader**: UI to load saved presets from `presets/` to pre-fill backtest parameters.
 - [ ] **Web Dashboard Features**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
-    - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
-    - [x] **Optimization UI**:
-        - [x] Implement Grid Search Runner in Streamlit (select params range, run `run_grid_search`).
-        - [x] Visualize Grid Search results (Heatmap using `plot_heatmap` logic but in Plotly).
-        - [x] Implement Walk-Forward Optimization Runner in UI.
-        - [x] Implement 'Save as Preset' functionality after user finds promising set of presets.
-    - [x] **Portfolio Selection UI**:
-        - [x] Add "Optimize Universe" button that runs `optimize_portfolio_selection` to filter best assets from the current backtest.
-- [x] **Interactive Visualization**
-    - [x] Migrate `matplotlib` plots to **Plotly** or **Lightweight Charts** (Plotly used in Streamlit).
-- [x] **Reporting**
-    - [x] Generate comprehensive HTML tearsheets (similar to QuantStats).
     - [ ] PDF export for strategy performance reports.
     - [ ] FIX: Results page has 0s for all the KPIs. It does render charts correctly.
 
 ## Phase 4: Commercialization & Live Operations
 Features needed for a production/distributed environment and live signal generation.
 
-- [x] **Live Signal Generation (Presets Implementation)** (Priority)
-    - [x] **Plan**: Design workflow to use `presets/*.json` to generate "Today's Signals".
-    - [x] **Implementation**: Create `src/signals.py` or `src/live_engine.py`.
-        - [x] Function to load a specific preset file.
-        - [x] Logic to fetch *latest* data (up to current minute/day).
-        - [x] Apply the saved strategy + parameters.
-        - [x] Extract the last row's signal (Buy/Sell/Hold).
-    - [x] **CLI Tool**: `python run_signals.py --preset presets/MyStrategy.json` -> Outputs table of signals.
-    - [x] **Enhancement**: Implement Volatility-Weighted Sizing (adjust signal size based on ticker volatility).
+- [ ] **Live Signal Generation**
     - [ ] **Further CLI Development**: `python main.py <series of flags and inputs>` -> Runs new backtests based on inputs.
 - [ ] **Live Trading Bridge**
-    - [ ] Add broker(Alpaca, Interactive Brokers) connection parameters to `config.py` and / or `config.yaml` and / or `.env`.
-    - [ ] Translate signals from `signals.py` to order flow in broker APIs.
-    - [ ] Create `rebalance.py` to automate signals.
-    - [ ] Paper trading mode.
+    - [x] Add broker (Alpaca, Interactive Brokers) connection parameters to `config.py` and / or `config.yaml` and / or `.env`.
+    - [x] Translate signals from `signals.py` to order flow in broker APIs.
+    - [x] Create `rebalance.py` to automate signals (implemented as `live_trader.py`).
+    - [x] Paper trading mode (supported in AlpacaBroker).
+- [ ] **Pairs Trading / Portfolio Strategies**
+    - [ ] Implement `strat_apply_portfolio` in `BacktestEngine` to support multi-asset strategies.
+    - [ ] Create `PairsTrading` strategy class using Cointegration (ADF test).
+    - [ ] Implement synthetic asset creation (Spread) in Data Layer.
 - [ ] **User Management**
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
-
-## ✅ Completed in This Session (Session 15)
-- [x] **Backtest Dashboard Fix**:
-    - [x] Fixed `StreamlitAPIException` in `pages/1_Backtest.py` by implementing a callback for the "Optimize Universe" button.
-- [x] **Live Signals Enhancement**:
-    - [x] Implemented Volatility-Weighted Sizing in `src/signals.py` via `--vol_target` argument.
-    - [x] Output now includes Target Size vs Current Holding.
-- [x] **Optimization UI**:
-    - [x] Added "Save Top 5 Presets" functionality to `pages/2_Optimization.py`.
-
-## ✅ Completed in Previous Session (Session 14)
-- [x] **Config Usage Updates**: Restructure project to make better use of `config.py` and `config.yaml`.
-    - [x] Use `pydantic` for config validation.
-- [x] **Dynamic Strategy Loading**:
-    - [x] Auto-detect strategies from `src/strategies.py` instead of hardcoding in dashboard.
-- [x] **Visualization**:
-    - [x] Display trade logs (Buy/Sell markers) on the price chart in dashboard.
-
-## ✅ Completed in Previous Session (Session 13)
-- [x] **Dashboard Enhancements**:
-    - [x] **Results Viewer**: Created `pages/4_Results.py` to browse and visualize saved backtest artifacts.
-    - [x] **Presets Loader**: Added logic to `pages/1_Backtest.py` to load strategy parameters from JSON presets.
-    - [x] **Optimization Upgrade**: Added **Random Search** option, iteration counter, and dynamic parameter inputs based on strategy defaults.
-- [x] **Reporting**:
-    - [x] **HTML Tearsheets**: Implemented `src/reporting.py` to generate standalone HTML reports with interactive Plotly charts.
-
-## ✅ Completed in Previous Session (Session 12)
-- [x] **Live Signal Generation**:
-    - [x] Created `src/signals.py` to generate trading signals from saved presets.
-    - [x] Verified output format and signal logic.
-- [x] **Web Dashboard Refactor**:
-    - [x] Migrated from monolithic `dashboard.py` to modular `src/dashboard/` structure.
-    - [x] Created `Home.py`, `utils.py`, and `pages/` for Backtest, Optimization, and WFO.
-- [x] **Data Expansion**:
-    - [x] Added support for Sector ETFs (IWM, XLF, etc.) in `instruments.py`.
-    - [x] Integrated new assets into the Dashboard presets.
-
-## ✅ Completed in Previous Session (Session 11)
-- [x] **Regime Filter Integration**:
-    - [x] Analyzed and refactored `regime_filters.py`.
-    - [x] Integrated `add_ar_garch_regime_filter` into `BacktestEngine.fetch_data()`.
-    - [x] Verified that regime columns (`regime_dir`, `regime_vol`, `combined_regime`, `cond_vol`) are automatically added to all asset DataFrames.
-
-## ✅ Completed in Previous Session (Session 10)
-- [x] **Visualization Stability**:
-    - [x] Fixed `ERR_CONNECTION_REFUSED` issues with Plotly by switching from `fig.show()` (local server) to `fig.write_html()` (file-based).
-    - [x] Implemented robust data type sanitization for Grid Search results to prevent serialization errors.
-- [x] **Analysis Enhancements**:
-    - [x] Automatically save Grid Search Analysis plots (Parallel Coordinates HTML, Feature Importance PNG) to `backtests/`.
-    - [x] Implemented "Top 5 Presets" extraction: Top performing parameter sets are now saved to `presets/{run_id}_presets.json` for easy retrieval.
 
 ## Notes for Future Developers
 
@@ -155,47 +37,7 @@ Features needed for a production/distributed environment and live signal generat
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 
-## Session Summary (2026-01-10) - Session 15
-
-### Accomplished
-- **Fixes**: Resolved Streamlit session state bug in Backtest dashboard by using callbacks.
-- **Signals**: Added Volatility-Weighted Sizing to `signals.py` for risk-adjusted trade sizing.
-- **Optimization**: Implemented "Save Top 5 Presets" in the Optimization dashboard to persist grid search results.
-
-## ✅ Completed in This Session (Session 17)
-- [x] **Multi-Timeframe Support**:
-    - [x] Added `interval` support to Config, DataManager, and Engine.
-    - [x] Implemented dynamic annualization factor based on data frequency (e.g., 1h, 5m).
-    - [x] Verified with `tests/test_intraday.py`.
-- [x] **Refactoring**:
-    - [x] Split monolithic `engine.py` into a modular package `src/engine/` containing:
-        - `core.py`: Main `BacktestEngine` class.
-        - `optimization.py`: Optimization logic (Grid, Random, WFO).
-        - `analysis.py`: Risk metrics and Monte Carlo.
-        - `reporting.py`: Plotting and report generation.
-    - [x] Renamed original `src/engine.py` to `src/engine_legacy.py`.
-- [x] **Standardize Result Saving**:
-    - [x] Updated `main.py` to save results in timestamped subdirectories (`backtests/{run_id}/`).
-    - [x] Updated `4_Results.py` dashboard page to parse and load from subdirectories.
-- [x] **Optimization UI Improvements**:
-    - [x] Added **Parallel Coordinates** plot to `2_Optimization.py`.
-    - [x] Added "Save Full Optimization Results" functionality to the UI.
-- [x] **Comparison UI**:
-    - [x] Created `5_Comparison.py` to compare metrics and equity curves of multiple backtest runs side-by-side.
-
-## Session Summary (2026-01-11) - Session 17
-
-### Accomplished
-- **Modular Architecture**: Successfully refactored the core engine into a maintainable package structure using Mixins.
-- **Intraday Backtesting**: Enabled testing strategies on lower timeframes (1h, 15m, etc.) with correct annualization.
-- **Enhanced Analysis**: Added powerful visualization tools (Parallel Coordinates) and comparison capabilities.
-- **Standardization**: Unified how results are saved and accessed across the CLI and Dashboard.
-
 ### Next Session Priorities
 - **Live Trading Bridge**: Begin implementing the connection to broker APIs (Alpaca/IBKR) for paper trading.
 - **Strategy Expansion**: Implement more sophisticated strategies (e.g., Pairs Trading using Cointegration) leveraging the new multi-asset/timeframe capabilities.
 - **Documentation**: Update docstrings and generate API documentation for the new modular engine.
-
-## Architecture Decisions
-- **Engine Split**: `BacktestEngine` uses a Mixin pattern (`OptimizationMixin`, `AnalysisMixin`, `ReportingMixin`) to separate concerns while maintaining a unified API surface.
-- **Result Structure**: All backtest artifacts are now strictly saved in `backtests/{run_id}/` directories to support scalability and easier management.

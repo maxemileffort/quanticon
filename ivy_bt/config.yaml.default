@@ -15,3 +15,8 @@ optimization:
   enable_monte_carlo: true
   enable_wfo: false
   enable_plotting: true
+
+alpaca:
+  api_key: "YOUR_API_KEY"
+  secret_key: "YOUR_SECRET_KEY"
+  paper: true

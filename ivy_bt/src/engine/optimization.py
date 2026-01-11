@@ -170,6 +170,18 @@ class OptimizationMixin:
         return grid_template
 
     def run_grid_search(self, strategy_class, param_grid):
+      """
+      Executes a Grid Search optimization over the specified parameter grid.
+      
+      Args:
+          strategy_class (StrategyTemplate): The strategy class to optimize.
+          param_grid (dict): Dictionary mapping parameter names to lists of values.
+                             Example: {'length': [10, 20], 'std': [1.5, 2.0]}
+      
+      Returns:
+          pd.DataFrame: A DataFrame containing the parameters and resulting metrics 
+                        (Sharpe, Return) for each combination.
+      """
       keys, values = zip(*param_grid.items())
       combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
       grid_results = []
@@ -228,7 +240,15 @@ class OptimizationMixin:
 
     def run_random_search(self, strategy_class, param_grid, n_iter=100):
         """
-        Runs a Random Search over the parameter grid.
+        Executes a Random Search optimization, sampling a fixed number of combinations.
+        
+        Args:
+            strategy_class (StrategyTemplate): The strategy class to optimize.
+            param_grid (dict): Dictionary mapping parameter names to lists of values.
+            n_iter (int): Number of random combinations to test. Defaults to 100.
+            
+        Returns:
+            pd.DataFrame: Results DataFrame similar to run_grid_search.
         """
         keys = list(param_grid.keys())
         values = list(param_grid.values())

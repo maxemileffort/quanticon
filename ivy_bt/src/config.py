@@ -20,10 +20,16 @@ class OptimizationConfig(BaseModel):
     enable_wfo: bool
     enable_plotting: bool
 
+class AlpacaConfig(BaseModel):
+    api_key: str = None
+    secret_key: str = None
+    paper: bool = True
+
 class AppConfig(BaseModel):
     backtest: BacktestConfig
     data: DataConfig
     optimization: OptimizationConfig
+    alpaca: AlpacaConfig = AlpacaConfig()
 
 def load_config(config_path: str = "config.yaml") -> AppConfig:
     with open(config_path, "r") as f:

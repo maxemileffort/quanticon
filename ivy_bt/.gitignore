@@ -4,6 +4,7 @@ docs/ideas*.md
 
 *.log
 .cache
+config.yaml
 
 /data
 /presets

@@ -189,6 +189,18 @@ class ReportingMixin:
     def generate_html_report(self, filename=None):
         """
         Generates a standalone HTML tearsheet for the backtest.
+        
+        Creates an interactive report containing:
+        - Key Performance Metrics (Sharpe, Returns, Drawdown)
+        - Interactive Equity Curve & Drawdown Charts (Plotly)
+        - Monthly Returns Heatmap
+        
+        Args:
+            filename (str, optional): Path to save the HTML file. 
+                                      Defaults to 'backtests/{strat_name}_report.html'.
+        
+        Returns:
+            str: Path to the generated file.
         """
         if filename is None:
             filename = f"backtests/{self.strat_name}_report.html"

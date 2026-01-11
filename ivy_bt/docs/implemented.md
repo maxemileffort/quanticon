@@ -1,0 +1,56 @@
+# IvyBT Implemented Features
+
+Last Updated: 2026-01-11
+
+This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
+
+## Phase 1: Foundation & Robustness
+- **Data Management**:
+    - Local caching (SQLite/Parquet) for `yfinance` data.
+    - `DataManager` class for fetching and cleaning data.
+    - Expanded instrument universe (Sector ETFs: IWM, XLF, XLV, XLE, XLK).
+- **Configuration**: `config.yaml` driven configuration for assets, keys, and defaults.
+- **Testing**: Comprehensive unit tests for `BacktestEngine`, strategies, and core logic.
+- **Robustness**: Logging setup and improved error handling for data issues.
+
+## Phase 2: Advanced Quant Features
+- **Risk Management**:
+    - Decoupled position sizing (Fixed Fractional, Volatility Targeting, Kelly Criterion).
+    - Engine-level Stop Loss logic.
+- **Market Regime Analysis**:
+    - AR(1) and GARCH(1,1) filters for regime classification.
+    - Integration of regime signals into the data pipeline.
+- **Transaction Costs**: Fixed commissions and variable spread/slippage modeling.
+- **Strategy Framework**:
+    - **Multi-Timeframe Analysis**: Support for resampling and normalization.
+    - **Portfolio Optimization**: MVO, Minimum Variance, and Inverse Volatility optimization.
+    - **Self-Describing Strategies**: Automatic parameter inference for strategies.
+- **Advanced Optimization**:
+    - **Walk-Forward Optimization**: Rolling window train/test validation.
+    - **Monte Carlo Simulation**: Shuffling of daily or trade returns to assess robustness.
+- **Engine Architecture**:
+    - Modular `src/engine/` package with Mixins (`OptimizationMixin`, `AnalysisMixin`, `ReportingMixin`).
+    - Support for intraday data intervals (1h, 15m, etc.) with dynamic annualization.
+
+## Phase 3: UI & Interaction (The Research Hub)
+- **Modular Dashboard**: Multi-page Streamlit app (`src/dashboard/`).
+    - **Backtest Runner**: Configure and run backtests with preset loading.
+    - **Optimization**: Grid Search and Walk-Forward Optimization with heatmaps and Parallel Coordinates plots.
+    - **Results Viewer**: Browse and visualize saved backtest artifacts.
+    - **Comparison**: Compare metrics and equity curves of multiple runs side-by-side.
+    - **Portfolio Selection**: "Optimize Universe" feature to filter best assets.
+- **Visualization**: Interactive Plotly charts for equity curves, trade logs, and analysis.
+- **Reporting**: Generation of HTML tearsheets with comprehensive metrics.
+
+## Phase 4: Commercialization & Live Operations
+- **Live Signal Generation**:
+    - `src/signals.py` to generate "Today's Signals" from saved presets.
+    - Volatility-Weighted Sizing for live signals.
+    - CLI tool for signal generation.
+- **Result Standardization**: Timestamped directories (`backtests/{run_id}/`) for all artifacts.
+
+## Recent Updates (Session 17)
+- **Multi-Timeframe Support**: Added `interval` parameter handling and dynamic annualization.
+- **Engine Refactoring**: Split `BacktestEngine` into a modular package structure.
+- **Dashboard Enhancements**: Added Parallel Coordinates to Optimization and created a new Comparison page.
+- **Live Trading Bridge**: Implemented Alpaca integration (`src/broker.py`, `src/live_trader.py`) for paper trading and automated rebalancing.

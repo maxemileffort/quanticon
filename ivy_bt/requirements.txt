@@ -11,3 +11,4 @@ pydantic
 pyyaml
 pyarrow
 streamlit
+alpaca-trade-api

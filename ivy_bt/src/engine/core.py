@@ -12,6 +12,18 @@ from .analysis import AnalysisMixin
 from .reporting import ReportingMixin
 
 class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
+    """
+    The core engine for running backtests, optimizations, and analysis.
+    
+    This class integrates:
+    - Data fetching and management
+    - Strategy execution
+    - Position sizing
+    - Performance metrics calculation
+    - Optimization (Grid Search, Random Search, WFO)
+    - Analysis (Monte Carlo, Risk Metrics)
+    - Reporting (Plots, Tearsheets)
+    """
     def __init__(self
                  , tickers
                  , start_date
@@ -21,6 +33,19 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
                  , data_config=None
                  , position_sizer=None
                  , transaction_costs=None):
+        """
+        Initializes the BacktestEngine.
+
+        Args:
+            tickers (list): List of ticker symbols (e.g., ['AAPL', 'MSFT']).
+            start_date (str): Start date in 'YYYY-MM-DD' format.
+            end_date (str): End date in 'YYYY-MM-DD' format. Defaults to today.
+            interval (str): Data interval (e.g., '1d', '1h', '5m'). Defaults to '1d'.
+            benchmark (str): Benchmark ticker for comparison. Defaults to 'SPY'.
+            data_config (DataConfig, optional): Configuration for caching and data storage.
+            position_sizer (PositionSizer, optional): Logic for sizing positions. Defaults to FixedSignalSizer(1.0).
+            transaction_costs (dict, optional): Dict with 'commission' (fixed $) and 'slippage' (pct).
+        """
         self.tickers = tickers
         self.start_date = start_date
         self.end_date = end_date

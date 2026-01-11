@@ -11,6 +11,8 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 - **Probabilistic Validation**: Monte Carlo Simulation for drawdown and equity analysis.
 - **Web Dashboard**: Interactive research hub using Streamlit and Plotly.
 - **Visualization**: Generates heatmaps for parameter stability and equity curves for performance comparison.
+- **Risk Analysis**: Calculates Value at Risk (VaR), CVaR, Sortino Ratio, and Calmar Ratio.
+- **Reporting**: Generates interactive HTML and professional PDF tearsheets.
 - **Portfolio Management**: Aggregates results to show portfolio-level performance and supports filtering for high-quality assets.
 - **Modular Design**: Easy to extend with new strategies using the `StrategyTemplate`.
 - **Risk Management**: Decoupled position sizing logic (Fixed Fractional, Volatility Targeting, Kelly Criterion) and Stop Loss overlay via `PositionSizer` and `BacktestEngine`.

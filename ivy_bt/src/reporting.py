@@ -3,7 +3,97 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import seaborn as sns
 import os
+
+def generate_pdf_report(engine, filename=None):
+    """
+    Generates a PDF tearsheet using Matplotlib.
+    """
+    if filename is None:
+        filename = f"backtests/{engine.strat_name}_report.pdf"
+        
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    # Data Prep
+    portfolio_log_returns = engine.get_portfolio_returns()
+    if portfolio_log_returns.empty:
+        return
+
+    portfolio_cum = np.exp(portfolio_log_returns.cumsum())
+    
+    # Benchmark
+    bench_cum = None
+    if engine.benchmark_data is not None and not engine.benchmark_data.empty:
+        bench_cum = np.exp(engine.benchmark_data['log_return'].cumsum())
+        # Align
+        bench_cum = bench_cum.reindex(portfolio_cum.index).fillna(method='ffill')
+
+    # Metrics
+    metrics = engine.calculate_risk_metrics(portfolio_log_returns)
+    total_ret = portfolio_cum.iloc[-1] - 1
+    
+    with PdfPages(filename) as pdf:
+        # --- Page 1: Overview & Equity Curve ---
+        fig1 = plt.figure(figsize=(11, 8.5))
+        plt.suptitle(f"IvyBT Report: {engine.strat_name}", fontsize=16, weight='bold')
+        
+        # Text Metrics
+        txt = f"Range: {engine.start_date} to {engine.end_date}\n"
+        txt += f"Total Return: {total_ret:.2%}\n"
+        if metrics:
+            txt += f"Sharpe Ratio: {metrics.get('Sharpe Ratio', 'N/A')}\n"
+            txt += f"Max Drawdown: {metrics.get('Max Drawdown', 'N/A')}\n"
+            txt += f"VaR (95%): {metrics.get('VaR (95%)', 'N/A')}\n"
+            txt += f"Sortino: {metrics.get('Sortino Ratio', 'N/A')}"
+            
+        plt.figtext(0.1, 0.9, txt, fontsize=12, va="top")
+        
+        # Equity Curve
+        ax1 = plt.subplot2grid((3, 1), (1, 0), rowspan=2)
+        ax1.plot(portfolio_cum.index, portfolio_cum.values, label='Portfolio', color='blue')
+        if bench_cum is not None:
+            ax1.plot(bench_cum.index, bench_cum.values, label=f'Benchmark ({engine.benchmark_ticker})', color='gray', linestyle='--')
+        
+        ax1.set_title("Cumulative Growth of $1")
+        ax1.set_ylabel("Growth")
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        pdf.savefig(fig1)
+        plt.close()
+        
+        # --- Page 2: Drawdown & Volatility ---
+        fig2 = plt.figure(figsize=(11, 8.5))
+        
+        # Drawdown
+        peak = portfolio_cum.cummax()
+        dd = (portfolio_cum - peak) / peak
+        
+        ax2 = plt.subplot(2, 1, 1)
+        ax2.fill_between(dd.index, dd.values, 0, color='red', alpha=0.3)
+        ax2.plot(dd.index, dd.values, color='red', linewidth=1)
+        ax2.set_title("Drawdown %")
+        ax2.set_ylabel("Drawdown")
+        ax2.grid(True, alpha=0.3)
+        
+        # Monthly Heatmap
+        ax3 = plt.subplot(2, 1, 2)
+        monthly_rets = portfolio_log_returns.resample('M').apply(lambda x: np.exp(x.sum()) - 1)
+        monthly_rets_df = pd.DataFrame(monthly_rets)
+        monthly_rets_df['Year'] = monthly_rets_df.index.year
+        monthly_rets_df['Month'] = monthly_rets_df.index.month
+        pivot_rets = monthly_rets_df.pivot(index='Year', columns='Month', values=0)
+        
+        sns.heatmap(pivot_rets, annot=True, fmt=".1%", cmap="RdYlGn", center=0, ax=ax3, cbar=False)
+        ax3.set_title("Monthly Returns")
+        
+        pdf.savefig(fig2)
+        plt.close()
+        
+    return filename
 
 def generate_html_report(engine, filename=None):
     """

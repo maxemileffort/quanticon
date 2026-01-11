@@ -10,7 +10,7 @@ st.set_page_config(page_title="IvyBT - Results Viewer", layout="wide")
 st.title("Backtest Results Viewer")
 
 # Path to backtests directory
-BACKTESTS_DIR = os.path.join(os.getcwd(), "quanticon", "ivy_bt", "backtests")
+BACKTESTS_DIR = os.path.join(os.getcwd(), "backtests")
 
 if not os.path.exists(BACKTESTS_DIR):
     st.error(f"Backtests directory not found at {BACKTESTS_DIR}")

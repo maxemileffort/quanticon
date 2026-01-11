@@ -125,6 +125,74 @@ class BacktestEngine:
         # Calculate Benchmark Metrics
         self.results[f"BENCHMARK ({self.benchmark_ticker})"] = self.calculate_metrics(self.benchmark_data, is_benchmark=True)
 
+    def get_portfolio_returns(self):
+        """
+        Calculates the aggregate equal-weighted portfolio log returns.
+        """
+        strat_rets_dict = {}
+        for ticker in self.tickers:
+            if ticker in self.data and 'strategy_return' in self.data[ticker].columns:
+                strat_rets_dict[ticker] = self.data[ticker]['strategy_return']
+        
+        if not strat_rets_dict:
+            return pd.Series(dtype=float)
+
+        all_returns = pd.DataFrame(strat_rets_dict).fillna(0)
+        
+        # Equal weight portfolio: Log mean of simple returns
+        all_simple_returns = np.exp(all_returns) - 1
+        portfolio_simple_returns = all_simple_returns.mean(axis=1)
+        portfolio_log_returns = np.log1p(portfolio_simple_returns)
+        
+        return portfolio_log_returns
+
+    def calculate_risk_metrics(self, returns=None):
+        """
+        Calculates advanced risk metrics (VaR, Sortino, Calmar, etc.).
+        If returns is None, calculates for the entire portfolio.
+        Args:
+            returns: pd.Series of log returns.
+        """
+        if returns is None:
+            returns = self.get_portfolio_returns()
+            
+        if returns.empty:
+            return {}
+            
+        # Convert to simple returns for VaR/Sortino interpretation
+        simple_rets = np.exp(returns) - 1
+        
+        # 1. Value at Risk (VaR) - Historical Method (95%)
+        var_95 = np.percentile(simple_rets, 5)
+        
+        # 2. Conditional VaR (CVaR) / Expected Shortfall
+        cvar_95 = simple_rets[simple_rets <= var_95].mean()
+        
+        # 3. Sortino Ratio (Downside Deviation)
+        # Target return = 0
+        downside_rets = simple_rets[simple_rets < 0]
+        downside_dev = np.sqrt((downside_rets**2).mean()) * np.sqrt(252)
+        ann_ret = np.exp(returns.mean() * 252) - 1
+        sortino = ann_ret / downside_dev if downside_dev != 0 else 0
+        
+        # 4. Calmar Ratio
+        cum_rets = np.exp(returns.cumsum())
+        peak = cum_rets.cummax()
+        max_dd = ((cum_rets - peak) / peak).min()
+        calmar = ann_ret / abs(max_dd) if max_dd != 0 else 0
+        
+        # 5. Win Rate
+        win_rate = (simple_rets > 0).mean()
+        
+        return {
+            "VaR (95%)": f"{var_95:.2%}",
+            "CVaR (95%)": f"{cvar_95:.2%}",
+            "Sortino Ratio": round(sortino, 2),
+            "Calmar Ratio": round(calmar, 2),
+            "Max Drawdown": f"{max_dd:.2%}",
+            "Win Rate": f"{win_rate:.2%}"
+        }
+
     def calculate_metrics(self, df, is_benchmark=False):
         """
         Calculates metrics considering transaction costs.

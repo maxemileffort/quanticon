@@ -19,6 +19,7 @@ except ImportError:
     import utils
 
 from src.engine import BacktestEngine
+from src import reporting
 
 st.set_page_config(page_title="Backtest | IvyBT", layout="wide")
 
@@ -190,4 +191,49 @@ if 'engine' in st.session_state:
             with st.spinner("Running Monte Carlo..."):
                 st.session_state['mc_results'] = engine.run_monte_carlo_simulation(n_sims=500, method='daily')
         st.json(st.session_state['mc_results'])
+    
     st.markdown("### Risk Analysis")
+    risk_metrics = engine.calculate_risk_metrics()
+    if risk_metrics:
+        # Display as a grid of metrics
+        cols = st.columns(len(risk_metrics))
+        for i, (k, v) in enumerate(risk_metrics.items()):
+            cols[i].metric(label=k, value=v)
+    else:
+        st.info("Run backtest to see risk metrics.")
+
+    # --- SAVE RESULTS ---
+    st.markdown("### Save Results")
+    save_col1, save_col2 = st.columns([1, 3])
+    with save_col1:
+        if st.button("Save Backtest Results"):
+            try:
+                # Create unique ID
+                timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+                run_id = f"{strat_name.replace(' ', '')}_{timestamp}"
+                save_dir = os.path.join(project_root, "quanticon", "ivy_bt", "backtests", run_id)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                # 1. Save Metrics
+                metrics_file = os.path.join(save_dir, "metrics.json")
+                all_metrics = {
+                    "strategy": strat_name,
+                    "risk_metrics": risk_metrics,
+                    "ticker_metrics": engine.results
+                }
+                with open(metrics_file, 'w') as f:
+                    json.dump(all_metrics, f, indent=4)
+                
+                # 2. Save Portfolio Equity Curve
+                port_rets = engine.get_portfolio_returns()
+                if not port_rets.empty:
+                    port_cum = np.exp(port_rets.cumsum())
+                    port_cum.to_csv(os.path.join(save_dir, "equity_curve.csv"))
+                
+                # 3. Generate HTML Report
+                report_path = os.path.join(save_dir, "report.html")
+                reporting.generate_html_report(engine, filename=report_path)
+                
+                st.success(f"Saved results to backtests/{run_id}/")
+            except Exception as e:
+                st.error(f"Failed to save results: {e}")

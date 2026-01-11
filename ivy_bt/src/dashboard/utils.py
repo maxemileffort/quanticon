@@ -158,7 +158,7 @@ def render_param_grid_inputs(strat_name, key_prefix="grid"):
                 
                 # Inputs
                 # Use a unique key for every input
-                p_start = st.number_input(f"Start", value=min(0, v_min), key=f"{key_prefix}_{param}_start")
+                p_start = st.number_input(f"Start", value=v_min, key=f"{key_prefix}_{param}_start")
                 p_end = st.number_input(f"End", value=v_max, key=f"{key_prefix}_{param}_end")
                 p_step = st.number_input(f"Step", value=step, key=f"{key_prefix}_{param}_step")
                 

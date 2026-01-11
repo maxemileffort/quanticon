@@ -62,7 +62,7 @@ Moving towards a user-friendly product.
 - [ ] **Web Dashboard Features**
     - [ ] Backend: FastAPI or Flask to serve backtest results.
     - [x] Frontend: Streamlit to configure and run tests (`src/dashboard.py`).
-    - [ ] **Optimization UI**:
+    - [x] **Optimization UI**:
         - [x] Implement Grid Search Runner in Streamlit (select params range, run `run_grid_search`).
         - [x] Visualize Grid Search results (Heatmap using `plot_heatmap` logic but in Plotly).
         - [x] Implement Walk-Forward Optimization Runner in UI.
@@ -163,10 +163,32 @@ Features needed for a production/distributed environment and live signal generat
 - **Optimization**: Implemented "Save Top 5 Presets" in the Optimization dashboard to persist grid search results.
 
 ### Next Session Priorities
-- **Commercialization**: Start Phase 4.
-    - [ ] Live Trading Bridge (Alpaca/IBKR).
-    - [ ] Paper Trading mode.
-- **Reporting**:
-    - [ ] Implement PDF export for tearsheets.
-- **Testing**:
-    - [ ] Expand unit test coverage for `signals.py`.
+- **Web Dashboard**:
+    - [ ] Implement "Compare Backtests" page (overlay multiple saved runs).
+    - [ ] Add "Live Trading" tab to view today's signals directly in dashboard.
+- **Documentation**:
+    - [ ] Write a tutorial on "How to Add a New Strategy".
+- **Refactoring**:
+    - [ ] Move `BacktestEngine` classes into separate files (split `engine.py`).
+
+## ✅ Completed in This Session (Session 16)
+- [x] **Backtest Dashboard**:
+    - [x] Implemented "Risk Analysis" section (VaR, Sortino, Calmar, Win Rate).
+    - [x] Added "Save Results" functionality (Saves Metrics JSON, Equity Curve CSV, and HTML Report).
+- [x] **Reporting**:
+    - [x] Implemented PDF Tearsheet generation using Matplotlib (`src/reporting.py`).
+- [x] **Testing**:
+    - [x] Created `tests/test_signals.py` covering signal generation logic.
+
+## Session Summary (2026-01-10) - Session 16
+
+### Accomplished
+- **Risk Metrics**: Added advanced risk metrics (VaR, Sortino, Calmar) to `engine.py`.
+- **Dashboard Upgrade**: Integrated risk analysis and results saving into the Backtest dashboard.
+- **Reporting**: Added PDF export functionality.
+- **Reliability**: Verified signal generation with new unit tests.
+
+### Next Session Priorities
+- **Comparison UI**: Build a page to compare multiple backtest runs.
+- **Live Signals UI**: Integrate `signals.py` output into the dashboard.
+- **Refactoring**: Split `engine.py` into smaller modules.

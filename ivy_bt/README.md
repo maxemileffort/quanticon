@@ -72,9 +72,18 @@ The dashboard now features four modes:
 1.  **Backtest**: Run single simulations, visualize equity curves, drawdowns, and run Monte Carlo analysis. Includes an "Optimize Universe" tool to filter assets.
 2.  **Grid Optimization**: Run parameter sweeps (Grid Search), visualize results with interactive heatmaps and **Parallel Coordinates**, and save results.
 3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
-4.  **Comparison**: Select multiple backtest runs to compare their metrics and equity curves side-by-side.
+4.  **Results Viewer**: View detailed metrics and generate **PDF Reports** for saved backtests.
+5.  **Comparison**: Select multiple backtest runs to compare their metrics and equity curves side-by-side.
 
-### Live Signals
+### REST API
+
+A FastAPI backend is available for serving results programmatically:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+### Live Signals & Trading
 
 To generate actionable "Buy/Sell/Hold" signals for the current day using a saved preset:
 
@@ -82,13 +91,21 @@ To generate actionable "Buy/Sell/Hold" signals for the current day using a saved
 python src/signals.py presets/MyStrategy_Preset.json
 ```
 
+To execute these signals via **Alpaca** (Paper Trading), use the Live Trader:
+
+```bash
+python src/live_trader.py presets/MyStrategy_Preset.json --dry-run
+```
+
+Remove the `--dry-run` flag to place real orders. Ensure you have set your API keys in `config.yaml` (copy from `config.yaml.default`).
+
 You can also apply **Volatility Targeting** to adjust position sizes based on recent volatility:
 
 ```bash
-python src/signals.py presets/MyStrategy_Preset.json --vol_target 0.15
+python src/live_trader.py presets/MyStrategy_Preset.json --vol_target 0.15
 ```
 
-This will fetch the latest data, run the strategy with the optimized parameters, and output the signal for the most recent close.
+This will fetch the latest data, run the strategy, calculate the required position rebalancing, and submit orders to the broker.
 
 ### Configuration
 

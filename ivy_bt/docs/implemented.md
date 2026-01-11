@@ -48,9 +48,11 @@ This document summarizes the high-level features and capabilities that have been
     - Volatility-Weighted Sizing for live signals.
     - CLI tool for signal generation.
 - **Result Standardization**: Timestamped directories (`backtests/{run_id}/`) for all artifacts.
+- **API**: Basic FastAPI implementation (`src/api/`) for serving backtest results.
 
-## Recent Updates (Session 17)
-- **Multi-Timeframe Support**: Added `interval` parameter handling and dynamic annualization.
-- **Engine Refactoring**: Split `BacktestEngine` into a modular package structure.
-- **Dashboard Enhancements**: Added Parallel Coordinates to Optimization and created a new Comparison page.
+## Recent Updates (Session 18)
+- **Web Dashboard**: 
+    - Fixed KPI display bugs on Results page.
+    - Added PDF Export functionality for professional strategy reports.
+- **Backend**: Implemented FastAPI skeleton for decoupled state management.
 - **Live Trading Bridge**: Implemented Alpaca integration (`src/broker.py`, `src/live_trader.py`) for paper trading and automated rebalancing.

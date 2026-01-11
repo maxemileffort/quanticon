@@ -3,6 +3,10 @@ import numpy as np
 import sys
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.backends.backend_pdf import PdfPages
+import pandas as pd
 
 # Add project root to path to allow src imports
 # utils.py is in src/dashboard/utils.py
@@ -179,3 +183,106 @@ def render_param_grid_inputs(strat_name, key_prefix="grid"):
                     grid_params[param] = [round(x, 2) for x in np.arange(p_start, p_end + p_step/1000, p_step)]
     
     return grid_params
+
+def generate_pdf_from_results(equity_df, metrics, run_id, output_path):
+    """
+    Generates a PDF report from the dataframe and metrics dict.
+    metrics should be the flat dict of portfolio metrics or the full metrics dict.
+    equity_df should have a 'Portfolio' column or be a Series.
+    """
+    # Ensure equity_df is usable
+    if isinstance(equity_df, pd.DataFrame):
+        if 'Portfolio' in equity_df.columns:
+            portfolio_cum = equity_df['Portfolio']
+        elif 'Equity' in equity_df.columns:
+            portfolio_cum = equity_df['Equity']
+        else:
+            portfolio_cum = equity_df.iloc[:, 0]
+    else:
+        portfolio_cum = equity_df
+        
+    # Re-calculate Log Returns for Heatmap
+    # If equity_df contains cumulative growth (starts at 1.0 or similar)
+    portfolio_log_returns = np.log(portfolio_cum / portfolio_cum.shift(1)).fillna(0)
+    
+    # Extract scalar metrics for display
+    # metrics might be the full structure or just the portfolio part
+    # We try to extract common keys
+    
+    def get_val(k):
+        # check top level
+        if k in metrics: return metrics[k]
+        # check performance -> Portfolio
+        if 'performance' in metrics and 'Portfolio' in metrics['performance']:
+            if k in metrics['performance']['Portfolio']:
+                return metrics['performance']['Portfolio'][k]
+        return "N/A"
+    
+    # Handle potentially nested values or just simple keys
+    total_ret = get_val("Total Return")
+    sharpe = get_val("Sharpe Ratio")
+    max_dd = get_val("Max Drawdown")
+    cagr = get_val("CAGR")
+    
+    # Format if needed (might be float or string)
+    def fmt(v):
+        if isinstance(v, (float, int)):
+            return f"{v:.2f}"
+        return str(v)
+
+    with PdfPages(output_path) as pdf:
+        # --- Page 1: Overview & Equity Curve ---
+        fig1 = plt.figure(figsize=(11, 8.5))
+        plt.suptitle(f"IvyBT Report: {run_id}", fontsize=16, weight='bold')
+        
+        # Text Metrics
+        txt = f"Total Return: {fmt(total_ret)}\n"
+        txt += f"CAGR: {fmt(cagr)}\n"
+        txt += f"Sharpe Ratio: {fmt(sharpe)}\n"
+        txt += f"Max Drawdown: {fmt(max_dd)}\n"
+            
+        plt.figtext(0.1, 0.9, txt, fontsize=12, va="top")
+        
+        # Equity Curve
+        ax1 = plt.subplot2grid((3, 1), (1, 0), rowspan=2)
+        ax1.plot(portfolio_cum.index, portfolio_cum.values, label='Portfolio', color='blue')
+        
+        ax1.set_title("Cumulative Growth of $1")
+        ax1.set_ylabel("Growth")
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        pdf.savefig(fig1)
+        plt.close()
+        
+        # --- Page 2: Drawdown & Volatility ---
+        fig2 = plt.figure(figsize=(11, 8.5))
+        
+        # Drawdown
+        peak = portfolio_cum.cummax()
+        dd = (portfolio_cum - peak) / peak
+        
+        ax2 = plt.subplot(2, 1, 1)
+        ax2.fill_between(dd.index, dd.values, 0, color='red', alpha=0.3)
+        ax2.plot(dd.index, dd.values, color='red', linewidth=1)
+        ax2.set_title("Drawdown %")
+        ax2.set_ylabel("Drawdown")
+        ax2.grid(True, alpha=0.3)
+        
+        # Monthly Heatmap
+        ax3 = plt.subplot(2, 1, 2)
+        monthly_rets = portfolio_log_returns.resample('M').apply(lambda x: np.exp(x.sum()) - 1)
+        monthly_rets_df = pd.DataFrame(monthly_rets)
+        monthly_rets_df['Year'] = monthly_rets_df.index.year
+        monthly_rets_df['Month'] = monthly_rets_df.index.month
+        # Use column name 0 or the series name
+        val_col = monthly_rets_df.columns[0]
+        pivot_rets = monthly_rets_df.pivot(index='Year', columns='Month', values=val_col)
+        
+        sns.heatmap(pivot_rets, annot=True, fmt=".1%", cmap="RdYlGn", center=0, ax=ax3, cbar=False)
+        ax3.set_title("Monthly Returns")
+        
+        pdf.savefig(fig2)
+        plt.close()
+
+    return output_path

@@ -4,6 +4,11 @@ import json
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+import sys
+
+# Add parent dir to path to import utils
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils import generate_pdf_from_results
 
 st.set_page_config(page_title="IvyBT - Results Viewer", layout="wide")
 
@@ -90,17 +95,97 @@ if selected_run:
         with open(os.path.join(BACKTESTS_DIR, metrics_file), 'r') as f:
             metrics = json.load(f)
         
+        # Check if metrics are at the top level, otherwise try to calculate them
+        if metrics.get('Total Return') is None and equity_file:
+            try:
+                df_eq = pd.read_csv(os.path.join(BACKTESTS_DIR, equity_file), parse_dates=['Date'], index_col='Date')
+                col = 'Portfolio' if 'Portfolio' in df_eq.columns else df_eq.columns[0]
+                equity = df_eq[col]
+                
+                # Calculate Metrics on the fly
+                total_return = (equity.iloc[-1] / equity.iloc[0]) - 1
+                
+                days = (equity.index[-1] - equity.index[0]).days
+                if days > 0:
+                    cagr = (equity.iloc[-1] / equity.iloc[0]) ** (365.25 / days) - 1
+                else:
+                    cagr = 0
+                
+                # Daily Returns for Sharpe
+                rets = equity.pct_change().dropna()
+                sharpe = (rets.mean() / rets.std()) * (252 ** 0.5) if rets.std() != 0 else 0
+                
+                # Max Drawdown
+                peak = equity.cummax()
+                dd = (equity - peak) / peak
+                max_dd = dd.min()
+                
+                # Update metrics dict for display
+                metrics['Total Return'] = total_return
+                metrics['CAGR'] = cagr
+                metrics['Sharpe Ratio'] = sharpe
+                metrics['Max Drawdown'] = max_dd
+                
+            except Exception as e:
+                st.warning(f"Could not calculate metrics from equity curve: {e}")
+
         st.subheader("Performance Metrics")
         
         # Display as a clean grid
         cols = st.columns(4)
-        cols[0].metric("Total Return", f"{metrics.get('Total Return', 0):.2%}")
-        cols[1].metric("CAGR", f"{metrics.get('CAGR', 0):.2%}")
-        cols[2].metric("Sharpe Ratio", f"{metrics.get('Sharpe Ratio', 0):.2f}")
-        cols[3].metric("Max Drawdown", f"{metrics.get('Max Drawdown', 0):.2%}")
+        
+        tr = metrics.get('Total Return', 0)
+        cagr = metrics.get('CAGR', 0)
+        sharpe = metrics.get('Sharpe Ratio', 0)
+        mdd = metrics.get('Max Drawdown', 0)
+        
+        # Handle string formatting if they are already strings (from JSON) or floats (from calc)
+        def fmt_pct(val):
+            if isinstance(val, str) and '%' in val: return val
+            try: return f"{float(val):.2%}"
+            except: return val
+
+        def fmt_flt(val):
+            if isinstance(val, str): return val
+            try: return f"{float(val):.2f}"
+            except: return val
+            
+        cols[0].metric("Total Return", fmt_pct(tr))
+        cols[1].metric("CAGR", fmt_pct(cagr))
+        cols[2].metric("Sharpe Ratio", fmt_flt(sharpe))
+        cols[3].metric("Max Drawdown", fmt_pct(mdd))
         
         with st.expander("Full Metrics JSON"):
             st.json(metrics)
+
+        # PDF Export
+        if equity_file:
+            pdf_path = os.path.join(BACKTESTS_DIR, f"{selected_run}_report.pdf")
+            
+            col1, col2 = st.columns([1, 3])
+            
+            with col1:
+                if st.button("Generate PDF Report"):
+                    with st.spinner("Generating PDF..."):
+                        try:
+                            # Load equity df if needed
+                            if 'df_equity' not in locals():
+                                df_equity = pd.read_csv(os.path.join(BACKTESTS_DIR, equity_file), parse_dates=['Date'], index_col='Date')
+                            
+                            generate_pdf_from_results(df_equity, metrics, selected_run, pdf_path)
+                            st.success("PDF generated!")
+                        except Exception as e:
+                            st.error(f"Failed to generate PDF: {e}")
+            
+            with col2:
+                if os.path.exists(pdf_path):
+                    with open(pdf_path, "rb") as f:
+                        st.download_button(
+                            label="Download PDF Report",
+                            data=f,
+                            file_name=f"{selected_run}_report.pdf",
+                            mime="application/pdf"
+                        )
 
     # 2. Equity Curve
     if equity_file:

@@ -241,6 +241,47 @@ def run_backtest(strat_override = None, instrument_override = None):
         run_dir = os.path.join(BACKTEST_DIR, run_id)
         os.makedirs(run_dir, exist_ok=True)
 
+    # --- Calculate Portfolio Equity & Metrics ---
+    portfolio_rets = []
+    for ticker in engine.tickers:
+        if ticker in engine.data and 'strategy_return' in engine.data[ticker]:
+            s_ret = engine.data[ticker]['strategy_return']
+            s_ret.name = ticker
+            portfolio_rets.append(s_ret)
+    
+    port_metrics = {}
+    equity_curve = None
+    
+    if portfolio_rets:
+        df_rets = pd.concat(portfolio_rets, axis=1).fillna(0)
+        df_rets['Portfolio'] = df_rets.mean(axis=1)
+        equity_curve = np.exp(df_rets['Portfolio'].cumsum())
+        
+        # Calculate Metrics
+        total_return = equity_curve.iloc[-1] - 1
+        days = (equity_curve.index[-1] - equity_curve.index[0]).days
+        if days > 0:
+            cagr = (equity_curve.iloc[-1]) ** (365.25 / days) - 1
+        else:
+            cagr = 0
+            
+        # Sharpe
+        ann_vol = df_rets['Portfolio'].std() * np.sqrt(252)
+        ann_ret = np.exp(df_rets['Portfolio'].mean() * 252) - 1
+        sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
+        
+        # Max Drawdown
+        peak = equity_curve.cummax()
+        dd = (equity_curve - peak) / peak
+        max_dd = dd.min()
+        
+        port_metrics = {
+            "Total Return": f"{total_return:.2%}",
+            "CAGR": f"{cagr:.2%}",
+            "Sharpe Ratio": round(sharpe, 2),
+            "Max Drawdown": f"{max_dd:.2%}"
+        }
+
     # Save Best Run Metrics (JSON)
     metrics_path = os.path.join(run_dir, "metrics.json")
     output_data = {
@@ -256,24 +297,18 @@ def run_backtest(strat_override = None, instrument_override = None):
         "performance": engine.results
     }
     
+    # Merge Portfolio Metrics
+    output_data.update(port_metrics)
+    if 'performance' in output_data:
+        output_data['performance']['Portfolio'] = port_metrics
+    
     with open(metrics_path, 'w') as f:
         json.dump(output_data, f, indent=4)
     logging.info(f"Backtest Metrics: {output_data}")
     logging.info(f"Metrics saved to: {metrics_path}")
 
     # Save Equity Curve (CSV)
-    portfolio_rets = []
-    for ticker in engine.tickers:
-        if ticker in engine.data and 'strategy_return' in engine.data[ticker]:
-            s_ret = engine.data[ticker]['strategy_return']
-            s_ret.name = ticker
-            portfolio_rets.append(s_ret)
-            
-    if portfolio_rets:
-        df_rets = pd.concat(portfolio_rets, axis=1).fillna(0)
-        df_rets['Portfolio'] = df_rets.mean(axis=1)
-        equity_curve = np.exp(df_rets['Portfolio'].cumsum())
-        
+    if equity_curve is not None:
         equity_path = os.path.join(run_dir, "equity_curve.csv")
         equity_curve.to_csv(equity_path)
         logging.info(f"Equity curve saved to: {equity_path}")

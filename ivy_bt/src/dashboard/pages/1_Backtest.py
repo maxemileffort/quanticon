@@ -7,7 +7,9 @@ import os
 import json
 
 # Add project root to path
+# project_root is "C:\Users\Max\Desktop\projects\quanticon\ivy_bt", which is correct.
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+# DO NOT CHANGE the above line.
 if project_root not in sys.path:
     sys.path.append(project_root)
 
@@ -33,9 +35,10 @@ strat_name = config['strat_name']
 StrategyClass = config['StrategyClass']
 sizer = config['sizer']
 stop_loss = config['stop_loss']
+preset = config['preset']
 
 # --- PRESETS LOADER ---
-PRESETS_DIR = os.path.join(os.getcwd(), "quanticon", "ivy_bt", "presets")
+PRESETS_DIR = os.path.join(os.getcwd(), "presets")
 if os.path.exists(PRESETS_DIR):
     with st.sidebar.expander("Load Preset"):
         preset_files = [f for f in os.listdir(PRESETS_DIR) if f.endswith('.json')]
@@ -67,6 +70,51 @@ if os.path.exists(PRESETS_DIR):
                 
                 st.success("Parameters applied!")
                 st.rerun()
+
+    with st.sidebar.expander("Import Preset (JSON)"):
+        uploaded_file = st.file_uploader("Upload Preset File", type=['json'])
+        if uploaded_file is not None:
+            try:
+                # 1. Read JSON
+                preset_data = json.load(uploaded_file)
+                # Handle list (take first) or dict
+                if isinstance(preset_data, list) and len(preset_data) > 0:
+                    params = preset_data[0]
+                elif isinstance(preset_data, dict):
+                    params = preset_data
+                else:
+                    st.error("Invalid preset format.")
+                    params = None
+                
+                if params:
+                    # 2. Extract Strategy Name from Filename
+                    # Expected: StrategyName_Instrument_...
+                    filename = uploaded_file.name
+                    parts = filename.split('_')
+                    if len(parts) >= 1:
+                        potential_strat = parts[0]
+                        # Check if valid strategy
+                        if potential_strat in utils.STRATEGIES:
+                            # Update strategy selection if different
+                            if st.session_state.get('strat_selection') != potential_strat:
+                                st.session_state.strat_selection = potential_strat
+                                st.rerun() # Rerun to update sidebar strategy immediately
+                    
+                    # 3. Apply Parameters Button
+                    if st.button("Apply Imported Parameters"):
+                        # Map params to session state keys dynamically
+                        for k, v in params.items():
+                            if k in ['Sharpe', 'Return']: continue
+                            # The keys in render_strategy_params are f"single_{k}"
+                            if isinstance(v, float) and v.is_integer():
+                                 v = int(v)
+                            st.session_state[f"single_{k}"] = v
+                        
+                        st.success(f"Imported parameters for {st.session_state.strat_selection}!")
+                        st.rerun()
+                        
+            except Exception as e:
+                st.error(f"Error loading file: {e}")
 
 st.title(f"Backtest: {strat_name}")
 
@@ -210,8 +258,8 @@ if 'engine' in st.session_state:
             try:
                 # Create unique ID
                 timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-                run_id = f"{strat_name.replace(' ', '')}_{timestamp}"
-                save_dir = os.path.join(project_root, "quanticon", "ivy_bt", "backtests", run_id)
+                run_id = f"{strat_name.replace(' ', '')}_{preset}_{timestamp}"
+                save_dir = os.path.join(project_root, "backtests", run_id)
                 os.makedirs(save_dir, exist_ok=True)
                 
                 # 1. Save Metrics

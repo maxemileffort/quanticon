@@ -175,6 +175,7 @@ Features needed for a production/distributed environment and live signal generat
 - [x] **Backtest Dashboard**:
     - [x] Implemented "Risk Analysis" section (VaR, Sortino, Calmar, Win Rate).
     - [x] Added "Save Results" functionality (Saves Metrics JSON, Equity Curve CSV, and HTML Report).
+    - [x] **Ad Hoc**: Added "Import Preset" feature to load JSON strategy parameters.
 - [x] **Reporting**:
     - [x] Implemented PDF Tearsheet generation using Matplotlib (`src/reporting.py`).
 - [x] **Testing**:
@@ -185,10 +186,13 @@ Features needed for a production/distributed environment and live signal generat
 ### Accomplished
 - **Risk Metrics**: Added advanced risk metrics (VaR, Sortino, Calmar) to `engine.py`.
 - **Dashboard Upgrade**: Integrated risk analysis and results saving into the Backtest dashboard.
+- **Preset Import**: Added file uploader to "Backtest" page to import strategy presets from JSON files.
 - **Reporting**: Added PDF export functionality.
 - **Reliability**: Verified signal generation with new unit tests.
 
 ### Next Session Priorities
 - **Comparison UI**: Build a page to compare multiple backtest runs.
 - **Live Signals UI**: Integrate `signals.py` output into the dashboard.
-- **Refactoring**: Split `engine.py` into smaller modules.
+- **Refactoring**: 
+    - [ ] Split `engine.py` into smaller modules.
+    - [ ] **Standardize Result Saving**: Align `main.py` and `1_Backtest.py` output formats. `main.py` saves flat files, while `1_Backtest.py` uses timestamped subdirectories. `4_Results.py` needs to support the subdirectory structure.

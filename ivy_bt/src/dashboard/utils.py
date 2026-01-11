@@ -56,7 +56,10 @@ def render_sidebar():
     end_date = col2.date_input("End Date", datetime.today())
 
     # Strategy Selection
-    selected_strat_name = st.sidebar.selectbox("Strategy", list(STRATEGIES.keys()))
+    if 'strat_selection' not in st.session_state:
+        st.session_state.strat_selection = list(STRATEGIES.keys())[0]
+
+    selected_strat_name = st.sidebar.selectbox("Strategy", list(STRATEGIES.keys()), key="strat_selection")
     StrategyClass = STRATEGIES[selected_strat_name]
 
     # Risk Management
@@ -82,7 +85,8 @@ def render_sidebar():
         "strat_name": selected_strat_name,
         "StrategyClass": StrategyClass,
         "sizer": sizer,
-        "stop_loss": stop_loss
+        "stop_loss": stop_loss,
+        "preset" : preset
     }
 
 def render_strategy_params(strat_name):

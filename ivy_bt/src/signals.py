@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import sys
 
@@ -37,6 +37,7 @@ def parse_preset_filename(filename):
     
     if len(parts) < 3:
         logging.warning("Filename format does not match expected pattern.")
+        # Fallback: Try to infer from content or just return None
         return None, None
         
     strategy_name = parts[0]
@@ -44,9 +45,17 @@ def parse_preset_filename(filename):
     
     return strategy_name, instrument_type
 
-def generate_signals(preset_path, target_vol=None):
+def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None, end_date=None, lookback=365):
     """
     Generates trading signals for the current day based on the preset.
+    
+    Args:
+        preset_path (str): Path to the preset JSON file.
+        target_vol (float, optional): Target annualized volatility for sizing.
+        tickers (list, optional): List of tickers to override the preset's universe.
+        start_date (str, optional): Start date for data fetching (YYYY-MM-DD).
+        end_date (str, optional): End date for data fetching (YYYY-MM-DD).
+        lookback (int): Days of history to fetch if start_date is not provided. Default 365.
     """
     if not os.path.exists(preset_path):
         logging.error(f"Preset file not found: {preset_path}")
@@ -55,9 +64,12 @@ def generate_signals(preset_path, target_vol=None):
     # 1. Parse Metadata
     strategy_name, instrument_type = parse_preset_filename(preset_path)
     if not strategy_name:
+        logging.warning("Could not parse strategy name from filename. Trying to proceed if content allows...")
+        # If we can't parse filename, we might fail unless we inspect the JSON more deeply.
+        # For now, let's assume valid filenames or fail.
         return None
         
-    logging.info(f"Generating signals for Strategy: {strategy_name}, Universe: {instrument_type}")
+    logging.info(f"Generating signals for Strategy: {strategy_name}")
 
     # 2. Load Parameters
     presets = load_preset(preset_path)
@@ -81,14 +93,21 @@ def generate_signals(preset_path, target_vol=None):
     strategy_instance = strategy_class(**clean_params)
 
     # 4. Get Assets
-    tickers = get_assets(instrument_type)
-    logging.info(f"Analyzing {len(tickers)} assets...")
+    if tickers:
+        logging.info(f"Using provided custom ticker list: {tickers}")
+    else:
+        tickers = get_assets(instrument_type)
+        logging.info(f"Using universe from preset ({instrument_type}): {len(tickers)} assets")
 
     # 5. Initialize Engine
-    # We need enough history to calculate indicators. 
-    # Let's fetch 365 days back to be safe.
-    end_date = datetime.today().strftime('%Y-%m-%d')
-    start_date = (datetime.today() - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
+    # Date handling
+    if not end_date:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+    
+    if not start_date:
+        start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=lookback)).strftime('%Y-%m-%d')
+    
+    logging.info(f"Fetching data from {start_date} to {end_date}...")
     
     engine = BacktestEngine(tickers, start_date, end_date)
     
@@ -153,10 +172,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Live Signals from Preset")
     parser.add_argument("preset_path", help="Path to the preset JSON file")
     parser.add_argument("--vol_target", type=float, help="Target Annualized Volatility (e.g. 0.15 for 15%%)", default=None)
+    parser.add_argument("--tickers", type=str, help="Comma-separated list of tickers to override universe", default=None)
+    parser.add_argument("--start_date", type=str, help="Start date (YYYY-MM-DD)", default=None)
+    parser.add_argument("--end_date", type=str, help="End date (YYYY-MM-DD)", default=None)
+    parser.add_argument("--lookback", type=int, help="Days of history to fetch (default 365)", default=365)
     
     args = parser.parse_args()
     
-    df = generate_signals(args.preset_path, target_vol=args.vol_target)
+    # Process tickers list
+    ticker_list = None
+    if args.tickers:
+        ticker_list = [t.strip() for t in args.tickers.split(',')]
+
+    df = generate_signals(
+        args.preset_path, 
+        target_vol=args.vol_target,
+        tickers=ticker_list,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        lookback=args.lookback
+    )
     
     if df is not None and not df.empty:
         print("\n=== GENERATED SIGNALS ===")

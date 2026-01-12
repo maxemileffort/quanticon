@@ -88,7 +88,7 @@ uvicorn src.api.main:app --reload
 To generate actionable "Buy/Sell/Hold" signals for the current day using a saved preset:
 
 ```bash
-python src/signals.py presets/MyStrategy_Preset.json
+python src/signals.py presets/MyStrategy_Preset.json --tickers "AAPL,MSFT" --lookback 200
 ```
 
 To execute these signals via **Alpaca** (Paper Trading), use the Live Trader:
@@ -159,6 +159,7 @@ optimization:
 -   **Newsom10Strategy**: A complex strategy combining ATR, EMA, and volatility filters.
 -   **MACDReversal**: Classic MACD signal line crossover strategy.
 -   **TurtleTradingSystem**: The famous Donchian Channel breakout system.
+-   **PairsTrading**: Mean reversion portfolio strategy using cointegration and rolling beta (requires `is_portfolio_strategy=True`).
 
 ## Disclaimer
 

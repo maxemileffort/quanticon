@@ -17,7 +17,7 @@ if project_root not in sys.path:
 
 from src.strategies import get_all_strategies
 from src.risk import FixedSignalSizer, VolatilitySizer, KellySizer
-from src.instruments import crypto_assets, forex_assets, sector_etfs
+from src.instruments import crypto_assets, forex_assets, sector_etfs, get_sp500_crosswalk
 
 # Strategy Map (Dynamic)
 STRATEGIES = get_all_strategies()
@@ -32,6 +32,7 @@ PRESETS = {
     "Custom": [],
     "Forex (All)": forex_assets,
     "Crypto (All)": crypto_assets,
+    "SPY": get_sp500_crosswalk()['yfinance_symbol'].to_list(),
     "Sector ETFs": sector_etfs,
     "Major Forex": ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X"],
     "Blue Chip Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"]
@@ -156,31 +157,60 @@ def render_param_grid_inputs(strat_name, key_prefix="grid"):
             st.markdown(f"**{param}**")
             # If values is a range-like object (list, np.array)
             if len(values) > 0:
-                v_min = float(min(values))
-                v_max = float(max(values))
+                # Check if values are categorical (string or boolean)
+                is_categorical = any(isinstance(x, (str, bool, np.bool_)) for x in values)
                 
-                # Estimate step
-                step = 1.0
-                if len(values) > 1:
-                    step = float(values[1] - values[0])
-                
-                # Inputs
-                # Use a unique key for every input
-                p_start = st.number_input(f"Start", value=v_min, key=f"{key_prefix}_{param}_start")
-                p_end = st.number_input(f"End", value=v_max, key=f"{key_prefix}_{param}_end")
-                p_step = st.number_input(f"Step", value=step, key=f"{key_prefix}_{param}_step")
-                
-                # Heuristic to determine if integer or float
-                # Check if default values are all integers
-                is_int = all(isinstance(x, (int, np.integer)) for x in values)
-                
-                if is_int and p_step.is_integer():
-                    # Use integer range
-                    grid_params[param] = range(int(p_start), int(p_end) + 1, int(p_step))
+                if is_categorical:
+                    selected_vals = st.multiselect(
+                        "Values",
+                        options=list(values),
+                        default=list(values),
+                        key=f"{key_prefix}_{param}_multi"
+                    )
+                    grid_params[param] = selected_vals
                 else:
-                    # Use numpy float range
-                    # Rounding to avoid floating point issues
-                    grid_params[param] = [round(x, 2) for x in np.arange(p_start, p_end + p_step/1000, p_step)]
+                    try:
+                        v_min = float(min(values))
+                        v_max = float(max(values))
+                        
+                        # Estimate step
+                        step = 1.0
+                        if len(values) > 1:
+                            step = float(values[1] - values[0])
+                        
+                        # Inputs
+                        # Use a unique key for every input
+                        p_start = st.number_input(f"Start", value=v_min, key=f"{key_prefix}_{param}_start")
+                        p_end = st.number_input(f"End", value=v_max, key=f"{key_prefix}_{param}_end")
+                        p_step = st.number_input(f"Step", value=step, key=f"{key_prefix}_{param}_step")
+                        
+                        # Heuristic to determine if integer or float
+                        # Check if default values are all integers
+                        is_int = all(isinstance(x, (int, np.integer)) for x in values)
+                        
+                        if is_int and p_step.is_integer():
+                            # Use integer range
+                            if int(p_step) == 0:
+                                grid_params[param] = [int(p_start)]
+                            else:
+                                grid_params[param] = range(int(p_start), int(p_end) + 1, int(p_step))
+                        else:
+                            # Use numpy float range
+                            # Rounding to avoid floating point issues
+                            if p_step == 0:
+                                grid_params[param] = [p_start]
+                            else:
+                                grid_params[param] = [round(x, 2) for x in np.arange(p_start, p_end + p_step/1000, p_step)]
+                    except Exception as e:
+                        # Fallback for unexpected types
+                        st.warning(f"Using multiselect for {param} due to error: {e}")
+                        selected_vals = st.multiselect(
+                            "Values",
+                            options=list(values),
+                            default=list(values),
+                            key=f"{key_prefix}_{param}_fallback"
+                        )
+                        grid_params[param] = selected_vals
     
     return grid_params
 

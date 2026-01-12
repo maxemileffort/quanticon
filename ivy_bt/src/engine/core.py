@@ -117,6 +117,7 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
     def run_strategy(self, strategy_logic, name=None, stop_loss=None):
         """
         Runs the strategy and stores metrics.
+        Supports both single-asset (iterative) and portfolio (multi-asset) strategies.
         """
         if name:
             self.strat_name = name
@@ -125,23 +126,74 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         else:
             self.strat_name = 'MyStrategy'
 
-        for ticker, df in self.data.items():
-            if hasattr(strategy_logic, 'strat_apply'):
-                df = strategy_logic.strat_apply(df)
-            else:
-                df = strategy_logic(df)
+        # Check for Portfolio Strategy flag
+        is_portfolio = getattr(strategy_logic, 'is_portfolio_strategy', False)
+
+        if is_portfolio:
+            logging.info("Detected Portfolio Strategy. Combining data for multi-asset processing...")
+            # 1. Prepare MultiIndex DataFrame
+            frames = []
+            keys = []
+            for ticker, df in self.data.items():
+                if not df.empty:
+                    frames.append(df)
+                    keys.append(ticker)
             
-            if stop_loss is not None:
-                df = apply_stop_loss(df, stop_loss_pct=stop_loss, trailing=False)
+            if not frames:
+                logging.warning("No data available for portfolio strategy.")
+                return
 
-            df = self.position_sizer.size_position(df)
+            # Create MultiIndex: (Ticker, Timestamp)
+            # Note: We reset index to preserve timestamp as column if needed, but concat handles index alignment
+            combined_df = pd.concat(frames, keys=keys, names=['ticker', 'timestamp'])
+            
+            # 2. Run Strategy
+            if hasattr(strategy_logic, 'strat_apply'):
+                combined_df = strategy_logic.strat_apply(combined_df)
+            else:
+                combined_df = strategy_logic(combined_df)
 
-            df['position'] = df['position_size'].shift(1).fillna(0)
-            df['log_return'] = np.log(df['close'] / df['close'].shift(1))
-            df['strategy_return'] = df['position'] * df['log_return']
+            # 3. Disaggregate and Process
+            for ticker in keys:
+                try:
+                    # Extract back to single DataFrame
+                    # drop_level=True removes the 'ticker' level, leaving 'timestamp' index
+                    df = combined_df.xs(ticker, level='ticker', drop_level=True)
+                    
+                    # Common Post-Processing
+                    if stop_loss is not None:
+                        df = apply_stop_loss(df, stop_loss_pct=stop_loss, trailing=False)
 
-            self.data[ticker] = df
-            self.results[ticker] = self.calculate_metrics(df)
+                    df = self.position_sizer.size_position(df)
+
+                    df['position'] = df['position_size'].shift(1).fillna(0)
+                    df['log_return'] = np.log(df['close'] / df['close'].shift(1))
+                    df['strategy_return'] = df['position'] * df['log_return']
+
+                    self.data[ticker] = df
+                    self.results[ticker] = self.calculate_metrics(df)
+                except KeyError:
+                    logging.warning(f"Ticker {ticker} missing from strategy output.")
+                    
+        else:
+            # Standard Iterative Approach
+            for ticker, df in self.data.items():
+                if hasattr(strategy_logic, 'strat_apply'):
+                    df = strategy_logic.strat_apply(df)
+                else:
+                    df = strategy_logic(df)
+                
+                if stop_loss is not None:
+                    df = apply_stop_loss(df, stop_loss_pct=stop_loss, trailing=False)
+
+                df = self.position_sizer.size_position(df)
+
+                df['position'] = df['position_size'].shift(1).fillna(0)
+                df['log_return'] = np.log(df['close'] / df['close'].shift(1))
+                df['strategy_return'] = df['position'] * df['log_return']
+
+                self.data[ticker] = df
+                self.results[ticker] = self.calculate_metrics(df)
 
         self.results[f"BENCHMARK ({self.benchmark_ticker})"] = self.calculate_metrics(self.benchmark_data, is_benchmark=True)
 

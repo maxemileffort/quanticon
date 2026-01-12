@@ -31,6 +31,7 @@ This document summarizes the high-level features and capabilities that have been
 - **Engine Architecture**:
     - Modular `src/engine/` package with Mixins (`OptimizationMixin`, `AnalysisMixin`, `ReportingMixin`).
     - Support for intraday data intervals (1h, 15m, etc.) with dynamic annualization.
+    - **Portfolio Strategy Support**: Engine capability to handle multi-asset strategies (passing MultiIndex DataFrames).
 
 ## Phase 3: UI & Interaction (The Research Hub)
 - **Modular Dashboard**: Multi-page Streamlit app (`src/dashboard/`).
@@ -48,11 +49,15 @@ This document summarizes the high-level features and capabilities that have been
     - Volatility-Weighted Sizing for live signals.
     - CLI tool for signal generation.
 - **Result Standardization**: Timestamped directories (`backtests/{run_id}/`) for all artifacts.
-- **API**: Basic FastAPI implementation (`src/api/`) for serving backtest results.
+- **API**: Functional FastAPI service (`src/api/`) for running backtests and serving results.
 
-## Recent Updates (Session 18)
-- **Web Dashboard**: 
-    - Fixed KPI display bugs on Results page.
-    - Added PDF Export functionality for professional strategy reports.
-- **Backend**: Implemented FastAPI skeleton for decoupled state management.
-- **Live Trading Bridge**: Implemented Alpaca integration (`src/broker.py`, `src/live_trader.py`) for paper trading and automated rebalancing.
+## Phase 5: Strategies & Analysis Expansion
+- **Portfolio Strategies**:
+    - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
+    - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
+
+## Recent Updates (Session 19)
+- **API**: Expanded to support `POST /backtest/run` and detailed result retrieval.
+- **Engine**: Added support for Multi-Asset/Portfolio strategies.
+- **Strategies**: Added `PairsTrading` strategy.
+- **CLI**: Enhanced `src/signals.py` for flexible live signal generation.

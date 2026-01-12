@@ -56,7 +56,13 @@ This document summarizes the high-level features and capabilities that have been
     - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
 
-## Recent Updates (Session 19)
+## Recent Updates (Session 20 - 2026-01-11)
+- **Portfolio Strategy Optimization Fix**: Fixed critical bug where portfolio strategies (PairsTrading, MarketRegimeSentimentFollower) failed in optimization methods.
+  - All optimization methods now properly detect portfolio strategies via `is_portfolio_strategy` flag
+  - Grid Search, Random Search, and Walk-Forward Optimization fully support multi-asset strategies
+  - Strategies can now be optimized alongside single-ticker strategies seamlessly
+
+## Recent Updates (Session 19 - 2026-01-11)
 - **API**: Expanded to support `POST /backtest/run` and detailed result retrieval.
 - **Engine**: Added support for Multi-Asset/Portfolio strategies.
 - **Strategies**: Added `PairsTrading` strategy.

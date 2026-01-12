@@ -111,27 +111,61 @@ class OptimizationMixin:
             
             step_returns = {}
             
-            for ticker in self.tickers:
-                try:
-                    # Get full df
-                    df = self.data[ticker].copy()
-                    
-                    # Apply strategy on FULL data to ensure indicators are correct
-                    df = strat.strat_apply(df)
-                    df = self.position_sizer.size_position(df)
-                    
-                    df['position'] = df['position_size'].shift(1).fillna(0)
-                    df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
-                    df['strategy_return'] = df['position'] * df['log_return']
-                    
-                    # Slice for Test Window
-                    mask = (df.index > train_end) & (df.index <= test_end)
-                    test_slice = df.loc[mask]
-                    
-                    step_returns[ticker] = test_slice['strategy_return']
-                    
-                except Exception as e:
-                    logging.error(f"Error in WFO test phase for {ticker}: {e}")
+            # Determine if portfolio strategy
+            is_portfolio = getattr(strategy_class, 'is_portfolio_strategy', False)
+            
+            if is_portfolio:
+                 frames = []
+                 keys_list = []
+                 for ticker, df in self.data.items():
+                     if not df.empty:
+                         frames.append(df)
+                         keys_list.append(ticker)
+                 
+                 if frames:
+                     try:
+                         combined_df = pd.concat(frames, keys=keys_list, names=['ticker', 'timestamp'])
+                         combined_df = strat.strat_apply(combined_df)
+                         
+                         for ticker in keys_list:
+                             try:
+                                 df = combined_df.xs(ticker, level='ticker', drop_level=True)
+                                 df = self.position_sizer.size_position(df)
+                                 df['position'] = df['position_size'].shift(1).fillna(0)
+                                 df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                                 df['strategy_return'] = df['position'] * df['log_return']
+                                 
+                                 # Slice for Test Window
+                                 mask = (df.index > train_end) & (df.index <= test_end)
+                                 test_slice = df.loc[mask]
+                                 
+                                 step_returns[ticker] = test_slice['strategy_return']
+                             except KeyError:
+                                 pass
+                     except Exception as e:
+                         logging.error(f"Error in WFO test phase for portfolio: {e}")
+            else:
+                for ticker in self.tickers:
+                    try:
+                        # Get full df
+                        df = self.data[ticker].copy()
+                        
+                        # Apply strategy on FULL data to ensure indicators are correct
+                        df = strat.strat_apply(df)
+                        df = self.position_sizer.size_position(df)
+                        
+                        df['position'] = df['position_size'].shift(1).fillna(0)
+                        df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                        df['strategy_return'] = df['position'] * df['log_return']
+                        
+                        # Slice for Test Window
+                        mask = (df.index > train_end) & (df.index <= test_end)
+                        test_slice = df.loc[mask]
+                        
+                        step_returns[ticker] = test_slice['strategy_return']
+                        
+                    except Exception as e:
+                        logging.error(f"Error in WFO test phase for {ticker}: {e}")
             
             # Aggregate Portfolio Return for this step
             step_df = pd.DataFrame(step_returns).fillna(0)
@@ -188,28 +222,62 @@ class OptimizationMixin:
 
       logging.info(f"Starting Grid Search: {len(combinations)} combinations...")
 
+      # Determine if portfolio strategy
+      is_portfolio = getattr(strategy_class, 'is_portfolio_strategy', False)
+
       for params in combinations:
           strat = strategy_class(**params)
           run_returns = {} # Use a dict to keep track of ticker names
 
-          for ticker in self.tickers:
-              try:
-                  df = self.data[ticker].copy()
-                  df = strat.strat_apply(df)
-                  
-                  # Apply Position Sizing
-                  df = self.position_sizer.size_position(df)
-                  
-                  df = df.dropna()
-
-                  # Signal Shift & Return Calculation
-                  df['position'] = df['position_size'].shift(1).fillna(0)
-                  df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
-                  # Store in dict with ticker as key
-                  run_returns[ticker] = df['position'] * df['log_return']
-              except Exception as e:
-                  logging.error(f"Error processing {ticker}: {e}")
+          if is_portfolio:
+              # Portfolio Strategy Execution
+              frames = []
+              keys_list = []
+              for ticker, df in self.data.items():
+                  if not df.empty:
+                      frames.append(df)
+                      keys_list.append(ticker)
+              
+              if not frames:
                   continue
+
+              try:
+                  combined_df = pd.concat(frames, keys=keys_list, names=['ticker', 'timestamp'])
+                  combined_df = strat.strat_apply(combined_df)
+                  
+                  for ticker in keys_list:
+                      try:
+                          df = combined_df.xs(ticker, level='ticker', drop_level=True)
+                          df = self.position_sizer.size_position(df)
+                          df = df.dropna()
+                          df['position'] = df['position_size'].shift(1).fillna(0)
+                          df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                          run_returns[ticker] = df['position'] * df['log_return']
+                      except KeyError:
+                          pass
+              except Exception as e:
+                  logging.error(f"Error processing portfolio strategy: {e}")
+                  continue
+
+          else:
+              for ticker in self.tickers:
+                  try:
+                      df = self.data[ticker].copy()
+                      df = strat.strat_apply(df)
+                      
+                      # Apply Position Sizing
+                      df = self.position_sizer.size_position(df)
+                      
+                      df = df.dropna()
+
+                      # Signal Shift & Return Calculation
+                      df['position'] = df['position_size'].shift(1).fillna(0)
+                      df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                      # Store in dict with ticker as key
+                      run_returns[ticker] = df['position'] * df['log_return']
+                  except Exception as e:
+                      logging.error(f"Error processing {ticker}: {e}")
+                      continue
 
           if not run_returns:
               continue
@@ -280,29 +348,62 @@ class OptimizationMixin:
         logging.info(f"Starting Random Search: {len(combo_dicts)} combinations (sampled from {total_combinations})...")
         
         grid_results = []
+        
+        # Determine if portfolio strategy
+        is_portfolio = getattr(strategy_class, 'is_portfolio_strategy', False)
 
         for params in combo_dicts:
             strat = strategy_class(**params)
             run_returns = {} # Use a dict to keep track of ticker names
 
-            for ticker in self.tickers:
-                try:
-                    df = self.data[ticker].copy()
-                    df = strat.strat_apply(df)
-                    
-                    # Apply Position Sizing
-                    df = self.position_sizer.size_position(df)
-                    
-                    df = df.dropna()
-
-                    # Signal Shift & Return Calculation
-                    df['position'] = df['position_size'].shift(1).fillna(0)
-                    df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
-                    # Store in dict with ticker as key
-                    run_returns[ticker] = df['position'] * df['log_return']
-                except Exception as e:
-                    logging.error(f"Error processing {ticker}: {e}")
+            if is_portfolio:
+                # Portfolio Strategy Execution
+                frames = []
+                keys_list = []
+                for ticker, df in self.data.items():
+                    if not df.empty:
+                        frames.append(df)
+                        keys_list.append(ticker)
+                
+                if not frames:
                     continue
+
+                try:
+                    combined_df = pd.concat(frames, keys=keys_list, names=['ticker', 'timestamp'])
+                    combined_df = strat.strat_apply(combined_df)
+                    
+                    for ticker in keys_list:
+                        try:
+                            df = combined_df.xs(ticker, level='ticker', drop_level=True)
+                            df = self.position_sizer.size_position(df)
+                            df = df.dropna()
+                            df['position'] = df['position_size'].shift(1).fillna(0)
+                            df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                            run_returns[ticker] = df['position'] * df['log_return']
+                        except KeyError:
+                            pass
+                except Exception as e:
+                    logging.error(f"Error processing portfolio strategy: {e}")
+                    continue
+            else:
+                for ticker in self.tickers:
+                    try:
+                        df = self.data[ticker].copy()
+                        df = strat.strat_apply(df)
+                        
+                        # Apply Position Sizing
+                        df = self.position_sizer.size_position(df)
+                        
+                        df = df.dropna()
+
+                        # Signal Shift & Return Calculation
+                        df['position'] = df['position_size'].shift(1).fillna(0)
+                        df['log_return'] = np.log(df['close'] / df['close'].shift(1)).fillna(0)
+                        # Store in dict with ticker as key
+                        run_returns[ticker] = df['position'] * df['log_return']
+                    except Exception as e:
+                        logging.error(f"Error processing {ticker}: {e}")
+                        continue
 
             if not run_returns:
                 continue

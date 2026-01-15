@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-11
+Last Updated: 2026-01-14
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
@@ -17,7 +17,14 @@ This document outlines the pending features and future considerations for the Iv
 Features needed for a production/distributed environment and live signal generation.
 
 - [ ] **Backtest Scaling**: `python main.py` CLI expansion for large-scale backtesting (Partially covered by new API endpoints).
-    - [ ] Modularize `strategies.py` in a similar way to how `engine.py` (now called `engine_legacy.py`) was handled.
+- [x] **Strategy Modularization** (Completed 2026-01-14): Refactored `strategies.py` into modular package structure.
+  - Created `src/strategies/` package with categorical organization
+  - Modules: `base.py`, `trend.py`, `reversal.py`, `breakout.py`, `complex.py`, `portfolio.py`
+  - Maintained backward compatibility via `__init__.py` exports
+  - Updated test files to patch correct module paths
+  - All tests passing (test_strategies.py: 3/3 passed)
+  - Created `STRATEGIES_ARCHITECTURE.md` documentation
+- [ ] `\quanticon\ivy_bt\src\dashboard\pages\2_Optimization.py` This page needs to have the DataManager integrated in order to save time on the optimization process.
 - [ ] **User Management**
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
@@ -58,6 +65,37 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 - **MarketRegimeSentimentFollower Strategy**: Previously failed due to single-ticker iteration. 
     - **Status (2026-01-11)**: Resolved. The `BacktestEngine` now supports an `is_portfolio_strategy` flag. `MarketRegimeSentimentFollower` has been updated to use this flag, allowing it to access the full universe (MultiIndex DataFrame) and SPY data correctly.
+
+## ✅ Completed in Session 21 (2026-01-14)
+- [x] **Strategy Package Modularization**:
+    - [x] **Package Structure**: Created `src/strategies/` package with 6 specialized modules.
+    - [x] **Base Module**: Extracted `StrategyTemplate` to `base.py`.
+    - [x] **Categorical Organization**: Organized 11 strategies into logical modules (trend, reversal, breakout, complex, portfolio).
+    - [x] **Backward Compatibility**: Maintained full compatibility via `__init__.py` package-level exports.
+    - [x] **Test Updates**: Updated test files to patch correct module paths (`src.strategies.trend.ta`, etc.).
+    - [x] **Documentation**: Created comprehensive `STRATEGIES_ARCHITECTURE.md` guide.
+    - [x] **Legacy Preservation**: Renamed original file to `strategies_legacy.py` for reference.
+
+## Session Summary (2026-01-14) - Session 21
+
+### Accomplished
+- **Strategy Modularization Complete**: Successfully refactored the 800+ line `strategies.py` monolith into a clean, modular package structure.
+- **All Tests Passing**: Updated and verified all unit tests (test_strategies.py: 3/3 passed).
+- **Zero Breaking Changes**: Full backward compatibility ensures existing code continues to work without modifications.
+- **Production Ready**: Architecture documentation and developer guidelines in place for future strategy development.
+
+### What to Tackle Next
+- **DataManager Integration**: Integrate DataManager into the Optimization page (`src/dashboard/pages/2_Optimization.py`) to improve caching and performance.
+- **Performance Testing**: Run full backtests and optimizations to validate the modular structure performs identically.
+- **Strategy Expansion**: Consider adding more strategies now that the architecture is scalable.
+
+### Important Notes
+- When adding new strategies, choose the appropriate module based on strategy type (trend/reversal/breakout/complex/portfolio).
+- Always add new strategies to `__init__.py` exports for package-level accessibility.
+- Test files must patch `pandas_ta` in the specific module (e.g., `src.strategies.trend.ta`), not at package level.
+- The legacy `strategies_legacy.py` file is preserved for reference only and should not be imported.
+
+---
 
 ## ✅ Completed in Session 20 (2026-01-11)
 - [x] **Critical Bug Fix - Portfolio Strategy Optimization**:

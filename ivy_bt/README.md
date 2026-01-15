@@ -141,7 +141,13 @@ optimization:
 -   `config.yaml`: Configuration file for backtest parameters.
 -   `src/`:
     -   `engine/`: Core engine package containing `BacktestEngine` (refactored into modular components).
-    -   `strategies.py`: Implementations of trading strategies (e.g., `EMACross`, `BollingerReversion`, `RSIReversal`).
+    -   `strategies/`: Modular strategy package with categorical organization:
+        -   `base.py`: `StrategyTemplate` base class for all strategies.
+        -   `trend.py`: Trend-following strategies (EMACross, MACDTrend, Newsom10Strategy).
+        -   `reversal.py`: Mean reversion strategies (BollingerReversion, RSIReversal, MACDReversal).
+        -   `breakout.py`: Breakout strategies (TurtleTradingSystem, IchimokuCloudBreakout).
+        -   `complex.py`: Advanced multi-indicator strategies (TradingMadeSimpleTDIHeikinAshi).
+        -   `portfolio.py`: Multi-asset strategies (PairsTrading, MarketRegimeSentimentFollower).
     -   `regime_filters.py`: Logic for detecting market regimes (AR, GARCH).
     -   `risk.py`: Position sizing logic (`PositionSizer`, `FixedSignalSizer`, `VolatilitySizer`, `KellySizer`).
     -   `data_manager.py`: Handles data fetching, caching (Parquet), and cleaning.
@@ -149,6 +155,7 @@ optimization:
     -   `utils.py`: Utility functions for visualization and analysis.
     -   `config.py`: Configuration loading and validation using Pydantic.
 -   `tests/`: Unit tests for the codebase.
+-   `docs/`: Documentation including architecture guides and roadmaps.
 -   `requirements.txt`: List of Python dependencies.
 
 ## Included Strategies

@@ -22,12 +22,19 @@ class TestStrategies(unittest.TestCase):
             'volume': 1000
         }, index=dates)
         
-        # Patch pandas_ta inside src.strategies
-        self.ta_patcher = patch('src.strategies.ta')
-        self.mock_ta = self.ta_patcher.start()
+        # Patch pandas_ta in the individual strategy modules
+        self.ta_patcher_trend = patch('src.strategies.trend.ta')
+        self.ta_patcher_reversal = patch('src.strategies.reversal.ta')
+        
+        self.mock_ta_trend = self.ta_patcher_trend.start()
+        self.mock_ta_reversal = self.ta_patcher_reversal.start()
+        
+        # Use the same mock for both
+        self.mock_ta = self.mock_ta_trend
 
     def tearDown(self):
-        self.ta_patcher.stop()
+        self.ta_patcher_trend.stop()
+        self.ta_patcher_reversal.stop()
 
     def test_ema_cross(self):
         # Configure Mock
@@ -60,7 +67,7 @@ class TestStrategies(unittest.TestCase):
         # We want some oscillation to trigger signals
         # Let's just return a series that goes < 30 then > 70
         rsi_vals = np.linspace(20, 80, 100)
-        self.mock_ta.rsi.return_value = pd.Series(rsi_vals, index=self.df.index)
+        self.mock_ta_reversal.rsi.return_value = pd.Series(rsi_vals, index=self.df.index)
         
         strategy = RSIReversal(length=14, lower=30, upper=70)
         res = strategy.strat_apply(self.df.copy())
@@ -89,7 +96,7 @@ class TestStrategies(unittest.TestCase):
         bb_df['BBU_20_2.0'] = self.df['close'] + 10
         bb_df['BBM_20_2.0'] = self.df['close']
         
-        self.mock_ta.bbands.return_value = bb_df
+        self.mock_ta_reversal.bbands.return_value = bb_df
         
         strategy = BollingerReversion(length=20, std=2.0)
         res = strategy.strat_apply(self.df.copy())

@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-11
+Last Updated: 2026-01-14
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -50,6 +50,10 @@ This document summarizes the high-level features and capabilities that have been
     - CLI tool for signal generation.
 - **Result Standardization**: Timestamped directories (`backtests/{run_id}/`) for all artifacts.
 - **API**: Functional FastAPI service (`src/api/`) for running backtests and serving results.
+- **Strategy Architecture**:
+    - Modular `src/strategies/` package with categorical organization (trend, reversal, breakout, complex, portfolio).
+    - Full backward compatibility maintained via package-level exports.
+    - Comprehensive documentation in `STRATEGIES_ARCHITECTURE.md`.
 
 ## Phase 5: Strategies & Analysis Expansion
 - **Portfolio Strategies**:

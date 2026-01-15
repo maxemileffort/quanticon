@@ -58,9 +58,25 @@ if st.button(f"Run {search_method}", type="primary"):
         st.error("No parameters to optimize.")
     else:
         with st.spinner(f"Running {search_method}..."):
-            opt_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
+            # Construct a unique key for the current data configuration
+            tickers_sorted = sorted(tickers) if isinstance(tickers, list) else [tickers]
+            current_config_key = f"{tickers_sorted}_{start_date}_{end_date}"
+            
+            # Check if we have a cached engine and if the config matches
+            if 'opt_engine' in st.session_state and st.session_state.get('opt_config_key') == current_config_key:
+                st.info("Using cached data from session state...")
+                opt_engine = st.session_state['opt_engine']
+            else:
+                st.info("Fetching fresh data...")
+                opt_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
+                opt_engine.fetch_data()
+                
+                # Cache the engine and the key
+                st.session_state['opt_engine'] = opt_engine
+                st.session_state['opt_config_key'] = current_config_key
+            
+            # Update position sizer as it might have changed
             opt_engine.position_sizer = sizer
-            opt_engine.fetch_data()
             
             if search_method == "Grid Search":
                 results_df = opt_engine.run_grid_search(StrategyClass, grid_params)

@@ -59,6 +59,13 @@ This document summarizes the high-level features and capabilities that have been
 - **Portfolio Strategies**:
     - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
+- **Data Capabilities**:
+    - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager`.
+
+## Recent Updates (Session 22 - 2026-01-14)
+- **CLI Scaling**: Refactored `main.py` to support full CLI argument parsing, stateless execution, and dynamic strategy resolution. This enables batch processing and easier automation.
+- **Optimization Performance**: Integrated session state caching in the Optimization dashboard to prevent redundant data reloading.
+- **Stability Fixes**: Fixed `pandas_ta` related instability in `EMACross` by explicitly handling NaN outputs.
 
 ## Recent Updates (Session 20 - 2026-01-11)
 - **Portfolio Strategy Optimization Fix**: Fixed critical bug where portfolio strategies (PairsTrading, MarketRegimeSentimentFollower) failed in optimization methods.

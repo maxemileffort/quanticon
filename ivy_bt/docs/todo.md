@@ -16,7 +16,9 @@ This document outlines the pending features and future considerations for the Iv
 ## Phase 4: Commercialization & Live Operations
 Features needed for a production/distributed environment and live signal generation.
 
-- [ ] **Backtest Scaling**: `python main.py` CLI expansion for large-scale backtesting (Partially covered by new API endpoints).
+- [x] **Backtest Scaling** (Completed 2026-01-14): `python main.py` CLI expansion for large-scale backtesting.
+  - Refactored `main.py` for stateless, argument-driven execution.
+  - Supports dynamic strategy resolution and all configuration via CLI flags.
 - [x] **Strategy Modularization** (Completed 2026-01-14): Refactored `strategies.py` into modular package structure.
   - Created `src/strategies/` package with categorical organization
   - Modules: `base.py`, `trend.py`, `reversal.py`, `breakout.py`, `complex.py`, `portfolio.py`
@@ -24,13 +26,13 @@ Features needed for a production/distributed environment and live signal generat
   - Updated test files to patch correct module paths
   - All tests passing (test_strategies.py: 3/3 passed)
   - Created `STRATEGIES_ARCHITECTURE.md` documentation
-- [ ] `\quanticon\ivy_bt\src\dashboard\pages\2_Optimization.py` This page needs to have the DataManager integrated in order to save time on the optimization process.
+- [x] `\quanticon\ivy_bt\src\dashboard\pages\2_Optimization.py` Integrated session state caching for DataManager/Engine to optimize performance.
 - [ ] **User Management**
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
 ## Phase 5: Expand backtest functionality
-- [ ] Implement synthetic asset creation (Spread) in Data Layer.
+- [x] Implement synthetic asset creation (Spread) in Data Layer (Added `create_synthetic_spread` to DataManager).
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
 - [ ] Add support for other data sources, like Alpaca, Interactive Brokers, MT4/5, Darwinex, Dukascopy, etc.
 
@@ -65,6 +67,34 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 - **MarketRegimeSentimentFollower Strategy**: Previously failed due to single-ticker iteration. 
     - **Status (2026-01-11)**: Resolved. The `BacktestEngine` now supports an `is_portfolio_strategy` flag. `MarketRegimeSentimentFollower` has been updated to use this flag, allowing it to access the full universe (MultiIndex DataFrame) and SPY data correctly.
+
+## ✅ Completed in Session 22 (2026-01-14)
+- [x] **Optimization Page Performance**:
+    - [x] Implemented `st.session_state` caching for `BacktestEngine` in `src/dashboard/pages/2_Optimization.py`.
+    - [x] Prevents redundant data reloading when running multiple optimizations.
+- [x] **Synthetic Asset Support**:
+    - [x] Added `create_synthetic_spread` method to `DataManager` for creating spread assets (A-B) or ratio assets (A/B).
+- [x] **Core Refactoring**:
+    - [x] Rewrote `main.py` to support fully argument-driven execution.
+    - [x] Added dynamic strategy resolution via `get_all_strategies`.
+    - [x] Verified CLI execution with `python main.py --strategy ...`.
+- [x] **Bug Fix**:
+    - [x] Fixed `EMACross` stability issue by adding `.dropna()` to handle `pandas_ta` NaN outputs.
+
+## Session Summary (2026-01-14) - Session 22
+
+### Accomplished
+- **Performance & Caching**: The Optimization dashboard page now caches the engine and data, significantly speeding up iterative parameter searching.
+- **Scalable CLI**: `main.py` is now a robust CLI tool that can be used for batch processing or automated backtesting pipelines, accepting all config via arguments.
+- **Data Capabilities**: Added foundation for spread trading with `create_synthetic_spread` in DataManager.
+- **Reliability**: Identified and fixed a `pandas_ta` related stability issue in `EMACross` by explicitly handling NaN values.
+
+### What to Tackle Next
+- **Batch Runner**: Implement the `BatchRunner` to leverage the new `main.py` CLI for running multiple strategies in parallel.
+- **Synthetic Asset Integration**: Expose the synthetic asset creation in the Dashboard or CLI (currently only in DataManager).
+- **Visualization**: Add drill-down charts to the dashboard.
+
+---
 
 ## ✅ Completed in Session 21 (2026-01-14)
 - [x] **Strategy Package Modularization**:

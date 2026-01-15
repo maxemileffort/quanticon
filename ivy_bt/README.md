@@ -39,17 +39,18 @@ python -m unittest discover tests
 
 ## Quick Start (Research Workflow)
 
-The easiest way to run a backtest with automatic optimization is using the **Backtest Template**.
+The easiest way to run a backtest with automatic optimization is using the **Command Line Interface**.
 
-1.  Open `main.py`.
-2.  Select your strategy in the configuration section:
-    ```python
-    STRATEGY_CLASS = EMACross  # or BollingerReversion, etc.
-    ```
-3.  Run the script:
-    ```bash
-    python main.py
-    ```
+```bash
+# Basic Run (uses default strategy and config)
+python main.py
+
+# Specify Strategy and Tickers
+python main.py --strategy EMACross --tickers "AAPL,MSFT"
+
+# Full Configuration
+python main.py --strategy PairsTrading --instruments forex --start_date 2023-01-01 --end_date 2023-12-31 --metric Return
+```
 
 The script will:
 *   Automatically infer the optimal parameter grid for the selected strategy.

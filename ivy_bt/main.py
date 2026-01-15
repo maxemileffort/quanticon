@@ -5,162 +5,181 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import itertools
+import logging
+import sys
+
+# Add src to path if needed
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from src.engine import BacktestEngine
 from src.strategies import (
-    EMACross, 
-    BollingerReversion, 
-    RSIReversal, 
-    Newsom10Strategy, 
-    MACDReversal, 
-    MACDTrend, 
-    TurtleTradingSystem,
-    IchimokuCloudBreakout,
+    StrategyTemplate,
+    get_all_strategies,
+    # Explicit imports for defaults/type hinting if needed
     TradingMadeSimpleTDIHeikinAshi
 )
 from src.instruments import get_assets
 from src.config import load_config
-import logging
 from src.utils import setup_logging, analyze_complex_grid
 
 # ==========================================
-# USER CONFIGURATION SECTION
+# CONFIGURATION & CONSTANTS
 # ==========================================
 
-# Load Configuration
-config = load_config()
-
-# 1. Select Strategy
-# The script will automatically infer the parameter grid using .get_default_grid()
-STRATEGY_CLASS = TradingMadeSimpleTDIHeikinAshi
-
-# 2. Select Instruments
-# Options: "forex", "crypto", 
-# "spy" (SP500), "iwm" (Russell2000)
-# "xlf" (FinancialSectorEtf), "xlv" (HealthcareSectorEtf)
-# "xle" (EnergySectorEtf), "xlk" (TechSectorEtf)
-INSTRUMENT_TYPE = config.backtest.instrument_type
-CUSTOM_TICKERS = [] # Leave empty to use INSTRUMENT_TYPE
-
-# 3. Date Range
-START_DATE = config.backtest.start_date
-END_DATE = config.backtest.end_date
-
-# 4. Optimization Settings
-METRIC = config.optimization.metric # Metric to optimize for: 'Sharpe', 'Return'
-
-# 5. Advanced Features
-ENABLE_PORTFOLIO_OPT = config.optimization.enable_portfolio_opt   # Filter out low-Sharpe assets after backtest
-ENABLE_MONTE_CARLO = config.optimization.enable_monte_carlo     # Run Monte Carlo simulations
-ENABLE_WFO = config.optimization.enable_wfo            # Run Walk-Forward Optimization (Computationally Intensive)
-ENABLE_PLOTTING = config.optimization.enable_plotting        # Show plots (Heatmaps, Equity Curves)
-
-# 6. Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 BACKTEST_DIR = os.path.join(BASE_DIR, 'backtests')
 
-# ==========================================
-# MAIN EXECUTION
-# ==========================================
-
-def run_backtest(strat_override = None, instrument_override = None):
-    # Setup logging
-    setup_logging()
-    logging.info(f"--- Starting Backtest Template with Auto-Optimization ---")
-
-    # TODO: finish, clean up, and document implementation of override logics from argparser.
-    accepted_strat_overrides = {
-        'ema': EMACross,
-        'bb': BollingerReversion, 
-        'rsi': RSIReversal, 
-        'newsom': Newsom10Strategy, 
-        'macdr': MACDReversal, 
-        'macdt': MACDTrend, 
-        'turtle': TurtleTradingSystem,
-        'ichi': IchimokuCloudBreakout,
-        'tms': TradingMadeSimpleTDIHeikinAshi
+def resolve_strategy(strategy_name):
+    """
+    Resolves a strategy name to a Strategy class.
+    Supports exact names and common aliases.
+    """
+    strategies = get_all_strategies()
+    
+    # 1. Exact match (case insensitive)
+    for name, cls in strategies.items():
+        if name.lower() == strategy_name.lower():
+            return cls
+            
+    # 2. Aliases / Short codes
+    aliases = {
+        'ema': 'EMACross',
+        'bb': 'BollingerReversion',
+        'rsi': 'RSIReversal',
+        'newsom': 'Newsom10Strategy',
+        'macdr': 'MACDReversal',
+        'macdt': 'MACDTrend',
+        'turtle': 'TurtleTradingSystem',
+        'ichi': 'IchimokuCloudBreakout',
+        'tms': 'TradingMadeSimpleTDIHeikinAshi',
+        'pairs': 'PairsTrading',
+        'regime': 'MarketRegimeSentimentFollower'
     }
-    accepted_inst_overrides = {
-        'forex': 'forex',
-        'crypto': 'crypto', 
-        'spy': 'spy', 
-        'etf': 'etf'
+    
+    if strategy_name.lower() in aliases:
+        target = aliases[strategy_name.lower()]
+        return strategies.get(target)
         
-    }
-    if strat_override:
-        if strat_override in accepted_strat_overrides.keys():
-            STRATEGY_CLASS = accepted_strat_overrides[strat_override]
-        else: 
-            pass
+    return None
 
-    if instrument_override:
-        if instrument_override in accepted_inst_overrides.keys():
-            INSTRUMENT_TYPE = accepted_inst_overrides[instrument_override]
-        else:
-            pass
-    
-    # 1. Determine Tickers
-    if CUSTOM_TICKERS:
-        tickers = CUSTOM_TICKERS
+def run_backtest(
+    strategy_name=None,
+    tickers=None,
+    instrument_type=None,
+    start_date=None,
+    end_date=None,
+    metric=None,
+    enable_portfolio_opt=None,
+    enable_monte_carlo=None,
+    enable_wfo=None,
+    enable_plotting=None,
+    param_grid_override=None
+):
+    """
+    Main entry point for running backtests.
+    All parameters are optional and will fall back to config.yaml defaults.
+    """
+    # 0. Setup Logging
+    setup_logging()
+    logging.info(f"--- Starting IvyBT Backtest ---")
+
+    # 1. Load Configuration
+    config_path = os.path.join(BASE_DIR, "config.yaml")
+    if not os.path.exists(config_path):
+        # Fallback for when running from project root
+        config_path = "config.yaml"
+        
+    config = load_config(config_path)
+
+    # 2. Resolve Strategy
+    StrategyClass = None
+    if strategy_name:
+        StrategyClass = resolve_strategy(strategy_name)
+        if not StrategyClass:
+            logging.error(f"Strategy '{strategy_name}' not found. Available: {list(get_all_strategies().keys())}")
+            return
     else:
-        tickers = get_assets(INSTRUMENT_TYPE)
-    
-    logging.info(f"Selected {len(tickers)} tickers (Type: {INSTRUMENT_TYPE})")
+        # Default Strategy
+        StrategyClass = TradingMadeSimpleTDIHeikinAshi
+        
+    logging.info(f"Strategy: {StrategyClass.__name__}")
 
-    # 2. Configure Data Path
-    # data_config is already loaded as config.data but we need to pass it or ensure engine uses it
-    # The engine expects a DataConfig object. config.data is a DataConfig object.
+    # 3. Resolve Parameters from Args or Config
+    instrument_type = instrument_type or config.backtest.instrument_type
+    start_date = start_date or config.backtest.start_date
+    end_date = end_date or config.backtest.end_date
+    metric = metric or config.optimization.metric
     
+    # Boolean flags need careful handling if passed as False
+    enable_portfolio_opt = enable_portfolio_opt if enable_portfolio_opt is not None else config.optimization.enable_portfolio_opt
+    enable_monte_carlo = enable_monte_carlo if enable_monte_carlo is not None else config.optimization.enable_monte_carlo
+    enable_wfo = enable_wfo if enable_wfo is not None else config.optimization.enable_wfo
+    enable_plotting = enable_plotting if enable_plotting is not None else config.optimization.enable_plotting
+
+    # 4. Determine Tickers
+    if tickers:
+        # If tickers passed as list or string
+        if isinstance(tickers, str):
+            tickers = [t.strip() for t in tickers.split(',')]
+        logging.info(f"Using Custom Tickers: {tickers}")
+    else:
+        tickers = get_assets(instrument_type)
+        logging.info(f"Using Asset Universe: {instrument_type} ({len(tickers)} tickers)")
+
+    # 5. Initialize Engine
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(BACKTEST_DIR, exist_ok=True)
 
-    # 3. Initialize Engine
     engine = BacktestEngine(
         tickers=tickers,
-        start_date=START_DATE,
-        end_date=END_DATE,
+        start_date=start_date,
+        end_date=end_date,
         data_config=config.data
     )
 
-    # 4. Fetch Data
+    # 6. Fetch Data
     engine.fetch_data()
 
-    # 5. Infer Parameter Grid
-    param_grid = STRATEGY_CLASS.get_default_grid()
+    # 7. Infer Parameter Grid
+    if param_grid_override:
+        param_grid = param_grid_override
+    else:
+        param_grid = StrategyClass.get_default_grid()
     
-    # Allow override if user defined PARAM_GRID globally (backwards compatibility or manual override)
-    # global PARAM_GRID # (If we wanted to support mixed mode)
+    logging.info(f"Parameter Grid: {param_grid}")
     
-    strat_name = STRATEGY_CLASS.__name__
-    logging.info(f"Strategy: {strat_name}")
-    logging.info(f"Inferred Parameter Grid: {param_grid}")
-    
+    best_params = {}
+    strat_label = StrategyClass.__name__
+    grid_results = pd.DataFrame()
+
     if not param_grid:
         logging.warning("Parameter grid is empty! Running default instance without optimization.")
-        # Just run a single instance if no grid
-        final_strat = STRATEGY_CLASS()
-        engine.run_strategy(final_strat, name=strat_name)
+        # Run Single Instance
+        final_strat = StrategyClass()
+        engine.run_strategy(final_strat, name=strat_label)
         best_params = final_strat.params
     else:
+        # Optimization Logic
         keys, values = zip(*param_grid.items())
-        combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        combinations_count = len(list(itertools.product(*values))) # Careful with memory if huge?
+        # Re-calculate using len of lists to avoid generating all products
+        combinations_count = 1
+        for v in values: combinations_count *= len(v)
 
-        if len(combinations) < 500:
-
-            # 6. Run Grid Search Optimization
-            logging.info(f"Running Grid Search...")
-            grid_results = engine.run_grid_search(STRATEGY_CLASS, param_grid)
+        if combinations_count < 500:
+            logging.info(f"Running Grid Search ({combinations_count} combinations)...")
+            grid_results = engine.run_grid_search(StrategyClass, param_grid)
         else:
-            # 6. Run Random Search Optimization
-            logging.info(f"Running Random Search...")
-            grid_results = engine.run_random_search(STRATEGY_CLASS, param_grid, n_iter=500)
+            logging.info(f"Running Random Search (500 iterations)...")
+            grid_results = engine.run_random_search(StrategyClass, param_grid, n_iter=500)
         
         if grid_results.empty:
-            logging.error("Grid search returned no results.")
+            logging.error("Optimization returned no results.")
             return
 
-        # 7. Select Best Parameters
-        best_row = grid_results.sort_values(by=METRIC, ascending=False).iloc[0]
+        # Select Best Parameters
+        best_row = grid_results.sort_values(by=metric, ascending=False).iloc[0]
         logging.info(f"\nBest Result:\n{best_row}")
         
         best_params = best_row.to_dict()
@@ -174,74 +193,58 @@ def run_backtest(strat_override = None, instrument_override = None):
 
         logging.info(f"Selected Best Parameters: {best_params}")
 
-        # 8. Run Final Backtest with Best Parameters
-        logging.info("Running final backtest with optimized parameters...")
-        final_strat = STRATEGY_CLASS(**best_params)
-        engine.run_strategy(final_strat, name=f"{strat_name}_Optimized")
+        # Run Final Backtest
+        final_strat = StrategyClass(**best_params)
+        engine.run_strategy(final_strat, name=f"{strat_label}_Optimized")
 
-        # Save Grid Search Results
+        # Save Grid Results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{strat_name}_{INSTRUMENT_TYPE}_Optimized_{timestamp}"
-        
-        # Create Run Directory
+        run_id = f"{strat_label}_{instrument_type.replace(' ', '')}_Optimized_{timestamp}"
         run_dir = os.path.join(BACKTEST_DIR, run_id)
         os.makedirs(run_dir, exist_ok=True)
         
         grid_path = os.path.join(run_dir, "grid_results.csv")
         grid_results.to_csv(grid_path)
-        logging.info(f"Grid search results saved to: {grid_path}")
-
-        # Save Top 5 Presets
+        
+        # Save Presets
         presets_dir = os.path.join(BASE_DIR, 'presets')
         os.makedirs(presets_dir, exist_ok=True)
-        
-        top_5 = grid_results.sort_values(by=METRIC, ascending=False).head(5)
-        # Convert to list of dicts
+        top_5 = grid_results.sort_values(by=metric, ascending=False).head(5)
         top_5_list = top_5.to_dict(orient='records')
-        
         presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
         with open(presets_path, 'w') as f:
             json.dump(top_5_list, f, indent=4)
-        logging.info(f"Top 5 presets saved to: {presets_path}")
-        
-        # Grid Search Visualization
-        if ENABLE_PLOTTING:
+            
+        # Analysis Plots
+        if enable_plotting:
              logging.info("Generating Complex Grid Analysis...")
              try:
-                 # We pass the metric used for optimization
                  grid_results_clean = grid_results.dropna()
-                 # analyze_complex_grid saves as {run_id}_parallel_coords.html in output_dir
-                 # We want it in run_dir as parallel_coords.html. 
-                 # We might need to adjust analyze_complex_grid or just let it save and move it.
-                 # For now, let's point it to run_dir
-                 analyze_complex_grid(grid_results_clean, target_metric=METRIC, output_dir=run_dir, run_id="analysis")
+                 analyze_complex_grid(grid_results_clean, target_metric=metric, output_dir=run_dir, run_id="analysis")
              except Exception as e:
                  logging.error(f"Failed to generate grid analysis: {e}")
 
-    # 9. Portfolio Optimization (Optional)
-    if ENABLE_PORTFOLIO_OPT:
+    # 8. Portfolio Optimization
+    if enable_portfolio_opt:
         logging.info("--- Optimizing Portfolio Selection ---")
-        # Filter tickers by Sharpe (configurable default)
         ticker_hold = engine.tickers
         engine.optimize_portfolio_selection(sharpe_threshold=0.3)
         if not engine.tickers:
-            # Sometimes the optimizer removes all the tickers. This 
-            # fixes that by reverting to the entire portfolio again.
+            logging.warning("Portfolio optimization removed all assets. Reverting.")
             engine.tickers = ticker_hold
 
-    # 10. Generate Report
-    if ENABLE_PLOTTING:
+    # 9. Generate Report (Tearsheet)
+    if enable_plotting:
         engine.generate_portfolio_report()
 
-    # 11. Save Final Results
+    # 10. Final Results Saving
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # If run_id wasn't set in the else block (case: no grid)
     if 'run_id' not in locals():
-        run_id = f"{strat_name}_{timestamp}"
+        run_id = f"{strat_label}_{timestamp}"
         run_dir = os.path.join(BACKTEST_DIR, run_id)
         os.makedirs(run_dir, exist_ok=True)
 
-    # --- Calculate Portfolio Equity & Metrics ---
+    # Calculate Portfolio Metrics
     portfolio_rets = []
     for ticker in engine.tickers:
         if ticker in engine.data and 'strategy_return' in engine.data[ticker]:
@@ -257,23 +260,15 @@ def run_backtest(strat_override = None, instrument_override = None):
         df_rets['Portfolio'] = df_rets.mean(axis=1)
         equity_curve = np.exp(df_rets['Portfolio'].cumsum())
         
-        # Calculate Metrics
+        # Metrics
         total_return = equity_curve.iloc[-1] - 1
         days = (equity_curve.index[-1] - equity_curve.index[0]).days
-        if days > 0:
-            cagr = (equity_curve.iloc[-1]) ** (365.25 / days) - 1
-        else:
-            cagr = 0
-            
-        # Sharpe
+        cagr = (equity_curve.iloc[-1]) ** (365.25 / max(days, 1)) - 1 if days > 0 else 0
         ann_vol = df_rets['Portfolio'].std() * np.sqrt(252)
         ann_ret = np.exp(df_rets['Portfolio'].mean() * 252) - 1
         sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
-        
-        # Max Drawdown
         peak = equity_curve.cummax()
-        dd = (equity_curve - peak) / peak
-        max_dd = dd.min()
+        max_dd = ((equity_curve - peak) / peak).min()
         
         port_metrics = {
             "Total Return": f"{total_return:.2%}",
@@ -282,77 +277,86 @@ def run_backtest(strat_override = None, instrument_override = None):
             "Max Drawdown": f"{max_dd:.2%}"
         }
 
-    # Save Best Run Metrics (JSON)
+    # Save Metrics JSON
     metrics_path = os.path.join(run_dir, "metrics.json")
     output_data = {
         "metadata": {
-            "strategy": strat_name,
+            "strategy": strat_label,
             "params": best_params,
-            "optimization_metric": METRIC,
-            "start_date": START_DATE,
-            "end_date": END_DATE,
-            "instrument_type": INSTRUMENT_TYPE,
+            "optimization_metric": metric,
+            "start_date": start_date,
+            "end_date": end_date,
+            "instrument_type": instrument_type,
             "timestamp": timestamp
         },
         "performance": engine.results
     }
-    
-    # Merge Portfolio Metrics
     output_data.update(port_metrics)
     if 'performance' in output_data:
         output_data['performance']['Portfolio'] = port_metrics
     
     with open(metrics_path, 'w') as f:
         json.dump(output_data, f, indent=4)
-    logging.info(f"Backtest Metrics: {output_data}")
-    logging.info(f"Metrics saved to: {metrics_path}")
 
-    # Save Equity Curve (CSV)
     if equity_curve is not None:
         equity_path = os.path.join(run_dir, "equity_curve.csv")
         equity_curve.to_csv(equity_path)
-        logging.info(f"Equity curve saved to: {equity_path}")
 
-    # 12. Monte Carlo Simulation
-    if ENABLE_MONTE_CARLO:
+    # 11. Monte Carlo
+    if enable_monte_carlo:
         logging.info("--- Starting Monte Carlo Simulation ---")
-        mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=ENABLE_PLOTTING)
-        
+        mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=enable_plotting)
         mc_path = os.path.join(run_dir, "monte_carlo.json")
         with open(mc_path, 'w') as f:
             json.dump(mc_metrics, f, indent=4)
-        logging.info(f"Monte Carlo metrics saved to: {mc_path}")
 
-    # 13. Walk-Forward Optimization
-    if ENABLE_WFO:
+    # 12. Walk-Forward
+    if enable_wfo:
         logging.info("--- Starting Walk-Forward Optimization ---")
-        # Ensure we have a grid to use
         if not param_grid:
-            param_grid = STRATEGY_CLASS.get_default_grid()
-            
+             param_grid = StrategyClass.get_default_grid()
         oos_equity, wfo_log = engine.run_walk_forward_optimization(
-            STRATEGY_CLASS, 
+            StrategyClass, 
             param_grid, 
             window_size_days=252, 
             step_size_days=63, 
-            metric=METRIC
+            metric=metric
         )
-        
         if not oos_equity.empty:
             wfo_path = os.path.join(run_dir, "wfo_equity.csv")
             oos_equity.to_csv(wfo_path)
-            logging.info(f"WFO Equity saved to: {wfo_path}")
-            
             wfo_log_path = os.path.join(run_dir, "wfo_params.csv")
             wfo_log.to_csv(wfo_log_path)
 
     logging.info("Backtest Complete.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate Live Signals from Preset")
-    parser.add_argument("--strat_override", "-so", type=str, help="Use specific strategy", default=None)
-    parser.add_argument("--instrument_override", "-ino", type=str, help="Use specific instrument group", default=None)
+    parser = argparse.ArgumentParser(description="Run IvyBT Backtest")
     
+    parser.add_argument("--strategy", "-s", type=str, help="Strategy name (e.g., EMACross, tms, pairs)")
+    parser.add_argument("--tickers", "-t", type=str, help="Comma-separated list of tickers (e.g., AAPL,MSFT)")
+    parser.add_argument("--instruments", "-i", type=str, help="Instrument type (forex, crypto, spy, etc.)")
+    parser.add_argument("--start_date", "-sd", type=str, help="Start Date (YYYY-MM-DD)")
+    parser.add_argument("--end_date", "-ed", type=str, help="End Date (YYYY-MM-DD)")
+    parser.add_argument("--metric", "-m", type=str, help="Optimization metric (Sharpe, Return)")
+    
+    # Flags for enabling/disabling features
+    parser.add_argument("--portfolio_opt", action=argparse.BooleanOptionalAction, help="Enable Portfolio Optimization")
+    parser.add_argument("--monte_carlo", action=argparse.BooleanOptionalAction, help="Enable Monte Carlo")
+    parser.add_argument("--wfo", action=argparse.BooleanOptionalAction, help="Enable Walk-Forward Optimization")
+    parser.add_argument("--plotting", action=argparse.BooleanOptionalAction, help="Enable Plotting")
+
     args = parser.parse_args()
 
-    run_backtest(args.strat_override, args.instrument_override)
+    run_backtest(
+        strategy_name=args.strategy,
+        tickers=args.tickers,
+        instrument_type=args.instruments,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        metric=args.metric,
+        enable_portfolio_opt=args.portfolio_opt,
+        enable_monte_carlo=args.monte_carlo,
+        enable_wfo=args.wfo,
+        enable_plotting=args.plotting
+    )

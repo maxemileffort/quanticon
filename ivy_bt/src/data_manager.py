@@ -100,3 +100,44 @@ class DataManager:
         if ticker in data:
             return data[ticker]
         return None
+
+    def create_synthetic_spread(self, df_a: pd.DataFrame, df_b: pd.DataFrame, spread_type='diff') -> pd.DataFrame:
+        """
+        Creates a synthetic spread DataFrame from two assets.
+        
+        Args:
+            df_a (pd.DataFrame): DataFrame for Asset A.
+            df_b (pd.DataFrame): DataFrame for Asset B.
+            spread_type (str): 'diff' (A - B) or 'ratio' (A / B).
+            
+        Returns:
+            pd.DataFrame: A new DataFrame representing the spread.
+        """
+        # Align data on index (inner join to ensure matching timestamps)
+        aligned_a, aligned_b = df_a.align(df_b, join='inner', axis=0)
+        
+        if aligned_a.empty or aligned_b.empty:
+            logging.warning("Aligned data is empty. Cannot create spread.")
+            return pd.DataFrame()
+            
+        spread_df = pd.DataFrame(index=aligned_a.index)
+        
+        # Calculate Spread
+        if spread_type == 'diff':
+            spread_df['close'] = aligned_a['close'] - aligned_b['close']
+            # Approximate Open/High/Low for the spread (imperative for backtesting)
+            # This is a simplification. A true spread OHLC is complex to construct from bars.
+            # We will use the difference for all, which is mathematically sound for 'diff'
+            spread_df['open'] = aligned_a['open'] - aligned_b['open']
+            spread_df['high'] = spread_df[['open', 'close']].max(axis=1) # Synthetic High
+            spread_df['low'] = spread_df[['open', 'close']].min(axis=1)  # Synthetic Low
+        elif spread_type == 'ratio':
+            spread_df['close'] = aligned_a['close'] / aligned_b['close']
+            spread_df['open'] = aligned_a['open'] / aligned_b['open']
+            spread_df['high'] = spread_df[['open', 'close']].max(axis=1)
+            spread_df['low'] = spread_df[['open', 'close']].min(axis=1)
+        
+        # Volume is ambiguous for a spread, usually sum or min. Let's use 0 or sum.
+        spread_df['volume'] = 0
+        
+        return spread_df

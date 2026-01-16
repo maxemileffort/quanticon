@@ -62,7 +62,14 @@ This document summarizes the high-level features and capabilities that have been
 - **Data Capabilities**:
     - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager`.
 
+## Phase 7: Multi-Process Backtesting & Scaling
+- **Batch Processing**:
+    - Implemented `BatchRunner` for parallel execution of multiple backtest jobs using `multiprocessing`.
+    - CLI support via `main.py --batch config.yaml`.
+    - Automatic result aggregation into CSV summary.
+
 ## Recent Updates (Session 23 - 2026-01-15)
+- **Batch Runner Implementation**: Added parallel backtesting capability (`src/batch_runner.py`) and CLI integration (`main.py --batch`). This allows for high-throughput strategy testing.
 - **Dashboard Robustness**: Fixed a critical path resolution bug in the Backtest Dashboard that prevented preset files from loading.
   - Replaced environment-dependent `os.getcwd()` with relative path resolution.
   - Ensures dashboard works correctly regardless of where the launch command is executed.

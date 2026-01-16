@@ -49,15 +49,15 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - [ ] **Refactor `main.py` for Stateless Execution**
     - [ ] Modify `run_backtest` to accept all configuration (Strategy, Instruments, Dates, Params) as arguments, removing dependencies on global state.
     - [ ] Ensure `BacktestEngine` and strategies can be pickled for multiprocessing.
-- [ ] **Implement `BatchRunner`**
-    - [ ] Create a system to manage a queue of backtest jobs (Strategy + Asset Class combinations).
-    - [ ] Use `multiprocessing.Pool` or `concurrent.futures` to execute jobs in parallel on multiple cores.
-- [ ] **CLI Expansion for Batch Jobs**
-    - [ ] Add support for running a batch defined in a config file: `python main.py --batch batch_config.json`.
-    - [ ] Support flags for controlling concurrency (e.g., `--workers 4`).
-- [ ] **Result Aggregation**
-    - [ ] Unified reporting mechanism to summarize metrics across all parallel runs.
-    - [ ] Thread-safe logging and artifact storage (ensure unique run directories).
+- [x] **Implement `BatchRunner`** (Completed 2026-01-15)
+    - [x] Create a system to manage a queue of backtest jobs (Strategy + Asset Class combinations).
+    - [x] Use `multiprocessing.Pool` or `concurrent.futures` to execute jobs in parallel on multiple cores.
+- [x] **CLI Expansion for Batch Jobs** (Completed 2026-01-15)
+    - [x] Add support for running a batch defined in a config file: `python main.py --batch batch_config.json`.
+    - [x] Support flags for controlling concurrency (e.g., `--workers 4`).
+- [x] **Result Aggregation** (Completed 2026-01-15)
+    - [x] Unified reporting mechanism to summarize metrics across all parallel runs.
+    - [x] Thread-safe logging and artifact storage (ensure unique run directories).
 
 ## Notes for Future Developers
 
@@ -72,14 +72,21 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - [x] **Dashboard Bug Fix**:
     - [x] Fixed an issue where the preset loader in `src/dashboard/pages/1_Backtest.py` failed to locate the `presets` directory when launched from outside the project root.
     - [x] Replaced `os.getcwd()` with reliable `project_root` resolution.
+- [x] **Batch Runner Implementation**:
+    - [x] Created `src/batch_runner.py` using `ProcessPoolExecutor` for parallel backtesting.
+    - [x] Implemented `BatchConfig` and `BatchJobConfig` using Pydantic for validation.
+    - [x] Added result aggregation (CSV summary of metrics).
+- [x] **CLI Expansion**:
+    - [x] Added `--batch` argument to `main.py` to trigger batch mode.
+    - [x] Verified end-to-end execution with `batch_config.example.yaml`.
 
 ## Session Summary (2026-01-15) - Session 23
 
 ### Accomplished
-- **Dashboard Stability**: Diagnosed and fixed a path resolution issue in the Backtest Dashboard that prevented presets from loading. The fix ensures the dashboard works correctly regardless of the launch directory.
+- **Dashboard Stability**: Diagnosed and fixed a path resolution issue in the Backtest Dashboard that prevented presets from loading.
+- **Batch Processing**: Implemented the `BatchRunner` system allowing multiple backtests to run in parallel using `main.py --batch config.yaml`. This moves the project firmly into Phase 7 (Scaling).
 
 ### What to Tackle Next
-- **Batch Runner**: Implement the `BatchRunner` to leverage the new `main.py` CLI for running multiple strategies in parallel.
 - **Synthetic Asset Integration**: Expose the synthetic asset creation in the Dashboard or CLI (currently only in DataManager).
 - **Visualization**: Add drill-down charts to the dashboard.
 

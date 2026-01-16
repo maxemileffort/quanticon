@@ -92,6 +92,16 @@ To generate actionable "Buy/Sell/Hold" signals for the current day using a saved
 python src/signals.py presets/MyStrategy_Preset.json --tickers "AAPL,MSFT" --lookback 200
 ```
 
+### Batch Processing (Parallel Execution)
+
+Run multiple backtests in parallel using a YAML configuration file:
+
+```bash
+python main.py --batch batch_config.example.yaml
+```
+
+The system will use multiple cores to execute the strategies concurrently and generate a summary CSV report.
+
 To execute these signals via **Alpaca** (Paper Trading), use the Live Trader:
 
 ```bash

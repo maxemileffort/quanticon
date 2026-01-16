@@ -98,7 +98,7 @@ def run_backtest(
         StrategyClass = resolve_strategy(strategy_name)
         if not StrategyClass:
             logging.error(f"Strategy '{strategy_name}' not found. Available: {list(get_all_strategies().keys())}")
-            return
+            return {"status": "error", "message": f"Strategy '{strategy_name}' not found"}
     else:
         # Default Strategy
         StrategyClass = TradingMadeSimpleTDIHeikinAshi
@@ -176,7 +176,7 @@ def run_backtest(
         
         if grid_results.empty:
             logging.error("Optimization returned no results.")
-            return
+            return {"status": "error", "message": "Optimization returned no results"}
 
         # Select Best Parameters
         best_row = grid_results.sort_values(by=metric, ascending=False).iloc[0]
@@ -329,6 +329,13 @@ def run_backtest(
             wfo_log.to_csv(wfo_log_path)
 
     logging.info("Backtest Complete.")
+    
+    return {
+        "status": "success",
+        "run_id": run_id,
+        "metrics_path": metrics_path,
+        "metrics": output_data
+    }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run IvyBT Backtest")
@@ -345,18 +352,26 @@ if __name__ == "__main__":
     parser.add_argument("--monte_carlo", action=argparse.BooleanOptionalAction, help="Enable Monte Carlo")
     parser.add_argument("--wfo", action=argparse.BooleanOptionalAction, help="Enable Walk-Forward Optimization")
     parser.add_argument("--plotting", action=argparse.BooleanOptionalAction, help="Enable Plotting")
+    
+    # Batch Mode
+    parser.add_argument("--batch", type=str, help="Path to batch configuration file (.json or .yaml)")
 
     args = parser.parse_args()
 
-    run_backtest(
-        strategy_name=args.strategy,
-        tickers=args.tickers,
-        instrument_type=args.instruments,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        metric=args.metric,
-        enable_portfolio_opt=args.portfolio_opt,
-        enable_monte_carlo=args.monte_carlo,
-        enable_wfo=args.wfo,
-        enable_plotting=args.plotting
-    )
+    if args.batch:
+        from src.batch_runner import BatchRunner
+        runner = BatchRunner(args.batch)
+        runner.run()
+    else:
+        run_backtest(
+            strategy_name=args.strategy,
+            tickers=args.tickers,
+            instrument_type=args.instruments,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            metric=args.metric,
+            enable_portfolio_opt=args.portfolio_opt,
+            enable_monte_carlo=args.monte_carlo,
+            enable_wfo=args.wfo,
+            enable_plotting=args.plotting
+        )

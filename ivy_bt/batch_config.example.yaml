@@ -1,0 +1,16 @@
+max_workers: 2
+output_file: "batch_run_results.csv"
+jobs:
+  - job_id: "EMA_Forex_Test"
+    strategy_name: "EMACross"
+    instrument_type: "forex"
+    start_date: "2023-01-01"
+    end_date: "2023-06-01"
+    enable_plotting: false
+  
+  - job_id: "RSI_Crypto_Test"
+    strategy_name: "RSIReversal"
+    tickers: "BTC-USD,ETH-USD"
+    start_date: "2023-01-01"
+    end_date: "2023-06-01"
+    enable_plotting: false

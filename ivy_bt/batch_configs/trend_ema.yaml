@@ -1,0 +1,34 @@
+max_workers: 4
+output_file: "batch_results_ema.csv"
+jobs:
+  - job_id: "EMA_Forex"
+    strategy_name: "EMACross"
+    instrument_type: "forex"
+    start_date: "2023-01-01"
+    end_date: "2024-01-01"
+    metric: "Sharpe"
+    enable_plotting: true
+
+  - job_id: "EMA_Crypto"
+    strategy_name: "EMACross"
+    instrument_type: "crypto"
+    start_date: "2023-01-01"
+    end_date: "2024-01-01"
+    metric: "Sharpe"
+    enable_plotting: true
+
+  - job_id: "EMA_SPY"
+    strategy_name: "EMACross"
+    instrument_type: "spy"
+    start_date: "2023-01-01"
+    end_date: "2024-01-01"
+    metric: "Sharpe"
+    enable_plotting: true
+
+  - job_id: "EMA_ETF"
+    strategy_name: "EMACross"
+    instrument_type: "etf"
+    start_date: "2023-01-01"
+    end_date: "2024-01-01"
+    metric: "Sharpe"
+    enable_plotting: true

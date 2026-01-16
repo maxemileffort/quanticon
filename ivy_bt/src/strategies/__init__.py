@@ -26,7 +26,8 @@ from .base import StrategyTemplate
 from .trend import (
     EMACross,
     MACDTrend,
-    Newsom10Strategy
+    Newsom10Strategy,
+    MarkovChainTrendProbability
 )
 
 # Import reversal strategies
@@ -63,6 +64,7 @@ __all__ = [
     'EMACross',
     'MACDTrend',
     'Newsom10Strategy',
+    'MarkovChainTrendProbability',
     
     # Reversal
     'BollingerReversion',

@@ -38,7 +38,7 @@ stop_loss = config['stop_loss']
 preset = config['preset']
 
 # --- PRESETS LOADER ---
-PRESETS_DIR = os.path.join(os.getcwd(), "presets")
+PRESETS_DIR = os.path.join(project_root, "presets")
 if os.path.exists(PRESETS_DIR):
     with st.sidebar.expander("Load Preset"):
         preset_files = [f for f in os.listdir(PRESETS_DIR) if f.endswith('.json')]

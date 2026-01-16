@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-14
+Last Updated: 2026-01-15
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -61,6 +61,11 @@ This document summarizes the high-level features and capabilities that have been
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
 - **Data Capabilities**:
     - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager`.
+
+## Recent Updates (Session 23 - 2026-01-15)
+- **Dashboard Robustness**: Fixed a critical path resolution bug in the Backtest Dashboard that prevented preset files from loading.
+  - Replaced environment-dependent `os.getcwd()` with relative path resolution.
+  - Ensures dashboard works correctly regardless of where the launch command is executed.
 
 ## Recent Updates (Session 22 - 2026-01-14)
 - **CLI Scaling**: Refactored `main.py` to support full CLI argument parsing, stateless execution, and dynamic strategy resolution. This enables batch processing and easier automation.

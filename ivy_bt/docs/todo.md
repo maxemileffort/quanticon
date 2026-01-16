@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-14
+Last Updated: 2026-01-15
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
@@ -68,6 +68,23 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - **MarketRegimeSentimentFollower Strategy**: Previously failed due to single-ticker iteration. 
     - **Status (2026-01-11)**: Resolved. The `BacktestEngine` now supports an `is_portfolio_strategy` flag. `MarketRegimeSentimentFollower` has been updated to use this flag, allowing it to access the full universe (MultiIndex DataFrame) and SPY data correctly.
 
+## ✅ Completed in Session 23 (2026-01-15)
+- [x] **Dashboard Bug Fix**:
+    - [x] Fixed an issue where the preset loader in `src/dashboard/pages/1_Backtest.py` failed to locate the `presets` directory when launched from outside the project root.
+    - [x] Replaced `os.getcwd()` with reliable `project_root` resolution.
+
+## Session Summary (2026-01-15) - Session 23
+
+### Accomplished
+- **Dashboard Stability**: Diagnosed and fixed a path resolution issue in the Backtest Dashboard that prevented presets from loading. The fix ensures the dashboard works correctly regardless of the launch directory.
+
+### What to Tackle Next
+- **Batch Runner**: Implement the `BatchRunner` to leverage the new `main.py` CLI for running multiple strategies in parallel.
+- **Synthetic Asset Integration**: Expose the synthetic asset creation in the Dashboard or CLI (currently only in DataManager).
+- **Visualization**: Add drill-down charts to the dashboard.
+
+---
+
 ## ✅ Completed in Session 22 (2026-01-14)
 - [x] **Optimization Page Performance**:
     - [x] Implemented `st.session_state` caching for `BacktestEngine` in `src/dashboard/pages/2_Optimization.py`.
@@ -88,11 +105,6 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - **Scalable CLI**: `main.py` is now a robust CLI tool that can be used for batch processing or automated backtesting pipelines, accepting all config via arguments.
 - **Data Capabilities**: Added foundation for spread trading with `create_synthetic_spread` in DataManager.
 - **Reliability**: Identified and fixed a `pandas_ta` related stability issue in `EMACross` by explicitly handling NaN values.
-
-### What to Tackle Next
-- **Batch Runner**: Implement the `BatchRunner` to leverage the new `main.py` CLI for running multiple strategies in parallel.
-- **Synthetic Asset Integration**: Expose the synthetic asset creation in the Dashboard or CLI (currently only in DataManager).
-- **Visualization**: Add drill-down charts to the dashboard.
 
 ---
 

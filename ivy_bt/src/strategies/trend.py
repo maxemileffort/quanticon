@@ -235,3 +235,61 @@ class Newsom10Strategy(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+    
+class MarkovChainTrendProbability(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'lookback_period': np.arange(5, 30, 2),
+            'atr_threshold': np.arange(0.1, 1.1, 0.1),
+            'history_length': np.arange(10, 50, 5),
+            'atr_length': np.arange(5, 30, 2)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        lookback_period = self.params.get('lookback_period', 14)
+        atr_threshold = self.params.get('atr_threshold', 0.5)
+        history_length = self.params.get('history_length', 33)
+        atr_length = self.params.get('atr_length', 14)
+
+        # 2. Indicator Calculation
+        # Ensure column names are standardized to lowercase as per BacktestEngine requirements
+        df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=atr_length)
+        
+        # Calculate ATR-normalized price change
+        price_change = df['close'] - df['close'].shift(lookback_period)
+        atr_normalized_change = price_change / df['atr']
+
+        # 3. State Identification
+        # Logic: if change > threshold -> Up (1), if < -threshold -> Down (-1), else NaN for ffill
+        state_cond = np.where(
+            atr_normalized_change > atr_threshold, 1, 
+            np.where(atr_normalized_change < -atr_threshold, -1, np.nan)
+        )
+        
+        # Vectorized forward fill to simulate 'keep previous state' behavior
+        current_state = pd.Series(state_cond, index=df.index).ffill().fillna(1)
+
+        # 4. Calculate State Probabilities (Vectorized Rolling Window)
+        is_up = (current_state == 1).astype(int)
+        is_down = (current_state == -1).astype(int)
+        
+        prob_uptrend = is_up.rolling(window=history_length).mean()
+        prob_downtrend = is_down.rolling(window=history_length).mean()
+
+        # 5. Signal Generation Logic
+        df['signal'] = np.nan
+        
+        # Entry Conditions based on decision boundaries
+        long_condition = (prob_uptrend > prob_downtrend) & (prob_uptrend > 0.5)
+        short_condition = (prob_downtrend > prob_uptrend) & (prob_downtrend > 0.5)
+
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+
+        # 6. Persistence
+        # Final forward fill ensures the strategy holds positions until a counter-signal occurs
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

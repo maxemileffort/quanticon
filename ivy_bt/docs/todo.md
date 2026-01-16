@@ -35,6 +35,7 @@ Features needed for a production/distributed environment and live signal generat
 - [x] Implement synthetic asset creation (Spread) in Data Layer (Added `create_synthetic_spread` to DataManager).
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
 - [ ] Add support for other data sources, like Alpaca, Interactive Brokers, MT4/5, Darwinex, Dukascopy, etc.
+- [ ] **Transaction Costs Configuration**: Improve UI/CLI exposure for simulating transaction costs (slippage/commission).
 
 ## Phase 6: UI & Interaction (The Research Hub) Upgrades
 Moving towards a more user-friendly product.
@@ -58,6 +59,13 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - [x] **Result Aggregation** (Completed 2026-01-15)
     - [x] Unified reporting mechanism to summarize metrics across all parallel runs.
     - [x] Thread-safe logging and artifact storage (ensure unique run directories).
+
+## Phase 8: Future Innovations & AI
+- [ ] **LLM Strategy Generator**: "AI Strategy Architect" to generate `StrategyTemplate` code from natural language.
+- [ ] **Distributed Computing**: Upgrade `BatchRunner` to use Ray/Dask for multi-node scaling.
+- [ ] **Sentiment Signal**: Integrate news/social sentiment (FinBERT, LunarCrush) as a filter.
+- [ ] **Event-Driven Mode**: Add support for event-driven simulation (latency, order book) alongside vectorized engine.
+- [ ] **Stability Surface Plot**: Visualize WFO results as a 3D surface (Window vs Param vs Metric).
 
 ## Notes for Future Developers
 

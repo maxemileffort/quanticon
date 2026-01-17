@@ -23,6 +23,7 @@ class BatchJobConfig(BaseModel):
     instrument_type: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    interval: Optional[str] = None
     metric: Optional[str] = None
     enable_portfolio_opt: Optional[bool] = None
     enable_monte_carlo: Optional[bool] = None

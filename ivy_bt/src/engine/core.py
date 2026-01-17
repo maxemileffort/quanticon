@@ -114,6 +114,36 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
             logging.error(f"Failed to fetch benchmark data for {self.benchmark_ticker}")
             self.benchmark_data = pd.DataFrame() 
 
+    def create_synthetic_asset(self, asset_a, asset_b, spread_type='diff', name=None):
+        """
+        Creates a synthetic asset from two existing assets in self.data.
+        Adds the new asset to self.data and self.tickers.
+        """
+        if asset_a not in self.data or asset_b not in self.data:
+            logging.error(f"Cannot create synthetic asset: {asset_a} or {asset_b} not found in data.")
+            return None
+            
+        df_a = self.data[asset_a]
+        df_b = self.data[asset_b]
+        
+        synthetic_df = self.data_manager.create_synthetic_spread(df_a, df_b, spread_type)
+        
+        if synthetic_df.empty:
+            logging.error("Synthetic asset creation failed (empty DataFrame).")
+            return None
+            
+        # Determine Name
+        if not name:
+            separator = '/' if spread_type == 'ratio' else '-'
+            name = f"{asset_a}{separator}{asset_b}"
+            
+        self.data[name] = synthetic_df
+        if name not in self.tickers:
+            self.tickers.append(name)
+            
+        logging.info(f"Created synthetic asset: {name} ({spread_type})")
+        return name
+
     def run_strategy(self, strategy_logic, name=None, stop_loss=None):
         """
         Runs the strategy and stores metrics.

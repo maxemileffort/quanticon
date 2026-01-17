@@ -50,6 +50,9 @@ python main.py --strategy EMACross --tickers "AAPL,MSFT"
 
 # Full Configuration
 python main.py --strategy PairsTrading --instruments forex --start_date 2023-01-01 --end_date 2023-12-31 --metric Return
+
+# Custom Interval (e.g., Hourly)
+python main.py --strategy EMACross --tickers "AAPL" --interval 1h
 ```
 
 The script will:
@@ -123,6 +126,7 @@ This will fetch the latest data, run the strategy, calculate the required positi
 Configuration is managed via `config.yaml`. You can customize:
 
 -   **Backtest Settings**: `start_date`, `end_date`, `interval` (1d, 1h, 5m), and `instrument_type`.
+    -   *Note*: These can be overridden via CLI arguments (e.g., `--interval 1h`).
 -   **Data Settings**: Enable/disable caching and set cache directory.
 
 Example `config.yaml`:

@@ -122,16 +122,81 @@ st.title(f"Backtest: {strat_name}")
 st.markdown("##### Strategy Parameters")
 param_dict = utils.render_strategy_params(strat_name)
 
+# --- SYNTHETIC ASSETS ---
+if 'synthetic_pairs' not in st.session_state:
+    st.session_state.synthetic_pairs = []
+
+with st.sidebar.expander("Synthetic Assets"):
+    st.caption("Create Spread/Ratio assets (e.g. BTC/ETH)")
+    with st.form("synth_form"):
+        s_asset_a = st.text_input("Asset A", "BTC-USD")
+        s_asset_b = st.text_input("Asset B", "ETH-USD")
+        s_type = st.selectbox("Type", ["diff", "ratio"])
+        s_name = st.text_input("Name (Optional)")
+        submitted = st.form_submit_button("Add Pair")
+        
+        if submitted:
+            if not s_name:
+                sep = "/" if s_type == "ratio" else "-"
+                s_name = f"{s_asset_a}{sep}{s_asset_b}"
+            
+            st.session_state.synthetic_pairs.append({
+                "a": s_asset_a.strip(),
+                "b": s_asset_b.strip(),
+                "type": s_type,
+                "name": s_name.strip()
+            })
+            st.success(f"Added {s_name}")
+
+    if st.session_state.synthetic_pairs:
+        st.markdown("---")
+        st.markdown("**Active Synthetics:**")
+        for i, p in enumerate(st.session_state.synthetic_pairs):
+            st.text(f"{i+1}. {p['name']} ({p['a']} vs {p['b']})")
+        
+        if st.button("Clear Synthetics"):
+            st.session_state.synthetic_pairs = []
+            st.rerun()
+
 # --- EXECUTION ---
 if st.button("Run Backtest", type="primary"):
     with st.spinner("Running Backtest..."):
-        engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
+        # 1. Prepare Tickers (Merge User Selection + Synthetic Components)
+        user_tickers = tickers # from config
+        all_tickers = list(user_tickers)
+        
+        # Add components from synthetic pairs
+        synth_pairs = st.session_state.get("synthetic_pairs", [])
+        for p in synth_pairs:
+            if p['a'] not in all_tickers: all_tickers.append(p['a'])
+            if p['b'] not in all_tickers: all_tickers.append(p['b'])
+
+        engine = BacktestEngine(all_tickers, start_date=start_date, end_date=end_date)
         engine.position_sizer = sizer
         strat_instance = StrategyClass(**param_dict)
         sl_val = stop_loss if stop_loss > 0 else None
         
         try:
             engine.fetch_data()
+            
+            # 2. Create Synthetics
+            created_synths = []
+            for p in synth_pairs:
+                name = engine.create_synthetic_asset(p['a'], p['b'], p['type'], p['name'])
+                if name:
+                    created_synths.append(name)
+            
+            # 3. Filter Data for Execution
+            # Only run strategy on explicitly selected tickers AND created synthetics.
+            # This prevents running on the raw components of a synthetic pair unless requested.
+            keys_to_keep = set(user_tickers + created_synths)
+            keys_to_drop = [k for k in engine.data.keys() if k not in keys_to_keep]
+            
+            for k in keys_to_drop:
+                del engine.data[k]
+                if k in engine.tickers:
+                    engine.tickers.remove(k)
+                    
             engine.run_strategy(strat_instance, stop_loss=sl_val)
             st.session_state['engine'] = engine
             st.session_state['strat_name'] = strat_name

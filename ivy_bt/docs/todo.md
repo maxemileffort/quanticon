@@ -1,6 +1,6 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-15
+Last Updated: 2026-01-16
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
@@ -27,12 +27,16 @@ Features needed for a production/distributed environment and live signal generat
   - All tests passing (test_strategies.py: 3/3 passed)
   - Created `STRATEGIES_ARCHITECTURE.md` documentation
 - [x] `\quanticon\ivy_bt\src\dashboard\pages\2_Optimization.py` Integrated session state caching for DataManager/Engine to optimize performance.
+- [ ] **Save Optimized Universe**: Save the final list of tickers (post-optimization) to `metrics.json` and presets to enable reproducible signal generation.
 - [ ] **User Management**
     - [ ] User accounts/authentication if hosting as a service.
     - [ ] Strategy marketplace or sharing capabilities.
 
 ## Phase 5: Expand backtest functionality
 - [x] Implement synthetic asset creation (Spread) in Data Layer (Added `create_synthetic_spread` to DataManager).
+- [x] **Synthetic Asset Integration** (Completed 2026-01-15): Exposed synthetic asset creation in Dashboard and CLI.
+  - CLI: Added `--synthetic_assets "A,B"`, `--synthetic_type`, `--synthetic_name`.
+  - Dashboard: Added "Synthetic Assets" expander to create Spreads/Ratios dynamically.
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
 - [ ] Add support for other data sources, like Alpaca, Interactive Brokers, MT4/5, Darwinex, Dukascopy, etc.
 - [ ] **Transaction Costs Configuration**: Improve UI/CLI exposure for simulating transaction costs (slippage/commission).
@@ -76,6 +80,28 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - **MarketRegimeSentimentFollower Strategy**: Previously failed due to single-ticker iteration. 
     - **Status (2026-01-11)**: Resolved. The `BacktestEngine` now supports an `is_portfolio_strategy` flag. `MarketRegimeSentimentFollower` has been updated to use this flag, allowing it to access the full universe (MultiIndex DataFrame) and SPY data correctly.
 
+## ✅ Completed in Session 24 (2026-01-16)
+- [x] **Lower Timeframe / Custom Interval Support**:
+    - [x] **CLI Update**: Updated `main.py` to accept `--interval` argument (e.g., `1h`, `5m`).
+    - [x] **Batch Runner Update**: Updated `BatchJobConfig` in `src/batch_runner.py` to accept `interval` in YAML configs.
+    - [x] **Verification**: Validated functionality with hourly backtests using both CLI and Batch modes.
+
+## Session Summary (2026-01-16) - Session 24
+
+### Accomplished
+- **Custom Intervals**: Enabled users to pass any data interval (supported by yfinance/engine) via the CLI or Batch Runner configuration.
+- **Improved Testing**: Verified the engine correctly handles hourly data and annualization factors.
+- **Documentation**: Updated roadmap with new requirements for saving optimized universes.
+
+### What to Tackle Next
+- **Save Optimized Universe**: Implement logic to persist the list of tickers remaining after portfolio optimization to `metrics.json` and presets.
+- **Transaction Costs Configuration**: Improve UI/CLI exposure for simulating transaction costs.
+
+### Important Notes
+- **Data Limitations**: When using lower timeframes (e.g., `1h`), `yfinance` has a 730-day lookback limit. Strategies requiring long warmup periods (like 200-period EMA) may need careful date range selection to ensure sufficient data.
+
+---
+
 ## ✅ Completed in Session 23 (2026-01-15)
 - [x] **Dashboard Bug Fix**:
     - [x] Fixed an issue where the preset loader in `src/dashboard/pages/1_Backtest.py` failed to locate the `presets` directory when launched from outside the project root.
@@ -92,10 +118,11 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 
 ### Accomplished
 - **Dashboard Stability**: Diagnosed and fixed a path resolution issue in the Backtest Dashboard that prevented presets from loading.
-- **Batch Processing**: Implemented the `BatchRunner` system allowing multiple backtests to run in parallel using `main.py --batch config.yaml`. This moves the project firmly into Phase 7 (Scaling).
+- **Batch Processing**: Implemented the `BatchRunner` system allowing multiple backtests to run in parallel using `main.py --batch config.yaml`.
+- **Synthetic Assets**: Fully integrated synthetic asset creation (Spreads/Ratios) into both the CLI and the Streamlit Dashboard.
 
 ### What to Tackle Next
-- **Synthetic Asset Integration**: Expose the synthetic asset creation in the Dashboard or CLI (currently only in DataManager).
+- **Transaction Costs Configuration**: Improve UI/CLI exposure for simulating transaction costs.
 - **Visualization**: Add drill-down charts to the dashboard.
 
 ---

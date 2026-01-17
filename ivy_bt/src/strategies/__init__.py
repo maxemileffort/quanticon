@@ -74,6 +74,7 @@ __all__ = [
     # Breakout
     'TurtleTradingSystem',
     'IchimokuCloudBreakout',
+    'DailyHighLowBreakout',
     
     # Complex
     'TradingMadeSimpleTDIHeikinAshi',

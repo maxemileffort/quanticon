@@ -170,3 +170,62 @@ class IchimokuCloudBreakout(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+    
+class DailyHighLowBreakout(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'reversal': [True, False],
+            'hold_days': np.arange(1, 15, 1)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        reversal = self.params.get('reversal', False)
+        hold_days = self.params.get('hold_days', 5)
+
+        # 2. Indicator Calculation (Daily Levels)
+        daily = df.resample('D').agg({'high': 'max', 'low': 'min'}).shift(1)
+        df['prev_day_high'] = daily['high'].reindex(df.index, method='ffill')
+        df['prev_day_low'] = daily['low'].reindex(df.index, method='ffill')
+
+        # 3. Entry Signal Generation
+        df['entry_sig'] = np.nan
+        
+        long_trigger = (df['close'] > df['prev_day_high']) & (df['close'].shift(1) <= df['prev_day_high'].shift(1))
+        short_trigger = (df['close'] < df['prev_day_low']) & (df['close'].shift(1) >= df['prev_day_low'].shift(1))
+
+        if not reversal:
+            df.loc[long_trigger, 'entry_sig'] = 1
+            df.loc[short_trigger, 'entry_sig'] = -1
+        else:
+            df.loc[long_trigger, 'entry_sig'] = -1
+            df.loc[short_trigger, 'entry_sig'] = 1
+
+        # 4. Handle Persistence and Time-Based Exit
+        # We need to know WHEN the entry happened to calculate the hold duration
+        df['signal'] = df['entry_sig'].ffill().fillna(0)
+        
+        # Identify the start of a new position (where signal changes and is non-zero)
+        df['new_pos'] = (df['signal'] != df['signal'].shift(1)) & (df['signal'] != 0)
+        
+        # Record the timestamp of the last entry
+        df['entry_time'] = df.index
+        df['entry_time'] = df['entry_time'].where(df['new_pos']).ffill()
+        
+        # Calculate time elapsed since entry
+        # If the difference between current index and entry_time >= hold_days, exit (set to 0)
+        hold_duration = (df.index - df['entry_time']).days
+        exit_condition = hold_duration >= hold_days
+        
+        # Apply the exit: mask the signal to 0 if we've held long enough
+        df['signal'] = df['signal'].mask(exit_condition, 0)
+
+        # Final ffill to maintain the "0" state after an exit until a new trigger occurs
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 5. Cleanup
+        drop_cols = ['prev_day_high', 'prev_day_low', 'entry_sig', 'new_pos', 'entry_time']
+        df.drop(columns=drop_cols, inplace=True, errors='ignore')
+
+        return df

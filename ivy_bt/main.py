@@ -69,12 +69,16 @@ def run_backtest(
     instrument_type=None,
     start_date=None,
     end_date=None,
+    interval=None,
     metric=None,
     enable_portfolio_opt=None,
     enable_monte_carlo=None,
     enable_wfo=None,
     enable_plotting=None,
-    param_grid_override=None
+    param_grid_override=None,
+    synthetic_assets=None,
+    synthetic_type='diff',
+    synthetic_name=None
 ):
     """
     Main entry point for running backtests.
@@ -109,6 +113,7 @@ def run_backtest(
     instrument_type = instrument_type or config.backtest.instrument_type
     start_date = start_date or config.backtest.start_date
     end_date = end_date or config.backtest.end_date
+    interval = interval or config.backtest.interval
     metric = metric or config.optimization.metric
     
     # Boolean flags need careful handling if passed as False
@@ -118,11 +123,31 @@ def run_backtest(
     enable_plotting = enable_plotting if enable_plotting is not None else config.optimization.enable_plotting
 
     # 4. Determine Tickers
+    synthetic_components = []
+    if synthetic_assets:
+         if isinstance(synthetic_assets, str):
+             synthetic_components = [t.strip() for t in synthetic_assets.split(',')]
+         else:
+             synthetic_components = synthetic_assets
+             
+         if len(synthetic_components) != 2:
+             logging.error("Synthetic assets must contain exactly 2 tickers separated by comma.")
+             return {"status": "error", "message": "Synthetic assets must contain exactly 2 tickers"}
+
     if tickers:
         # If tickers passed as list or string
         if isinstance(tickers, str):
             tickers = [t.strip() for t in tickers.split(',')]
         logging.info(f"Using Custom Tickers: {tickers}")
+        
+        # Ensure synthetic components are fetched
+        for c in synthetic_components:
+            if c not in tickers:
+                tickers.append(c)
+    elif synthetic_components:
+        # User only provided synthetic assets, so we only fetch those.
+        tickers = list(synthetic_components)
+        logging.info(f"Using Synthetic Components: {tickers}")
     else:
         tickers = get_assets(instrument_type)
         logging.info(f"Using Asset Universe: {instrument_type} ({len(tickers)} tickers)")
@@ -135,13 +160,30 @@ def run_backtest(
         tickers=tickers,
         start_date=start_date,
         end_date=end_date,
+        interval=interval,
         data_config=config.data
     )
 
     # 6. Fetch Data
     engine.fetch_data()
 
-    # 7. Infer Parameter Grid
+    # 7. Create Synthetic Assets
+    if synthetic_components:
+        asset_a, asset_b = synthetic_components
+        synth_name = engine.create_synthetic_asset(asset_a, asset_b, synthetic_type, synthetic_name)
+        
+        # If user did NOT explicitly provide tickers, restrict execution to the synthetic asset only
+        # (excluding the raw components)
+        if not args.tickers and synth_name: # Relying on args might be risky if function called directly, but we assume CLI context or explicit intent
+            # Actually, let's use the local 'tickers' variable vs 'synthetic_components'
+            # If we are in the elif synthetic_components block above, tickers == synthetic_components.
+            # We want to replace those with the synth_name.
+            # A safer check: if the only tickers we have are the components.
+            if set(tickers) == set(synthetic_components):
+                 engine.tickers = [synth_name]
+                 logging.info(f"Restricting backtest to synthetic asset: {synth_name}")
+
+    # 8. Infer Parameter Grid
     if param_grid_override:
         param_grid = param_grid_override
     else:
@@ -286,6 +328,7 @@ def run_backtest(
             "optimization_metric": metric,
             "start_date": start_date,
             "end_date": end_date,
+            "interval": interval,
             "instrument_type": instrument_type,
             "timestamp": timestamp
         },
@@ -345,6 +388,7 @@ if __name__ == "__main__":
     parser.add_argument("--instruments", "-i", type=str, help="Instrument type (forex, crypto, spy, etc.)")
     parser.add_argument("--start_date", "-sd", type=str, help="Start Date (YYYY-MM-DD)")
     parser.add_argument("--end_date", "-ed", type=str, help="End Date (YYYY-MM-DD)")
+    parser.add_argument("--interval", "-int", type=str, help="Data interval (e.g., 1d, 1h, 5m)")
     parser.add_argument("--metric", "-m", type=str, help="Optimization metric (Sharpe, Return)")
     
     # Flags for enabling/disabling features
@@ -353,6 +397,11 @@ if __name__ == "__main__":
     parser.add_argument("--wfo", action=argparse.BooleanOptionalAction, help="Enable Walk-Forward Optimization")
     parser.add_argument("--plotting", action=argparse.BooleanOptionalAction, help="Enable Plotting")
     
+    # Synthetic Assets
+    parser.add_argument("--synthetic_assets", type=str, help="Comma-separated pair of assets (e.g. BTC-USD,ETH-USD)")
+    parser.add_argument("--synthetic_type", type=str, default="diff", help="Spread type: 'diff' or 'ratio'")
+    parser.add_argument("--synthetic_name", type=str, help="Custom name for synthetic asset")
+
     # Batch Mode
     parser.add_argument("--batch", type=str, help="Path to batch configuration file (.json or .yaml)")
 
@@ -369,9 +418,13 @@ if __name__ == "__main__":
             instrument_type=args.instruments,
             start_date=args.start_date,
             end_date=args.end_date,
+            interval=args.interval,
             metric=args.metric,
             enable_portfolio_opt=args.portfolio_opt,
             enable_monte_carlo=args.monte_carlo,
             enable_wfo=args.wfo,
-            enable_plotting=args.plotting
+            enable_plotting=args.plotting,
+            synthetic_assets=args.synthetic_assets,
+            synthetic_type=args.synthetic_type,
+            synthetic_name=args.synthetic_name
         )

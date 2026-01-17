@@ -1,5 +1,5 @@
 max_workers: 4
-output_file: "batch_results_ema.csv"
+output_file: "/batch_results/batch_results_ema.csv"
 jobs:
   - job_id: "EMA_Forex"
     strategy_name: "EMACross"

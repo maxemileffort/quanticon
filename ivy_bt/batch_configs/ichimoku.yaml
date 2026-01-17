@@ -1,32 +1,32 @@
 max_workers: 4
-output_file: "/batch_results/batch_results_rsi.csv"
+output_file: "/batch_results/batch_results_Ichimoku.csv"
 jobs:
-  - job_id: "RSI_Forex"
-    strategy_name: "RSIReversal"
+  - job_id: "Ichimoku_Forex"
+    strategy_name: "IchimokuCloudBreakout"
     instrument_type: "forex"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_Crypto"
-    strategy_name: "RSIReversal"
+  - job_id: "Ichimoku_Crypto"
+    strategy_name: "IchimokuCloudBreakout"
     instrument_type: "crypto"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_SPY"
-    strategy_name: "RSIReversal"
+  - job_id: "Ichimoku_SPY"
+    strategy_name: "IchimokuCloudBreakout"
     instrument_type: "spy"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_ETF"
-    strategy_name: "RSIReversal"
+  - job_id: "Ichimoku_ETF"
+    strategy_name: "IchimokuCloudBreakout"
     instrument_type: "etf"
     start_date: "2020-01-01"
     end_date: "2026-01-01"

@@ -1,32 +1,32 @@
 max_workers: 4
-output_file: "/batch_results/batch_results_rsi.csv"
+output_file: "C:\\Users\\Max\\Desktop\\projects\\quanticon\\ivy_bt\\batch_results\\batch_results_DailyHighLowBreakout.csv"
 jobs:
-  - job_id: "RSI_Forex"
-    strategy_name: "RSIReversal"
+  - job_id: "HLBO_Forex"
+    strategy_name: "DailyHighLowBreakout"
     instrument_type: "forex"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_Crypto"
-    strategy_name: "RSIReversal"
+  - job_id: "HLBO_Crypto"
+    strategy_name: "DailyHighLowBreakout"
     instrument_type: "crypto"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_SPY"
-    strategy_name: "RSIReversal"
+  - job_id: "HLBO_SPY"
+    strategy_name: "DailyHighLowBreakout"
     instrument_type: "spy"
     start_date: "2020-01-01"
     end_date: "2026-01-01"
     metric: "Sharpe"
     enable_plotting: true
 
-  - job_id: "RSI_ETF"
-    strategy_name: "RSIReversal"
+  - job_id: "HLBO_ETF"
+    strategy_name: "DailyHighLowBreakout"
     instrument_type: "etf"
     start_date: "2020-01-01"
     end_date: "2026-01-01"

@@ -1,5 +1,5 @@
 max_workers: 4
-output_file: "/batch_results/batch_results_tms.csv"
+output_file: "C:\\Users\\Max\\Desktop\\projects\\quanticon\\ivy_bt\\batch_results\\batch_results_tms.csv"
 jobs:
   - job_id: "TMS_Forex"
     strategy_name: "TradingMadeSimpleTDIHeikinAshi"

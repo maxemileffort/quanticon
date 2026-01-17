@@ -68,6 +68,11 @@ This document summarizes the high-level features and capabilities that have been
     - CLI support via `main.py --batch config.yaml`.
     - Automatic result aggregation into CSV summary.
 
+## Recent Updates (Session 25 - 2026-01-17)
+- **Environment Fix (`pandas_ta`)**:
+    - Resolved a `AttributeError` in `pandas_ta` caused by Python 3.12 incompatibility with `importlib.metadata`. Patched the library to restore functionality.
+    - Updated `gen_batch_yaml.py` to fix import paths.
+
 ## Recent Updates (Session 24 - 2026-01-16)
 - **Lower Timeframe / Custom Interval Support**:
     - Expanded CLI (`--interval`) and Batch Runner configuration to accept custom data intervals (e.g., `1h`, `5m`).

@@ -1,10 +1,13 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-16
+Last Updated: 2026-01-17
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
 ## Critical Fixes (High priority)
+- ✅ **RESOLVED (2026-01-17)**: `pandas_ta` Environment Issue (Python 3.12 Compatibility).
+  - **Root Cause**: `pandas_ta` library failed with `AttributeError: module 'importlib' has no attribute 'metadata'` in Python 3.12 environments.
+  - **Solution**: Patched `maps.py` in the library to explicitly import `importlib.metadata`.
 - ✅ **RESOLVED (2026-01-11)**: PairsTrading and MarketRegimeSentimentFollower multi-index errors fixed.
   - **Root Cause**: Grid search and optimization methods were not handling portfolio strategies correctly, attempting to process them as single-ticker strategies.
   - **Solution**: Added portfolio strategy detection (`is_portfolio_strategy` flag) to all optimization methods:
@@ -84,14 +87,32 @@ unifying individual tools into a cohesive 15-minute daily routine.
     - [ ] Execute rebalancing (integration with `live_trader.py`).
 - [ ] **Backtest Scheduler UI**: A "Strategy Lab" interface to queue backtest jobs for the `BatchRunner` (overnight runs) without editing YAML files.
 
+## Phase 10: Technical Debt & Reliability
+- [ ] **Refactor Tests**: Refactor tests (`test_strategies.py`, `test_monte_carlo.py`) to use the actual `pandas_ta` library instead of mocks, now that the environment issue is resolved.
+
 ## Notes for Future Developers
 
 ### Known Limitations
-- **Environment Issues**: The `pandas_ta` library installation in the current environment appears broken (`ImportError` due to `importlib` issue). Tests (`test_strategies.py` and `test_monte_carlo.py`) have been configured to mock this library to ensure CI/CD reliability. Care should be taken when running in production to ensure a compatible version of `pandas_ta` is installed.
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 - **MarketRegimeSentimentFollower Strategy**: Previously failed due to single-ticker iteration. 
     - **Status (2026-01-11)**: Resolved. The `BacktestEngine` now supports an `is_portfolio_strategy` flag. `MarketRegimeSentimentFollower` has been updated to use this flag, allowing it to access the full universe (MultiIndex DataFrame) and SPY data correctly.
+
+## Session Summary (2026-01-17) - Session 25
+
+### Accomplished
+- **Environment Stability**: Resolved a critical compatibility issue with `pandas_ta` on Python 3.12 by patching the library.
+- **Batch Script Fixes**: Fixed `ImportError` and logic errors in `gen_batch_yaml.py`, enabling automated batch configuration generation.
+- **Documentation**: Updated roadmap to reflect the resolution of known environment limitations.
+
+### What to Tackle Next
+- **Test Refactoring**: Refactor tests to remove mocks for `pandas_ta` now that the library is functional.
+- **Save Optimized Universe**: Continue with the planned feature to save optimized tickers.
+
+### Important Notes
+- The `pandas_ta` patch is local to the venv (`site-packages/pandas_ta/maps.py`). Reinstalling the venv will lose this fix unless `pandas_ta` releases an update or we use a forked version.
+
+---
 
 ## ✅ Completed in Session 24 (2026-01-16)
 - [x] **Lower Timeframe / Custom Interval Support**:

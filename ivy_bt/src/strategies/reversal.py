@@ -201,3 +201,58 @@ class MACDReversal(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+    
+class ReversalGridTrading(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'grid_count': np.arange(5, 51, 5),
+            'upper_mult': np.arange(1.01, 1.21, 0.01),
+            'lower_mult': np.arange(0.80, 0.99, 0.01)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        if df.empty:
+            df['signal'] = 0
+            return df
+
+        first_price = df['close'].iloc[0]
+        
+        # Extract multipliers and grid counts from params
+        upper_mult = self.params.get('upper_mult', 1.10)
+        lower_mult = self.params.get('lower_mult', 0.90)
+        grid_count = self.params.get('grid_count', 10)
+        
+        upper_bound = first_price * upper_mult
+        lower_bound = first_price * lower_mult
+
+        # 2. Grid Calculation
+        grid_levels = np.linspace(lower_bound, upper_bound, int(grid_count))
+
+        # 3. Indicator Calculation (Standardizing Column Names)
+        close = df['close']
+        prev_close = df['close'].shift(1)
+
+        # 4. Signal Logic (Vectorized)
+        df['signal'] = np.nan
+        
+        long_condition = pd.Series(False, index=df.index)
+        short_condition = pd.Series(False, index=df.index)
+
+        # Check interactions across all grid levels
+        for level in grid_levels:
+            # Crossunder level -> Buy/Long (Mean Reversion / Grid Entry)
+            long_condition |= (prev_close > level) & (close <= level)
+            # Crossover level -> Sell/Short (Mean Reversion / Grid Exit)
+            short_condition |= (prev_close < level) & (close >= level)
+
+        # Apply signals: Long is 1, Short is -1
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+
+        # 5. Persistence Logic
+        # Ffill ensures the strategy "holds" positions until a counter-signal occurs.
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

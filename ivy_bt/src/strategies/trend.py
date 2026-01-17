@@ -293,3 +293,62 @@ class MarkovChainTrendProbability(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+
+class TrendGridTrading(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'grid_count': np.arange(5, 51, 5),
+            'upper_mult': np.arange(1.05, 1.30, 0.05),
+            'lower_mult': np.arange(0.70, 0.95, 0.05)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        if df.empty:
+            df['signal'] = 0
+            return df
+
+        # Use the first price as the anchor for the static grid
+        first_price = df['close'].iloc[0]
+        
+        upper_mult = self.params.get('upper_mult', 1.10)
+        lower_mult = self.params.get('lower_mult', 0.90)
+        grid_count = self.params.get('grid_count', 10)
+        
+        upper_bound = first_price * upper_mult
+        lower_bound = first_price * lower_mult
+
+        # 2. Grid Level Generation
+        grid_levels = np.linspace(lower_bound, upper_bound, int(grid_count))
+
+        # 3. Standardize Columns
+        close = df['close']
+        prev_close = df['close'].shift(1)
+
+        # 4. Vectorized Signal Logic (Trend Following)
+        # Initialize signal as NaN to allow for effective forward filling
+        df['signal'] = np.nan
+        
+        long_condition = pd.Series(False, index=df.index)
+        short_condition = pd.Series(False, index=df.index)
+
+        # Trend Following Logic: 
+        # - Go Long when price breaks ABOVE a level (Strength)
+        # - Go Short when price breaks BELOW a level (Weakness)
+        for level in grid_levels:
+            # Crossover level -> Buy/Long (Breakout)
+            long_condition |= (prev_close < level) & (close >= level)
+            # Crossunder level -> Sell/Short (Breakdown)
+            short_condition |= (prev_close > level) & (close <= level)
+
+        # Apply signals: Long is 1, Short is -1
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+
+        # 5. Final Persistence
+        # Ensure the directional bias is held until the price hits another grid level
+        # in the opposite direction.
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

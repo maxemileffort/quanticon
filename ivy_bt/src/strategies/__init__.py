@@ -27,20 +27,23 @@ from .trend import (
     EMACross,
     MACDTrend,
     Newsom10Strategy,
-    MarkovChainTrendProbability
+    MarkovChainTrendProbability,
+    TrendGridTrading
 )
 
 # Import reversal strategies
 from .reversal import (
     BollingerReversion,
     RSIReversal,
-    MACDReversal
+    MACDReversal,
+    ReversalGridTrading
 )
 
 # Import breakout strategies
 from .breakout import (
     TurtleTradingSystem,
-    IchimokuCloudBreakout
+    IchimokuCloudBreakout,
+    DailyHighLowBreakout
 )
 
 # Import complex strategies
@@ -65,11 +68,13 @@ __all__ = [
     'MACDTrend',
     'Newsom10Strategy',
     'MarkovChainTrendProbability',
+    'TrendGridTrading',
     
     # Reversal
     'BollingerReversion',
     'RSIReversal',
     'MACDReversal',
+    'ReversalGridTrading',
     
     # Breakout
     'TurtleTradingSystem',

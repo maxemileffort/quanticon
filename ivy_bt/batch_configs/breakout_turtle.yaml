@@ -1,5 +1,5 @@
 max_workers: 4
-output_file: "/batch_results/batch_results_turtle.csv"
+output_file: "C:\\Users\\Max\\Desktop\\projects\\quanticon\\ivy_bt\\batch_results\\batch_results_turtle.csv"
 jobs:
   - job_id: "Turtle_Forex"
     strategy_name: "TurtleTradingSystem"

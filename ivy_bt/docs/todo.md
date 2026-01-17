@@ -47,6 +47,10 @@ Moving towards a more user-friendly product.
 - [ ] **Web Dashboard Features**
     - [ ] Advanced Interactive Charts (Drill-down capabilities).
     - [ ] Real-time status of running backtests.
+- [ ] **Decouple Plotting from Execution**:
+    - [ ] Modify `enable_plotting` to only save image artifacts without blocking execution.
+    - [ ] Add `view_plotting` config option to optionally display plots in real-time (default to False).
+    - [ ] Prevents script lock-up during multi-threaded batch runs.
 
 ## Phase 7: Multi-Process Backtesting & Scaling (Parallelization)
 The goal is to shift the bottleneck from execution time to strategy ideation by running multiple backtests concurrently.
@@ -70,6 +74,15 @@ The goal is to shift the bottleneck from execution time to strategy ideation by 
 - [ ] **Sentiment Signal**: Integrate news/social sentiment (FinBERT, LunarCrush) as a filter.
 - [ ] **Event-Driven Mode**: Add support for event-driven simulation (latency, order book) alongside vectorized engine.
 - [ ] **Stability Surface Plot**: Visualize WFO results as a 3D surface (Window vs Param vs Metric).
+
+## Phase 9: Operational Workflow Integration
+unifying individual tools into a cohesive 15-minute daily routine.
+
+- [ ] **Daily Operations Dashboard**: A unified interface to:
+    - [ ] View today's signals (integration with `signals.py`).
+    - [ ] View current portfolio status vs target.
+    - [ ] Execute rebalancing (integration with `live_trader.py`).
+- [ ] **Backtest Scheduler UI**: A "Strategy Lab" interface to queue backtest jobs for the `BatchRunner` (overnight runs) without editing YAML files.
 
 ## Notes for Future Developers
 

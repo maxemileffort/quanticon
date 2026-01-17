@@ -43,3 +43,5 @@ twsq
 ivy_bt/backtests/
 ivy_bt/data/
 ivy_bt.log
+ivy_bt/.cache_test/
+ivy_bt/.cache/

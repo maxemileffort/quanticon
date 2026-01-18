@@ -31,6 +31,10 @@ class BatchJobConfig(BaseModel):
     enable_plotting: Optional[bool] = None
     param_grid_override: Optional[Dict[str, List[Any]]] = None
     
+    # Transaction Costs
+    commission: Optional[float] = None
+    slippage: Optional[float] = None
+    
     # Identifier for aggregation
     job_id: Optional[str] = None
 

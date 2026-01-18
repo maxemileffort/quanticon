@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import sys
 import os
-from unittest.mock import MagicMock, patch
 
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -13,98 +12,80 @@ from src.strategies import EMACross, BollingerReversion, RSIReversal
 class TestStrategies(unittest.TestCase):
     def setUp(self):
         # Create a sample DataFrame
-        dates = pd.date_range(start='2023-01-01', periods=100, freq='D')
+        dates = pd.date_range(start='2023-01-01', periods=200, freq='D')
         self.df = pd.DataFrame({
-            'open': np.linspace(100, 150, 100),
-            'high': np.linspace(105, 155, 100),
-            'low': np.linspace(95, 145, 100),
-            'close': np.linspace(100, 150, 100), # Steady uptrend
+            'open': np.linspace(100, 150, 200),
+            'high': np.linspace(105, 155, 200),
+            'low': np.linspace(95, 145, 200),
+            'close': np.linspace(100, 150, 200), # Steady uptrend
             'volume': 1000
         }, index=dates)
-        
-        # Patch pandas_ta in the individual strategy modules
-        self.ta_patcher_trend = patch('src.strategies.trend.ta')
-        self.ta_patcher_reversal = patch('src.strategies.reversal.ta')
-        
-        self.mock_ta_trend = self.ta_patcher_trend.start()
-        self.mock_ta_reversal = self.ta_patcher_reversal.start()
-        
-        # Use the same mock for both
-        self.mock_ta = self.mock_ta_trend
-
-    def tearDown(self):
-        self.ta_patcher_trend.stop()
-        self.ta_patcher_reversal.stop()
 
     def test_ema_cross(self):
-        # Configure Mock
-        # ta.ema is called twice: fast and slow
-        # We want fast > slow for signal 1
+        # In a steady uptrend, Fast EMA (shorter period) should be above Slow EMA (longer period)
+        # after the warmup period.
         
-        def ema_side_effect(close, length=None):
-            # Return close price directly for fast (tracks price well)
-            # Return close price - 5 for slow (lags behind in uptrend)
-            if length == 5:
-                return close
-            else:
-                return close - 5
-                
-        self.mock_ta.ema.side_effect = ema_side_effect
-        
-        strategy = EMACross(fast=5, slow=10)
+        strategy = EMACross(fast=10, slow=50)
         res = strategy.strat_apply(self.df.copy())
         
         self.assertIn('ema_fast', res.columns)
         self.assertIn('ema_slow', res.columns)
         self.assertIn('signal', res.columns)
         
-        # Fast (Close) > Slow (Close-5) -> Signal 1
-        self.assertTrue(res['signal'].iloc[-1] == 1)
+        # Check values at the end of the series where EMA has stabilized
+        # Fast EMA (10) should be > Slow EMA (50) in an uptrend -> Signal 1 (Long)
+        self.assertTrue(res['ema_fast'].iloc[-1] > res['ema_slow'].iloc[-1])
+        self.assertEqual(res['signal'].iloc[-1], 1.0)
 
     def test_rsi_reversal(self):
-        # Configure Mock
-        # ta.rsi returns Series
-        # We want some oscillation to trigger signals
-        # Let's just return a series that goes < 30 then > 70
-        rsi_vals = np.linspace(20, 80, 100)
-        self.mock_ta_reversal.rsi.return_value = pd.Series(rsi_vals, index=self.df.index)
+        # Create a Sine wave price to trigger RSI extremes
+        # Period = 50 days
+        x = np.linspace(0, 4 * np.pi, 200)
+        sine_prices = 100 + 10 * np.sin(x)
+        
+        df_sine = self.df.copy()
+        df_sine['close'] = sine_prices
+        df_sine['open'] = sine_prices
+        df_sine['high'] = sine_prices + 1
+        df_sine['low'] = sine_prices - 1
         
         strategy = RSIReversal(length=14, lower=30, upper=70)
-        res = strategy.strat_apply(self.df.copy())
+        res = strategy.strat_apply(df_sine)
         
         self.assertIn('rsi', res.columns)
         self.assertIn('signal', res.columns)
         
-        # Check signal generation
-        # RSI < 30 at start -> Signal 1
-        # RSI > 70 at end -> Signal -1
-        self.assertEqual(res['signal'].iloc[0], 1.0) # Might be ffilled from first valid
-        self.assertEqual(res['signal'].iloc[-1], -1.0)
+        # Check that RSI was calculated
+        self.assertFalse(res['rsi'].isnull().all())
+        
+        # Check that we have some signals (1 or -1) generated at some point
+        # The sine wave should be volatile enough to trigger RSI > 70 and RSI < 30
+        unique_signals = res['signal'].unique()
+        self.assertTrue(np.any(unique_signals != 0), f"Should generate non-zero signals. Got: {unique_signals}")
 
     def test_bollinger_reversion(self):
-        # Configure Mock
-        # ta.bbands returns DF with columns BBL_..., BBU_..., BBM_...
-        # We need to match the naming convention the strategy expects
+        # Create a Sine wave price to trigger Bollinger Band touches
+        x = np.linspace(0, 4 * np.pi, 200)
+        sine_prices = 100 + 20 * np.sin(x) # Higher amplitude
         
-        # Create a DF with expected columns
-        # Length 20, Std 2.0
-        # Columns likely: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
-        # The strategy searches for startswith('BBL')
-        
-        bb_df = pd.DataFrame(index=self.df.index)
-        bb_df['BBL_20_2.0'] = self.df['close'] - 10
-        bb_df['BBU_20_2.0'] = self.df['close'] + 10
-        bb_df['BBM_20_2.0'] = self.df['close']
-        
-        self.mock_ta_reversal.bbands.return_value = bb_df
+        df_sine = self.df.copy()
+        df_sine['close'] = sine_prices
+        df_sine['open'] = sine_prices
+        df_sine['high'] = sine_prices + 1
+        df_sine['low'] = sine_prices - 1
         
         strategy = BollingerReversion(length=20, std=2.0)
-        res = strategy.strat_apply(self.df.copy())
+        res = strategy.strat_apply(df_sine)
         
         self.assertIn('signal', res.columns)
         
-        # As analyzed before, signal ends up being 0 due to logic
-        self.assertEqual(res['signal'].iloc[-1], 0)
+        # Check for existence of BB columns (pandas_ta creates them but might not return them in strategy df unless assigned)
+        # The strategy assigns 'bb_upper', 'bb_lower' if it follows the template. 
+        # Checking implementation of BollingerReversion would be ideal, but strat_apply result definitely has 'signal'
+        
+        # We expect some mean reversion signals (long at bottom, short at top)
+        unique_signals = res['signal'].unique()
+        self.assertTrue(np.any(unique_signals != 0), f"Should generate non-zero signals. Got: {unique_signals}")
 
 if __name__ == '__main__':
     unittest.main()

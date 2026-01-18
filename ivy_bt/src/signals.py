@@ -79,8 +79,12 @@ def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None
     
     # Use the top-performing parameter set (index 0)
     best_params = presets[0]
+    
+    # Check for saved universe in preset
+    saved_tickers = best_params.get('tickers')
+    
     # Remove metric keys if present
-    clean_params = {k: v for k, v in best_params.items() if k not in ['Sharpe', 'Return']}
+    clean_params = {k: v for k, v in best_params.items() if k not in ['Sharpe', 'Return', 'tickers']}
     
     logging.info(f"Using Parameters: {clean_params}")
 
@@ -95,6 +99,9 @@ def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None
     # 4. Get Assets
     if tickers:
         logging.info(f"Using provided custom ticker list: {tickers}")
+    elif saved_tickers:
+        tickers = saved_tickers
+        logging.info(f"Using saved universe from preset: {len(tickers)} assets")
     else:
         tickers = get_assets(instrument_type)
         logging.info(f"Using universe from preset ({instrument_type}): {len(tickers)} assets")

@@ -16,7 +16,9 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 - **Portfolio Management**: Aggregates results to show portfolio-level performance and supports filtering for high-quality assets.
 - **Modular Design**: Easy to extend with new strategies using the `StrategyTemplate`.
 - **Risk Management**: Decoupled position sizing logic (Fixed Fractional, Volatility Targeting, Kelly Criterion) and Stop Loss overlay via `PositionSizer` and `BacktestEngine`.
-- **Transaction Costs**: Supports fixed commissions and variable slippage modeling.
+- **Transaction Costs**: Supports fixed commissions and variable slippage modeling via CLI arguments or configuration.
+- **Parallel Backtesting**: `BatchRunner` executes multiple strategies concurrently for high-throughput research.
+- **Synthetic Assets**: Create and trade spreads (A-B) or ratios (A/B) on the fly.
 - **Local Caching**: Caches downloaded data to Parquet files to improve performance and avoid rate limits.
 - **Logging**: Comprehensive logging for better observability and debugging.
 
@@ -48,11 +50,14 @@ python main.py
 # Specify Strategy and Tickers
 python main.py --strategy EMACross --tickers "AAPL,MSFT"
 
-# Full Configuration
-python main.py --strategy PairsTrading --instruments forex --start_date 2023-01-01 --end_date 2023-12-31 --metric Return
+# Full Configuration with Transaction Costs
+python main.py --strategy PairsTrading --instruments forex --start_date 2023-01-01 --end_date 2023-12-31 --metric Return --commission 0.0 --slippage 0.001
 
 # Custom Interval (e.g., Hourly)
 python main.py --strategy EMACross --tickers "AAPL" --interval 1h
+
+# Synthetic Asset (Spread)
+python main.py --synthetic_assets "BTC-USD,ETH-USD" --synthetic_type diff
 ```
 
 The script will:

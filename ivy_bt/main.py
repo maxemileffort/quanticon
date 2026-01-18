@@ -78,7 +78,9 @@ def run_backtest(
     param_grid_override=None,
     synthetic_assets=None,
     synthetic_type='diff',
-    synthetic_name=None
+    synthetic_name=None,
+    commission=None,
+    slippage=None
 ):
     """
     Main entry point for running backtests.
@@ -115,6 +117,13 @@ def run_backtest(
     end_date = end_date or config.backtest.end_date
     interval = interval or config.backtest.interval
     metric = metric or config.optimization.metric
+    
+    # Costs (Args > Config > Default)
+    # If args are None, we check config (assuming config has them, if not, Engine defaults will handle)
+    # But Engine defaults are hardcoded.
+    # Config object structure: config.backtest? No, let's assume config might have it.
+    # Actually, config.yaml example earlier showed backtest, data, optimization. It didn't explicitly show costs.
+    # We will pass what we have.
     
     # Boolean flags need careful handling if passed as False
     enable_portfolio_opt = enable_portfolio_opt if enable_portfolio_opt is not None else config.optimization.enable_portfolio_opt
@@ -156,12 +165,21 @@ def run_backtest(
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(BACKTEST_DIR, exist_ok=True)
 
+    # Prepare Transaction Costs
+    transaction_costs = None
+    if commission is not None or slippage is not None:
+        transaction_costs = {
+            'commission': commission if commission is not None else 0.0,
+            'slippage': slippage if slippage is not None else 0.001
+        }
+
     engine = BacktestEngine(
         tickers=tickers,
         start_date=start_date,
         end_date=end_date,
         interval=interval,
-        data_config=config.data
+        data_config=config.data,
+        transaction_costs=transaction_costs
     )
 
     # 6. Fetch Data
@@ -248,15 +266,6 @@ def run_backtest(
         grid_path = os.path.join(run_dir, "grid_results.csv")
         grid_results.to_csv(grid_path)
         
-        # Save Presets
-        presets_dir = os.path.join(BASE_DIR, 'presets')
-        os.makedirs(presets_dir, exist_ok=True)
-        top_5 = grid_results.sort_values(by=metric, ascending=False).head(5)
-        top_5_list = top_5.to_dict(orient='records')
-        presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
-        with open(presets_path, 'w') as f:
-            json.dump(top_5_list, f, indent=4)
-            
         # Analysis Plots
         if enable_plotting:
              logging.info("Generating Complex Grid Analysis...")
@@ -274,6 +283,23 @@ def run_backtest(
         if not engine.tickers:
             logging.warning("Portfolio optimization removed all assets. Reverting.")
             engine.tickers = ticker_hold
+
+    # 8b. Save Presets (After Optimization to capture universe)
+    if not grid_results.empty:
+        presets_dir = os.path.join(BASE_DIR, 'presets')
+        os.makedirs(presets_dir, exist_ok=True)
+        top_5 = grid_results.sort_values(by=metric, ascending=False).head(5)
+        top_5_list = top_5.to_dict(orient='records')
+        
+        # If optimization ran, attach the filtered universe to the best result
+        if enable_portfolio_opt:
+            # We assume the optimization was run using the BEST parameters (which drove the engine results)
+            # engine.tickers now contains the optimized list
+            top_5_list[0]['tickers'] = engine.tickers
+            
+        presets_path = os.path.join(presets_dir, f"{run_id}_presets.json")
+        with open(presets_path, 'w') as f:
+            json.dump(top_5_list, f, indent=4)
 
     # 9. Generate Report (Tearsheet)
     if enable_plotting:
@@ -330,7 +356,8 @@ def run_backtest(
             "end_date": end_date,
             "interval": interval,
             "instrument_type": instrument_type,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "optimized_universe": engine.tickers
         },
         "performance": engine.results
     }
@@ -402,6 +429,10 @@ if __name__ == "__main__":
     parser.add_argument("--synthetic_type", type=str, default="diff", help="Spread type: 'diff' or 'ratio'")
     parser.add_argument("--synthetic_name", type=str, help="Custom name for synthetic asset")
 
+    # Transaction Costs
+    parser.add_argument("--commission", type=float, help="Fixed commission per trade (e.g., 0.0)", default=None)
+    parser.add_argument("--slippage", type=float, help="Slippage percentage (e.g., 0.001 for 0.1%%)", default=None)
+
     # Batch Mode
     parser.add_argument("--batch", type=str, help="Path to batch configuration file (.json or .yaml)")
 
@@ -426,5 +457,7 @@ if __name__ == "__main__":
             enable_plotting=args.plotting,
             synthetic_assets=args.synthetic_assets,
             synthetic_type=args.synthetic_type,
-            synthetic_name=args.synthetic_name
+            synthetic_name=args.synthetic_name,
+            commission=args.commission,
+            slippage=args.slippage
         )

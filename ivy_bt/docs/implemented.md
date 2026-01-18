@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-15
+Last Updated: 2026-01-17
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -20,7 +20,9 @@ This document summarizes the high-level features and capabilities that have been
 - **Market Regime Analysis**:
     - AR(1) and GARCH(1,1) filters for regime classification.
     - Integration of regime signals into the data pipeline.
-- **Transaction Costs**: Fixed commissions and variable spread/slippage modeling.
+- **Transaction Costs**:
+    - Fixed commissions and variable spread/slippage modeling.
+    - **Configuration**: Configurable via CLI (`--commission`, `--slippage`) and Batch Runner.
 - **Strategy Framework**:
     - **Multi-Timeframe Analysis**: Support for resampling and normalization.
     - **Portfolio Optimization**: MVO, Minimum Variance, and Inverse Volatility optimization.
@@ -31,12 +33,12 @@ This document summarizes the high-level features and capabilities that have been
 - **Engine Architecture**:
     - Modular `src/engine/` package with Mixins (`OptimizationMixin`, `AnalysisMixin`, `ReportingMixin`).
     - Support for intraday data intervals (1h, 15m, etc.) with dynamic annualization.
-    - **Portfolio Strategy Support**: Engine capability to handle multi-asset strategies (passing MultiIndex DataFrames).
+    - **Portfolio Strategy Support**: Engine capability to handle multi-asset strategies (passing MultiIndex DataFrames). Correctly integrated with Grid/Random Search and WFO.
 
 ## Phase 3: UI & Interaction (The Research Hub)
 - **Modular Dashboard**: Multi-page Streamlit app (`src/dashboard/`).
     - **Backtest Runner**: Configure and run backtests with preset loading.
-    - **Optimization**: Grid Search and Walk-Forward Optimization with heatmaps and Parallel Coordinates plots.
+    - **Optimization**: Grid Search and Walk-Forward Optimization with heatmaps and Parallel Coordinates plots. Session state caching implemented for performance.
     - **Results Viewer**: Browse and visualize saved backtest artifacts.
     - **Comparison**: Compare metrics and equity curves of multiple runs side-by-side.
     - **Portfolio Selection**: "Optimize Universe" feature to filter best assets.
@@ -46,59 +48,33 @@ This document summarizes the high-level features and capabilities that have been
 ## Phase 4: Commercialization & Live Operations
 - **Live Signal Generation**:
     - `src/signals.py` to generate "Today's Signals" from saved presets.
+    - **Smart Presets**: Presets now include the `tickers` list if portfolio optimization was performed, ensuring consistent signal generation.
     - Volatility-Weighted Sizing for live signals.
     - CLI tool for signal generation.
-- **Result Standardization**: Timestamped directories (`backtests/{run_id}/`) for all artifacts.
-- **API**: Functional FastAPI service (`src/api/`) for running backtests and serving results.
+- **Result Standardization**: 
+    - Timestamped directories (`backtests/{run_id}/`) for all artifacts.
+    - **Metrics Persistence**: `metrics.json` saves the final `optimized_universe` list.
+- **Backtest Scaling**: `main.py` refactored for stateless, argument-driven execution suitable for large-scale pipelines.
 - **Strategy Architecture**:
     - Modular `src/strategies/` package with categorical organization (trend, reversal, breakout, complex, portfolio).
     - Full backward compatibility maintained via package-level exports.
     - Comprehensive documentation in `STRATEGIES_ARCHITECTURE.md`.
+- **API**: Functional FastAPI service (`src/api/`) for running backtests and serving results.
 
 ## Phase 5: Strategies & Analysis Expansion
 - **Portfolio Strategies**:
     - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
 - **Data Capabilities**:
-    - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager`.
+    - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager` and CLI.
 
 ## Phase 7: Multi-Process Backtesting & Scaling
 - **Batch Processing**:
     - Implemented `BatchRunner` for parallel execution of multiple backtest jobs using `multiprocessing`.
     - CLI support via `main.py --batch config.yaml`.
+    - Support for defining transaction costs in batch config.
     - Automatic result aggregation into CSV summary.
 
-## Recent Updates (Session 25 - 2026-01-17)
-- **Environment Fix (`pandas_ta`)**:
-    - Resolved a `AttributeError` in `pandas_ta` caused by Python 3.12 incompatibility with `importlib.metadata`. Patched the library to restore functionality.
-- **Batch Automation Fixes**:
-    - Updated `gen_batch_yaml.py` to correct YAML syntax generation (replacing tabs with spaces) and fixed Windows path escaping issues (using single quotes).
-    - Ensures valid batch configuration files are generated automatically.
-
-## Recent Updates (Session 24 - 2026-01-16)
-- **Lower Timeframe / Custom Interval Support**:
-    - Expanded CLI (`--interval`) and Batch Runner configuration to accept custom data intervals (e.g., `1h`, `5m`).
-    - Validated that the `BacktestEngine` correctly fetches, processes, and annualizes metrics for intraday data.
-
-## Recent Updates (Session 23 - 2026-01-15)
-- **Batch Runner Implementation**: Added parallel backtesting capability (`src/batch_runner.py`) and CLI integration (`main.py --batch`). This allows for high-throughput strategy testing.
-- **Dashboard Robustness**: Fixed a critical path resolution bug in the Backtest Dashboard that prevented preset files from loading.
-  - Replaced environment-dependent `os.getcwd()` with relative path resolution.
-  - Ensures dashboard works correctly regardless of where the launch command is executed.
-
-## Recent Updates (Session 22 - 2026-01-14)
-- **CLI Scaling**: Refactored `main.py` to support full CLI argument parsing, stateless execution, and dynamic strategy resolution. This enables batch processing and easier automation.
-- **Optimization Performance**: Integrated session state caching in the Optimization dashboard to prevent redundant data reloading.
-- **Stability Fixes**: Fixed `pandas_ta` related instability in `EMACross` by explicitly handling NaN outputs.
-
-## Recent Updates (Session 20 - 2026-01-11)
-- **Portfolio Strategy Optimization Fix**: Fixed critical bug where portfolio strategies (PairsTrading, MarketRegimeSentimentFollower) failed in optimization methods.
-  - All optimization methods now properly detect portfolio strategies via `is_portfolio_strategy` flag
-  - Grid Search, Random Search, and Walk-Forward Optimization fully support multi-asset strategies
-  - Strategies can now be optimized alongside single-ticker strategies seamlessly
-
-## Recent Updates (Session 19 - 2026-01-11)
-- **API**: Expanded to support `POST /backtest/run` and detailed result retrieval.
-- **Engine**: Added support for Multi-Asset/Portfolio strategies.
-- **Strategies**: Added `PairsTrading` strategy.
-- **CLI**: Enhanced `src/signals.py` for flexible live signal generation.
+## Technical Debt & Reliability
+- **Test Suite**: Refactored `test_strategies.py`, `test_monte_carlo.py`, and `test_portfolio_strategies.py` to use the live `pandas_ta` library instead of mocks.
+- **Environment**: Resolved Python 3.12 compatibility issues with `pandas_ta` via local patch.

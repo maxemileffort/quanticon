@@ -11,16 +11,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.engine import BacktestEngine
 
 class TestMonteCarlo(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Mock pandas_ta if it fails to import or just to be safe
-        cls.ta_patcher = unittest.mock.patch.dict(sys.modules, {'pandas_ta': MagicMock()})
-        cls.ta_patcher.start()
-        
-    @classmethod
-    def tearDownClass(cls):
-        cls.ta_patcher.stop()
-
     def setUp(self):
         # Setup dummy engine
         self.engine = BacktestEngine(['A'], '2023-01-01')

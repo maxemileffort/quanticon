@@ -84,17 +84,15 @@ When creating new strategies:
 
 ### For Test Writers
 
-When testing strategies, patch `pandas_ta` in the specific module:
+As of Jan 2026, the testing environment fully supports `pandas_ta`. **Mocking `pandas_ta` is no longer required or recommended.**
+
+Tests should run against the live library to ensure integration compatibility:
 
 ```python
-# Old approach (no longer works)
-patch('src.strategies.ta')
-
-# New approach
-patch('src.strategies.trend.ta')      # For trend strategies
-patch('src.strategies.reversal.ta')   # For reversal strategies
-patch('src.strategies.breakout.ta')   # For breakout strategies
-# etc.
+# No patching required
+strategy = EMACross(fast=10, slow=50)
+res = strategy.strat_apply(df)
+# Assert on actual calculated values
 ```
 
 ## Design Principles

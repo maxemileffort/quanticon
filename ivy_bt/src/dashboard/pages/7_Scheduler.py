@@ -103,23 +103,67 @@ if st.session_state['batch_queue']:
         
         # 3. Execute
         main_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../main.py"))
+        status_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../batch_status.json"))
         
-        with st.spinner("Running Batch Process... Check terminal for details."):
+        # Reset status file
+        if os.path.exists(status_file):
+            try:
+                os.remove(status_file)
+            except: pass
+
+        with st.status("Initializing Batch Run...", expanded=True) as status_box:
             # Use sys.executable to ensure same python env
             cmd = [sys.executable, main_script, "--batch", full_path]
             
-            # Run in a way that captures output
             try:
-                # Use subprocess.run for simpler execution
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                # Start process asynchronously
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                st.write(f"Batch process started (PID: {process.pid})")
                 
-                st.text_area("Output", result.stdout, height=200)
+                progress_bar = st.progress(0)
+                status_text = st.empty()
                 
-                if result.returncode == 0:
+                import time
+                import json
+                
+                # Polling Loop
+                while process.poll() is None:
+                    if os.path.exists(status_file):
+                        try:
+                            with open(status_file, "r") as f:
+                                data = json.load(f)
+                            
+                            completed = data.get('completed', 0)
+                            total = data.get('total', 1)
+                            last = data.get('last_finished', 'None')
+                            
+                            if total > 0:
+                                progress = min(completed / total, 1.0)
+                                progress_bar.progress(progress)
+                            
+                            status_text.markdown(f"**Progress:** {completed}/{total} Jobs Completed.  \n**Last Finished:** `{last}`")
+                        except:
+                            pass
+                    else:
+                        status_text.text("Waiting for status update...")
+                    
+                    time.sleep(1)
+                
+                # Process Finished
+                stdout, stderr = process.communicate()
+                
+                if process.returncode == 0:
+                    status_box.update(label="Batch Run Complete!", state="complete", expanded=False)
                     st.success("Batch Run Completed Successfully!")
+                    progress_bar.progress(1.0)
+                    
+                    with st.expander("Show Output Log"):
+                        st.code(stdout)
                 else:
+                    status_box.update(label="Batch Run Failed", state="error")
                     st.error("Batch Run Failed.")
-                    st.text_area("Error Log", result.stderr, height=200)
+                    st.text_area("Error Log", stderr, height=200)
+
             except Exception as e:
                 st.error(f"Failed to execute process: {e}")
 

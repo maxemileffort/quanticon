@@ -12,6 +12,7 @@ class DataConfig(BaseModel):
     cache_enabled: bool
     cache_dir: str
     cache_format: Literal["parquet", "sqlite"]
+    data_source: Literal["yfinance", "alpaca"] = "yfinance"
 
 class OptimizationConfig(BaseModel):
     metric: Literal["Sharpe", "Return"]
@@ -19,6 +20,7 @@ class OptimizationConfig(BaseModel):
     enable_monte_carlo: bool
     enable_wfo: bool
     enable_plotting: bool
+    view_plotting: bool = False
 
 class AlpacaConfig(BaseModel):
     api_key: str = None

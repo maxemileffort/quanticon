@@ -4,6 +4,17 @@ Last Updated: 2026-01-18
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
+## ✅ Completed in Session 27 (2026-01-18)
+- [x] **Phase 6: Visualization & UI**:
+    - [x] **Decoupled Plotting**: Implemented `view_plotting` flag to separate artifact generation from display, solving batch execution blocking.
+    - [x] **Real-Time Batch Status**: Implemented status tracking in `BatchRunner` and polling in `Scheduler` dashboard.
+    - [x] **Advanced Interactive Charts**: Updated Results Viewer to overlay trade entries/exits on the equity curve and display a trade log.
+- [x] **Phase 5: Data Expansion**:
+    - [x] **Alpaca Historical Data**: Integrated `alpaca-trade-api` into `DataManager` for historical data fetching (`data_source: alpaca`).
+- [x] **Ad Hoc Improvements**:
+    - [x] **Log Organization**: Moved all logs to `quanticon/ivy_bt/logs/` and updated `live_trader.py` and `utils.py` to respect this location.
+    - [x] **Bug Fix**: Fixed crash in Portfolio Report generation when strategy yields no valid returns.
+
 ## ✅ Completed in Session 26 (2026-01-17)
 - [x] **Phase 8: Daily Operations Dashboard**:
     - [x] Created `6_Daily_Ops.py` for signal generation and execution.
@@ -42,18 +53,13 @@ This document outlines the pending features and future considerations for the Iv
 
 ## Phase 5: Expand backtest functionality
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
-- [ ] Add support for other data sources, like Alpaca, Interactive Brokers, MT4/5, Darwinex, Dukascopy, etc.
+- [ ] Add support for other data sources (Interactive Brokers, MT4/5, Darwinex, Dukascopy).
 
 ## Phase 6: UI & Interaction (The Research Hub) Upgrades
 Moving towards a more user-friendly product.
 
 - [ ] **Web Dashboard Features**
-    - [ ] Advanced Interactive Charts (Drill-down capabilities).
-    - [ ] Real-time status of running backtests.
-- [ ] **Decouple Plotting from Execution**:
-    - [ ] Modify `enable_plotting` to only save image artifacts without blocking execution.
-    - [ ] Add `view_plotting` config option to optionally display plots in real-time (default to False).
-    - [ ] Prevents script lock-up during multi-threaded batch runs.
+    - [ ] Trade Analysis Metrics (Win Rate, Profit Factor, etc. derived from new Trade Log).
 
 ## Phase 7: Future Innovations & AI
 - [ ] **LLM Strategy Generator**: "AI Strategy Architect" to generate `StrategyTemplate` code from natural language.

@@ -86,6 +86,7 @@ if selected_run:
     # Organize files
     metrics_file = next((f for f in run_files if 'metrics.json' in f), None)
     equity_file = next((f for f in run_files if 'equity.csv' in f), None)
+    trades_file = next((f for f in run_files if 'trades.csv' in f), None)
     mc_file = next((f for f in run_files if 'monte_carlo.json' in f), None)
     grid_file = next((f for f in run_files if 'grid_results.csv' in f), None)
     pc_file = next((f for f in run_files if 'parallel_coords.html' in f), None)
@@ -187,17 +188,68 @@ if selected_run:
                             mime="application/pdf"
                         )
 
-    # 2. Equity Curve
+    # 2. Equity Curve & Trades
     if equity_file:
-        st.subheader("Equity Curve")
+        st.subheader("Equity Analysis")
         df_equity = pd.read_csv(os.path.join(BACKTESTS_DIR, equity_file), parse_dates=['Date'], index_col='Date')
-        # Check for 'Portfolio' or 'Equity' column, or default to first column
-        if 'Portfolio' in df_equity.columns:
-            st.line_chart(df_equity['Portfolio'])
-        elif 'Equity' in df_equity.columns:
-            st.line_chart(df_equity['Equity'])
-        else:
-            st.line_chart(df_equity)
+        col = 'Portfolio' if 'Portfolio' in df_equity.columns else ('Equity' if 'Equity' in df_equity.columns else df_equity.columns[0])
+        
+        # Interactive Chart
+        fig = px.line(df_equity, y=col, title=f"Equity Curve ({selected_run})")
+        fig.update_layout(hovermode="x unified")
+        
+        # Trade Overlay
+        if trades_file:
+            try:
+                df_trades = pd.read_csv(os.path.join(BACKTESTS_DIR, trades_file), parse_dates=['Date'])
+                
+                # Filter Options
+                tickers = sorted(df_trades['Ticker'].unique())
+                overlay_ticker = st.selectbox("Overlay Trades for:", ["All"] + tickers, index=0)
+                
+                subset = df_trades if overlay_ticker == "All" else df_trades[df_trades['Ticker'] == overlay_ticker]
+                
+                # Align trades with Equity Value at that date for plotting markers on the curve
+                # We map Trade Date -> Equity Value
+                # Note: df_equity index is Date.
+                
+                # Ensure dates match format
+                subset['Date'] = pd.to_datetime(subset['Date'])
+                
+                # We need to get the Y-value (Equity) for each trade date
+                # Using merge_asof or reindex might be safer if times don't match exactly, 
+                # but 'Date' usually matches daily close.
+                
+                # Merge trades with equity to get the Y coordinate
+                merged = pd.merge(subset, df_equity[[col]], left_on='Date', right_index=True, how='inner')
+                
+                buys = merged[merged['Action'] == 'BUY']
+                sells = merged[merged['Action'] == 'SELL']
+                
+                if not buys.empty:
+                    fig.add_trace(go.Scatter(
+                        x=buys['Date'], y=buys[col],
+                        mode='markers', name='Buy',
+                        marker_symbol='triangle-up', marker_color='green', marker_size=10,
+                        hovertext=buys['Ticker'] + ': ' + buys['Price'].astype(str) + ' (' + buys['Quantity'].astype(str) + ')'
+                    ))
+                
+                if not sells.empty:
+                    fig.add_trace(go.Scatter(
+                        x=sells['Date'], y=sells[col],
+                        mode='markers', name='Sell',
+                        marker_symbol='triangle-down', marker_color='red', marker_size=10,
+                        hovertext=sells['Ticker'] + ': ' + sells['Price'].astype(str) + ' (' + sells['Quantity'].astype(str) + ')'
+                    ))
+                    
+            except Exception as e:
+                st.warning(f"Error loading trades: {e}")
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        if trades_file:
+            with st.expander("Trade Log"):
+                st.dataframe(df_trades)
 
     # 3. Monte Carlo
     if mc_file:

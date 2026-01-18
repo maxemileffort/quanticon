@@ -110,7 +110,7 @@ class AnalysisMixin:
             
         return trade_returns
 
-    def run_monte_carlo_simulation(self, n_sims=1000, method='daily', plot=False):
+    def run_monte_carlo_simulation(self, n_sims=1000, method='daily', plot=False, save_path=None):
         """
         Runs Monte Carlo Simulation to estimate risk metrics.
         
@@ -119,7 +119,8 @@ class AnalysisMixin:
             method (str): Sampling method. 
                           'daily': Shuffles daily returns of the portfolio.
                           'trade': Shuffles discrete trade returns (requires trade log).
-            plot (bool): If True, displays a plot of the simulation paths.
+            plot (bool): If True, generates a plot of the simulation paths.
+            save_path (str, optional): Path to save the plot image.
             
         Returns:
             dict: Metrics from the simulation (Average Max Drawdown, Median Equity, etc.).
@@ -215,7 +216,15 @@ class AnalysisMixin:
                 plt.title(f"Monte Carlo Simulation ({n_sims} runs, {method})")
                 plt.ylabel("Growth of $1")
                 plt.legend()
-                plt.show()
+                
+                if save_path:
+                    plt.savefig(save_path)
+                    logging.info(f"Saved Monte Carlo plot to {save_path}")
+
+                if getattr(self, 'view_plotting', False):
+                    plt.show()
+                else:
+                    plt.close()
             except Exception as e:
                 logging.error(f"Failed to plot MC results: {e}")
             

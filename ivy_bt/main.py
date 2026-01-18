@@ -75,6 +75,7 @@ def run_backtest(
     enable_monte_carlo=None,
     enable_wfo=None,
     enable_plotting=None,
+    view_plotting=None,
     param_grid_override=None,
     synthetic_assets=None,
     synthetic_type='diff',
@@ -130,6 +131,7 @@ def run_backtest(
     enable_monte_carlo = enable_monte_carlo if enable_monte_carlo is not None else config.optimization.enable_monte_carlo
     enable_wfo = enable_wfo if enable_wfo is not None else config.optimization.enable_wfo
     enable_plotting = enable_plotting if enable_plotting is not None else config.optimization.enable_plotting
+    view_plotting = view_plotting if view_plotting is not None else getattr(config.optimization, 'view_plotting', False)
 
     # 4. Determine Tickers
     synthetic_components = []
@@ -179,7 +181,9 @@ def run_backtest(
         end_date=end_date,
         interval=interval,
         data_config=config.data,
-        transaction_costs=transaction_costs
+        alpaca_config=config.alpaca,
+        transaction_costs=transaction_costs,
+        view_plotting=view_plotting
     )
 
     # 6. Fetch Data
@@ -271,7 +275,7 @@ def run_backtest(
              logging.info("Generating Complex Grid Analysis...")
              try:
                  grid_results_clean = grid_results.dropna()
-                 analyze_complex_grid(grid_results_clean, target_metric=metric, output_dir=run_dir, run_id="analysis")
+                 analyze_complex_grid(grid_results_clean, target_metric=metric, output_dir=run_dir, run_id="analysis", view=view_plotting)
              except Exception as e:
                  logging.error(f"Failed to generate grid analysis: {e}")
 
@@ -372,10 +376,17 @@ def run_backtest(
         equity_path = os.path.join(run_dir, "equity_curve.csv")
         equity_curve.to_csv(equity_path)
 
+    # Save Trade Log
+    trades_df = engine.get_trade_log()
+    if not trades_df.empty:
+        trades_path = os.path.join(run_dir, "trades.csv")
+        trades_df.to_csv(trades_path, index=False)
+
     # 11. Monte Carlo
     if enable_monte_carlo:
         logging.info("--- Starting Monte Carlo Simulation ---")
-        mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=enable_plotting)
+        mc_plot_path = os.path.join(run_dir, "monte_carlo.png") if enable_plotting else None
+        mc_metrics = engine.run_monte_carlo_simulation(n_sims=1000, method='daily', plot=enable_plotting, save_path=mc_plot_path)
         mc_path = os.path.join(run_dir, "monte_carlo.json")
         with open(mc_path, 'w') as f:
             json.dump(mc_metrics, f, indent=4)
@@ -422,7 +433,8 @@ if __name__ == "__main__":
     parser.add_argument("--portfolio_opt", action=argparse.BooleanOptionalAction, help="Enable Portfolio Optimization")
     parser.add_argument("--monte_carlo", action=argparse.BooleanOptionalAction, help="Enable Monte Carlo")
     parser.add_argument("--wfo", action=argparse.BooleanOptionalAction, help="Enable Walk-Forward Optimization")
-    parser.add_argument("--plotting", action=argparse.BooleanOptionalAction, help="Enable Plotting")
+    parser.add_argument("--plotting", action=argparse.BooleanOptionalAction, help="Enable Plotting (Saving)")
+    parser.add_argument("--view-plotting", action=argparse.BooleanOptionalAction, help="Enable Interactive Plotting (Showing)")
     
     # Synthetic Assets
     parser.add_argument("--synthetic_assets", type=str, help="Comma-separated pair of assets (e.g. BTC-USD,ETH-USD)")
@@ -455,6 +467,7 @@ if __name__ == "__main__":
             enable_monte_carlo=args.monte_carlo,
             enable_wfo=args.wfo,
             enable_plotting=args.plotting,
+            view_plotting=args.view_plotting,
             synthetic_assets=args.synthetic_assets,
             synthetic_type=args.synthetic_type,
             synthetic_name=args.synthetic_name,

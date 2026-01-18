@@ -31,8 +31,10 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
                  , interval='1d'
                  , benchmark='SPY'
                  , data_config=None
+                 , alpaca_config=None
                  , position_sizer=None
-                 , transaction_costs=None):
+                 , transaction_costs=None
+                 , view_plotting=False):
         """
         Initializes the BacktestEngine.
 
@@ -43,8 +45,10 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
             interval (str): Data interval (e.g., '1d', '1h', '5m'). Defaults to '1d'.
             benchmark (str): Benchmark ticker for comparison. Defaults to 'SPY'.
             data_config (DataConfig, optional): Configuration for caching and data storage.
+            alpaca_config (AlpacaConfig, optional): Configuration for Alpaca API.
             position_sizer (PositionSizer, optional): Logic for sizing positions. Defaults to FixedSignalSizer(1.0).
             transaction_costs (dict, optional): Dict with 'commission' (fixed $) and 'slippage' (pct).
+            view_plotting (bool, optional): If True, show interactive plots via plt.show(). Defaults to False.
         """
         self.tickers = tickers
         self.start_date = start_date
@@ -52,7 +56,9 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         self.interval = interval
         self.benchmark_ticker = benchmark
         self.data_config = data_config
-        self.data_manager = DataManager(self.data_config)
+        self.alpaca_config = alpaca_config
+        self.view_plotting = view_plotting
+        self.data_manager = DataManager(self.data_config, self.alpaca_config)
         
         # Costs
         self.costs = transaction_costs if transaction_costs else {'commission': 0.0, 'slippage': 0.001}

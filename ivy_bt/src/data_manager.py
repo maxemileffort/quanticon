@@ -3,11 +3,56 @@ import pandas as pd
 import os
 import hashlib
 import logging
-from .config import DataConfig
+import alpaca_trade_api as tradeapi
+from .config import DataConfig, AlpacaConfig
 
 class DataManager:
-    def __init__(self, config: DataConfig):
+    def __init__(self, config: DataConfig, alpaca_config: AlpacaConfig = None):
         self.config = config
+        self.alpaca_config = alpaca_config
+
+    def _fetch_from_alpaca(self, tickers, start, end, interval):
+        """Fetches historical data from Alpaca."""
+        if not self.alpaca_config or not self.alpaca_config.api_key:
+             logging.error("Alpaca config missing or credentials not provided.")
+             return {}
+        
+        base_url = 'https://paper-api.alpaca.markets' if self.alpaca_config.paper else 'https://api.alpaca.markets'
+        api = tradeapi.REST(self.alpaca_config.api_key, self.alpaca_config.secret_key, base_url, api_version='v2')
+        
+        # Timeframe mapping
+        tf = "1Day"
+        if interval == '1h': tf = "1Hour"
+        elif interval == '1m': tf = "1Min"
+        elif interval == '15m': tf = "15Min"
+        
+        logging.info(f"Downloading from Alpaca ({tf})...")
+        data = {}
+        
+        for ticker in tickers:
+            try:
+                # Alpaca V2 get_bars returns list of bars. Using .df provides DataFrame.
+                bars = api.get_bars(ticker, tf, start=start, end=end, adjustment='all').df
+                
+                if bars.empty:
+                    logging.warning(f"No data found for {ticker} on Alpaca.")
+                    continue
+                
+                # Alpaca returns index as timestamp (localized UTC), columns: open, high, low, close, volume, trade_count, vwap
+                # We need to standardize to: open, high, low, close, volume (lowercase)
+                
+                # Check timezone and convert if needed (yfinance usually returns naive or localized)
+                if bars.index.tz is not None:
+                    bars.index = bars.index.tz_convert(None) # Convert to naive for consistency with yfinance default?
+                
+                # Filter columns
+                bars = bars[['open', 'high', 'low', 'close', 'volume']]
+                
+                data[ticker] = bars
+            except Exception as e:
+                logging.error(f"Alpaca download failed for {ticker}: {e}")
+                
+        return data
 
     def fetch_data(self, tickers, start_date, end_date, interval='1d'):
         """
@@ -37,14 +82,58 @@ class DataManager:
                     logging.warning(f"Error reading cache: {e}")
             
             if df is None:
-                logging.info(f"Downloading data from yfinance (Interval: {interval})...")
-                df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
+                if getattr(self.config, 'data_source', 'yfinance') == 'alpaca':
+                    # Alpaca fetch returns a dict {ticker: df}, unlike yfinance which returns one big DF
+                    # We need to adapt the caching logic for Alpaca if we want to support it.
+                    # Current caching logic expects a single DF to parquet.
+                    # For simplicity, let's fetch individual DFs and concat them into a multi-column DF for caching?
+                    # Or just cache per ticker?
+                    # The current architecture expects a single DF from `fetch_data` IF yfinance.
+                    # But `fetch_data` returns a DICT at the end.
+                    # The `df` variable here is the raw download.
+                    
+                    # For Alpaca, let's skip the single-file caching for now or implement it properly.
+                    # Or, construct a MultiIndex DF to mimic yfinance result so downstream logic works.
+                    alpaca_data = self._fetch_from_alpaca(tickers, start_date, end_date, interval)
+                    
+                    # Convert dict {ticker: df} to MultiIndex DF (Ticker, Price) for caching compatibility?
+                    # yfinance structure: Columns are (Ticker, PriceType)
+                    frames = []
+                    keys = []
+                    for t, d in alpaca_data.items():
+                        frames.append(d)
+                        keys.append(t)
+                    
+                    if frames:
+                        df = pd.concat(frames, axis=1, keys=keys)
+                        # df columns are now (Ticker, PriceType)
+                    else:
+                        df = pd.DataFrame()
+
+                else:
+                    logging.info(f"Downloading data from yfinance (Interval: {interval})...")
+                    df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
+                
                 try:
-                    df.to_parquet(cache_path)
+                    if not df.empty and self.config.cache_enabled:
+                        df.to_parquet(cache_path)
                 except Exception as e:
                     logging.warning(f"Error saving cache: {e}")
         else:
-            df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
+            if getattr(self.config, 'data_source', 'yfinance') == 'alpaca':
+                alpaca_data = self._fetch_from_alpaca(tickers, start_date, end_date, interval)
+                frames = []
+                keys = []
+                for t, d in alpaca_data.items():
+                    frames.append(d)
+                    keys.append(t)
+                
+                if frames:
+                    df = pd.concat(frames, axis=1, keys=keys)
+                else:
+                    df = pd.DataFrame()
+            else:
+                df = yf.download(tickers, start=start_date, end=end_date, interval=interval, group_by='ticker')
 
         data = {}
         # yfinance with group_by='ticker' returns a MultiIndex DataFrame if multiple tickers are requested.

@@ -438,4 +438,8 @@ class OptimizationMixin:
         plt.figure(figsize=(10, 8))
         sns.heatmap(pivot_table, annot=True, fmt=".2f", cmap='RdYlGn', center=0)
         plt.title(f"Grid Search: {metric} Plateau ({param_x} vs {param_y})")
-        plt.show()
+        
+        if getattr(self, 'view_plotting', False):
+            plt.show()
+        else:
+            plt.close()

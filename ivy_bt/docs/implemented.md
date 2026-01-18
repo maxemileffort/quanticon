@@ -86,6 +86,23 @@ This document summarizes the high-level features and capabilities that have been
     - Dynamic strategy loading and configuration.
     - Automatic YAML config generation and execution.
 
+## Phase 6: UI & Interaction Upgrades (Optimization)
+- **Decoupled Plotting**: 
+    - Separated plotting execution from display (`view_plotting` flag).
+    - Prevents script blocking during batch runs while still generating artifacts.
+- **Real-Time Batch Status**:
+    - Implemented `batch_status.json` tracking in `BatchRunner`.
+    - Updated Scheduler UI to poll status file for non-blocking progress updates.
+- **Advanced Interactive Charts**:
+    - Updated `ReportingMixin` to generate a detailed trade log.
+    - Enhanced `Results Viewer` to overlay trade entry/exit markers on the equity curve and display a filterable trade log.
+
+## Phase 5: Expand Backtest Functionality (Data)
+- **Alpaca Historical Data**:
+    - Added `data_source` option to `config.yaml` (supports `yfinance` and `alpaca`).
+    - Implemented `DataManager.fetch_from_alpaca` using `alpaca-trade-api`.
+
 ## Technical Debt & Reliability
 - **Test Suite**: Refactored `test_strategies.py`, `test_monte_carlo.py`, and `test_portfolio_strategies.py` to use the live `pandas_ta` library instead of mocks.
 - **Environment**: Resolved Python 3.12 compatibility issues with `pandas_ta` via local patch.
+- **Reporting**: Fixed potential crash in portfolio report generation when returns are empty.

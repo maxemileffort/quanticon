@@ -148,13 +148,15 @@ data:
   cache_enabled: true
   cache_dir: ".cache"
   cache_format: "parquet"
+  data_source: "yfinance" # Options: "yfinance", "alpaca"
 
 optimization:
   metric: "Sharpe"
   enable_portfolio_opt: true
   enable_monte_carlo: true
   enable_wfo: false
-  enable_plotting: true
+  enable_plotting: true # Generates artifact files
+  view_plotting: false  # Set to true to show interactive plots (blocks execution)
 ```
 
 ## Project Structure

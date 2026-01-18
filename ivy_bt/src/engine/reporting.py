@@ -53,7 +53,11 @@ class ReportingMixin:
         ax1.legend()
 
         plt.tight_layout()
-        plt.show()
+        
+        if getattr(self, 'view_plotting', False):
+            plt.show()
+        else:
+            plt.close()
 
     def generate_portfolio_report(self):
         """Aggregates all tickers into one portfolio equity curve."""
@@ -72,6 +76,10 @@ class ReportingMixin:
         portfolio_log_returns = np.log1p(portfolio_simple_returns)
         
         portfolio_cum_growth = np.exp(portfolio_log_returns.cumsum())
+        
+        if portfolio_cum_growth.empty:
+             logging.warning("Portfolio cumulative growth is empty. Skipping report.")
+             return
 
         # 3. Portfolio Metrics
         port_total_ret = portfolio_cum_growth.iloc[-1] - 1
@@ -97,7 +105,11 @@ class ReportingMixin:
         plt.title(f"Portfolio Cumulative Performance - {self.strat_name}", fontsize=16)
         plt.ylabel("Growth of $1 (Log Scale Basis)")
         plt.legend()
-        plt.show()
+        
+        if getattr(self, 'view_plotting', False):
+            plt.show()
+        else:
+            plt.close()
 
     def generate_pdf_report(self, filename=None):
         """
@@ -185,6 +197,44 @@ class ReportingMixin:
             plt.close()
             
         return filename
+
+    def get_trade_log(self):
+        """
+        Generates a comprehensive log of all trades executed.
+        Returns: pd.DataFrame
+        """
+        trades = []
+        for ticker, df in self.data.items():
+            if df.empty or 'position' not in df.columns: continue
+            
+            # Detect changes in position
+            # position column represents the holding during the bar (determined at previous close)
+            # A change from row i-1 to row i implies a trade occurred at row i-1's timestamp (or i's open)
+            # We'll log it at row i's timestamp for simplicity as "New Position"
+            
+            delta = df['position'].diff().fillna(0)
+            trade_indices = delta[delta != 0].index
+            
+            for date in trade_indices:
+                row = df.loc[date]
+                size_change = delta.loc[date]
+                price = row['close']
+                
+                action = "BUY" if size_change > 0 else "SELL"
+                
+                trades.append({
+                    'Date': date,
+                    'Ticker': ticker,
+                    'Action': action,
+                    'Quantity': size_change,
+                    'Price': price,
+                    'Value': abs(size_change * price) # Approx notional
+                })
+                
+        if not trades:
+            return pd.DataFrame(columns=['Date', 'Ticker', 'Action', 'Quantity', 'Price', 'Value'])
+            
+        return pd.DataFrame(trades).sort_values(by='Date')
 
     def generate_html_report(self, filename=None):
         """

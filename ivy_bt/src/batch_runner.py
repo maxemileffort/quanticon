@@ -83,16 +83,35 @@ def _worker_wrapper(job_config: BatchJobConfig):
         }
 
 class BatchRunner:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, status_file: str = "batch_status.json"):
         self.config = load_batch_config(config_path)
         self.results = []
+        self.status_file = status_file
         
+    def _update_status(self, completed: int, total: int, last_job: str = None):
+        """Updates the status file with progress."""
+        try:
+            status = {
+                "status": "completed" if completed == total else "running",
+                "completed": completed,
+                "total": total,
+                "last_finished": last_job,
+                "timestamp": datetime.now().isoformat()
+            }
+            with open(self.status_file, 'w') as f:
+                json.dump(status, f)
+        except Exception as e:
+            print(f"Failed to update status file: {e}")
+
     def run(self):
         """Execute the batch jobs in parallel."""
         workers = self.config.max_workers
         jobs = self.config.jobs
+        total_jobs = len(jobs)
+        completed_count = 0
         
-        print(f"--- Starting Batch Run ({len(jobs)} jobs, {workers} workers) ---")
+        print(f"--- Starting Batch Run ({total_jobs} jobs, {workers} workers) ---")
+        self._update_status(0, total_jobs)
         
         with ProcessPoolExecutor(max_workers=workers) as executor:
             # Submit all jobs
@@ -103,19 +122,25 @@ class BatchRunner:
             
             for future in as_completed(future_to_job):
                 job = future_to_job[future]
+                completed_count += 1
+                job_label = job.job_id or job.strategy_name
+                
                 try:
                     result = future.result()
                     if result:
                         self.results.append(result)
                         status = result.get('status', 'unknown')
-                        print(f"Job {job.job_id or job.strategy_name} finished: {status}")
+                        print(f"Job {job_label} finished: {status}")
                     else:
-                        print(f"Job {job.job_id or job.strategy_name} finished: No result returned")
+                        print(f"Job {job_label} finished: No result returned")
                         
                 except Exception as exc:
-                    print(f"Job {job.job_id or job.strategy_name} generated an exception: {exc}")
+                    print(f"Job {job_label} generated an exception: {exc}")
+                
+                self._update_status(completed_count, total_jobs, last_job=job_label)
 
         self._save_summary()
+        self._update_status(total_jobs, total_jobs, last_job="All Completed")
         
     def _save_summary(self):
         """Aggregate results and save to CSV."""

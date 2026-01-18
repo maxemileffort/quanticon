@@ -14,13 +14,17 @@ from src.config import load_config
 from src.broker import AlpacaBroker
 from src.signals import generate_signals
 
+# Ensure logs directory exists
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(f"live_trading_{datetime.now().strftime('%Y%m%d')}.log")
+        logging.FileHandler(os.path.join(log_dir, f"live_trading_{datetime.now().strftime('%Y%m%d')}.log"))
     ]
 )
 logger = logging.getLogger("LiveTrader")

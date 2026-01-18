@@ -6,8 +6,15 @@ import plotly.express as px
 from sklearn.ensemble import RandomForestRegressor
 import logging
 import sys
+import os
 
-def setup_logging(log_file="ivybt.log"):
+def setup_logging(log_file=None):
+    if log_file is None:
+        # Default to ivy_bt/logs/ivybt.log
+        log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs'))
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "ivybt.log")
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -131,7 +138,7 @@ def apply_stop_loss(df: pd.DataFrame, stop_loss_pct: float, trailing: bool = Fal
     df['signal'] = new_signal
     return df
 
-def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_id=None):
+def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_id=None, view=False):
     """
     Visualizes high-dimensional grid search results.
     """
@@ -158,7 +165,8 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_i
         # This prevents the local server startup which was causing ERR_CONNECTION_REFUSED.
         fig.write_html(html_path, auto_open=False)
         logging.info(f"Saved Parallel Coordinates plot to {html_path}")
-    else:
+    
+    if view:
         fig.show()
 
     # 2. Parameter Importance Logic
@@ -183,8 +191,10 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_i
         png_path = os.path.join(output_dir, f"{run_id}_param_importance.png")
         plt.savefig(png_path)
         logging.info(f"Saved Parameter Importance plot to {png_path}")
-        plt.close()
-    else:
+    
+    if view:
         plt.show()
+    else:
+        plt.close()
 
     return importance_df

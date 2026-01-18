@@ -83,6 +83,8 @@ The dashboard now features four modes:
 3.  **Walk-Forward**: Perform Walk-Forward Optimization to validate strategy robustness on unseen data.
 4.  **Results Viewer**: View detailed metrics and generate **PDF Reports** for saved backtests.
 5.  **Comparison**: Select multiple backtest runs to compare their metrics and equity curves side-by-side.
+6.  **Daily Operations**: Generate live trading signals, view real-time Alpaca account status, and execute rebalancing trades directly from the UI.
+7.  **Scheduler**: Queue multiple backtest jobs and execute them in parallel (Batch Processing) via a user-friendly interface.
 
 ### REST API
 

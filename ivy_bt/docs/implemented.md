@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-17
+Last Updated: 2026-01-18
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -74,6 +74,17 @@ This document summarizes the high-level features and capabilities that have been
     - CLI support via `main.py --batch config.yaml`.
     - Support for defining transaction costs in batch config.
     - Automatic result aggregation into CSV summary.
+
+## Phase 8: Operational Workflow Integration
+- **Daily Operations Dashboard**:
+    - Unified interface for signal generation and trade execution.
+    - Integration with Alpaca Broker to view real-time account status.
+    - **Live Trading Execution**: Direct execution of rebalancing trades from UI with "Dry Run" support.
+    - **Leverage Control**: "Portfolio Normalization" feature to cap total gross exposure (e.g., max 100%).
+- **Backtest Scheduler UI**:
+    - Interface to queue and manage batch backtest jobs.
+    - Dynamic strategy loading and configuration.
+    - Automatic YAML config generation and execution.
 
 ## Technical Debt & Reliability
 - **Test Suite**: Refactored `test_strategies.py`, `test_monte_carlo.py`, and `test_portfolio_strategies.py` to use the live `pandas_ta` library instead of mocks.

@@ -30,6 +30,7 @@ def main():
     parser.add_argument("preset_path", help="Path to the strategy preset JSON file")
     parser.add_argument("--dry-run", action="store_true", help="Run without executing trades")
     parser.add_argument("--vol_target", type=float, help="Target Annualized Volatility (override preset)", default=None)
+    parser.add_argument("--max_leverage", type=float, help="Max Total Leverage (default 1.0)", default=1.0)
     
     args = parser.parse_args()
 
@@ -47,7 +48,7 @@ def main():
 
     # 2. Generate Signals
     logger.info(f"Generating signals from {args.preset_path}...")
-    signals_df = generate_signals(args.preset_path, target_vol=args.vol_target)
+    signals_df = generate_signals(args.preset_path, target_vol=args.vol_target, max_leverage=args.max_leverage)
 
     if signals_df is None or signals_df.empty:
         logger.warning("No signals generated.")
@@ -55,8 +56,20 @@ def main():
 
     logger.info("\n" + signals_df.to_string())
 
+    execute_rebalance(signals_df, broker, dry_run=args.dry_run)
+
+def execute_rebalance(signals_df, broker, dry_run=False, equity_override=None):
+    """
+    Executes rebalancing trades based on signals.
+    
+    Args:
+        signals_df (pd.DataFrame): DataFrame containing signals with 'Ticker', 'Target_Size', 'Close'.
+        broker (AlpacaBroker): Initialized broker instance.
+        dry_run (bool): If True, does not place orders.
+        equity_override (float): Override account equity for calculation (useful for dry runs).
+    """
     # 3. Get Account Info
-    if not args.dry_run:
+    if not dry_run:
         try:
             account = broker.api.get_account()
             equity = float(account.equity)
@@ -66,10 +79,12 @@ def main():
             logger.error(f"Failed to fetch account info: {e}")
             return
     else:
-        equity = 100000.0  # Mock equity for dry run
+        equity = equity_override if equity_override else 100000.0
         logger.info(f"Dry Run Equity: ${equity:,.2f}")
 
     # 4. Execute Trades
+    results = []
+    
     for index, row in signals_df.iterrows():
         ticker = row['Ticker']
         target_size_pct = row['Target_Size']  # e.g., 0.5 for 50%
@@ -79,10 +94,14 @@ def main():
         target_value = equity * target_size_pct
         target_shares = int(target_value / close_price)
         
-        logger.info(f"Processing {ticker}: Target Size {target_size_pct:.2%} (${target_value:,.2f}) -> {target_shares} shares")
+        log_msg = f"Processing {ticker}: Target Size {target_size_pct:.2%} (${target_value:,.2f}) -> {target_shares} shares"
+        logger.info(log_msg)
+        results.append(log_msg)
 
-        if args.dry_run:
-            logger.info(f"[DRY RUN] Would set position for {ticker} to {target_shares} shares.")
+        if dry_run:
+            log_msg = f"[DRY RUN] Would set position for {ticker} to {target_shares} shares."
+            logger.info(log_msg)
+            results.append(log_msg)
             continue
 
         # Get Current Position
@@ -98,6 +117,7 @@ def main():
         
         if delta_shares == 0:
             logger.info(f"{ticker}: No change required (Current: {current_shares}, Target: {target_shares}).")
+            results.append(f"{ticker}: No change required.")
             continue
 
         side = 'buy' if delta_shares > 0 else 'sell'
@@ -115,14 +135,19 @@ def main():
         )
         
         if order:
-            logger.info(f"Order submitted successfully: {order.id}")
+            msg = f"Order submitted successfully: {order.id}"
+            logger.info(msg)
+            results.append(msg)
         else:
-            logger.error(f"Failed to submit order for {ticker}")
+            msg = f"Failed to submit order for {ticker}"
+            logger.error(msg)
+            results.append(msg)
         
         # Sleep briefly to avoid rate limits
         time.sleep(0.5)
 
     logger.info("Live trading session completed.")
+    return results
 
 if __name__ == "__main__":
     main()

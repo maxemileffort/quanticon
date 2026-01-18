@@ -45,7 +45,7 @@ def parse_preset_filename(filename):
     
     return strategy_name, instrument_type
 
-def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None, end_date=None, lookback=365):
+def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None, end_date=None, lookback=365, max_leverage=1.0):
     """
     Generates trading signals for the current day based on the preset.
     
@@ -56,6 +56,7 @@ def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None
         start_date (str, optional): Start date for data fetching (YYYY-MM-DD).
         end_date (str, optional): End date for data fetching (YYYY-MM-DD).
         lookback (int): Days of history to fetch if start_date is not provided. Default 365.
+        max_leverage (float): Maximum total leverage allowed (sum of absolute weights). Default 1.0.
     """
     if not os.path.exists(preset_path):
         logging.error(f"Preset file not found: {preset_path}")
@@ -173,6 +174,20 @@ def generate_signals(preset_path, target_vol=None, tickers=None, start_date=None
             })
 
     results_df = pd.DataFrame(signals)
+
+    # 8. Portfolio Normalization
+    if not results_df.empty and max_leverage is not None:
+        total_exposure = results_df['Target_Size'].abs().sum()
+        if total_exposure > max_leverage:
+            scale_factor = max_leverage / total_exposure
+            logging.info(f"Total exposure ({total_exposure:.2f}) exceeds max leverage ({max_leverage}). Scaling by factor {scale_factor:.4f}")
+            results_df['Target_Size'] = results_df['Target_Size'] * scale_factor
+            
+            # Note: We do NOT re-evaluate 'Action' here based on the scaled target vs unscaled simulation current_hold.
+            # The 'Action' label might look aggressive (e.g. REBALANCE) because it's comparing 
+            # the new Constrained Target vs the Old Unconstrained History. 
+            # This is technically correct behavior for the first day of applying constraints.
+
     return results_df
 
 if __name__ == "__main__":
@@ -183,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_date", type=str, help="Start date (YYYY-MM-DD)", default=None)
     parser.add_argument("--end_date", type=str, help="End date (YYYY-MM-DD)", default=None)
     parser.add_argument("--lookback", type=int, help="Days of history to fetch (default 365)", default=365)
+    parser.add_argument("--max_leverage", type=float, help="Max Total Leverage (default 1.0)", default=1.0)
     
     args = parser.parse_args()
     
@@ -197,7 +213,8 @@ if __name__ == "__main__":
         tickers=ticker_list,
         start_date=args.start_date,
         end_date=args.end_date,
-        lookback=args.lookback
+        lookback=args.lookback,
+        max_leverage=args.max_leverage
     )
     
     if df is not None and not df.empty:

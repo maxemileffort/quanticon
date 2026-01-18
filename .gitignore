@@ -42,6 +42,8 @@ twsq
 # IvyBT
 ivy_bt/backtests/
 ivy_bt/data/
+ivy_bt/batch_configs/*.yaml
+ivy_bt/batch_configs/archive/*.yaml
 ivy_bt.log
 ivy_bt/.cache_test/
 ivy_bt/.cache/

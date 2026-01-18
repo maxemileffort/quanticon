@@ -103,6 +103,8 @@ unifying individual tools into a cohesive 15-minute daily routine.
 ### Accomplished
 - **Environment Stability**: Resolved a critical compatibility issue with `pandas_ta` on Python 3.12 by patching the library.
 - **Batch Script Fixes**: Fixed `ImportError` and logic errors in `gen_batch_yaml.py`, enabling automated batch configuration generation.
+    - Corrected YAML syntax generation (replaced tabs with spaces).
+    - Fixed Windows path escaping issues by using single quotes in generated YAML files.
 - **Documentation**: Updated roadmap to reflect the resolution of known environment limitations.
 
 ### What to Tackle Next

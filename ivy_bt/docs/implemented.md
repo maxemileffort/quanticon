@@ -71,7 +71,9 @@ This document summarizes the high-level features and capabilities that have been
 ## Recent Updates (Session 25 - 2026-01-17)
 - **Environment Fix (`pandas_ta`)**:
     - Resolved a `AttributeError` in `pandas_ta` caused by Python 3.12 incompatibility with `importlib.metadata`. Patched the library to restore functionality.
-    - Updated `gen_batch_yaml.py` to fix import paths.
+- **Batch Automation Fixes**:
+    - Updated `gen_batch_yaml.py` to correct YAML syntax generation (replacing tabs with spaces) and fixed Windows path escaping issues (using single quotes).
+    - Ensures valid batch configuration files are generated automatically.
 
 ## Recent Updates (Session 24 - 2026-01-16)
 - **Lower Timeframe / Custom Interval Support**:

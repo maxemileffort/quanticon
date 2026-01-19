@@ -87,6 +87,14 @@ This document summarizes the high-level features and capabilities that have been
     - Dynamic strategy loading and configuration.
     - Automatic YAML config generation and execution.
 
+## Phase 9: Deployment & Infrastructure
+- **Containerization**:
+    - **Docker**: Full Docker support via `Dockerfile` (Python 3.10 based) and `docker-compose.yml`.
+    - **Orchestration**: Simultaneous execution of Streamlit Dashboard and FastAPI backend.
+- **Cloud Readiness**:
+    - **Configuration**: Environment-agnostic setup with automatic config generation.
+    - **Documentation**: Comprehensive `DEPLOYMENT.md` guide for Local, VPS, and Cloud (Render/Streamlit Cloud) deployment.
+
 ## Phase 6: UI & Interaction Upgrades (Optimization)
 - **Decoupled Plotting**: 
     - Separated plotting execution from display (`view_plotting` flag).

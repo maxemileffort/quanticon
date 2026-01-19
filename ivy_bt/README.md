@@ -31,6 +31,14 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
     pip install -r requirements.txt
     ```
 
+### Docker Deployment
+
+For details on deploying via Docker (Local, VPS, or Cloud), see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+```bash
+docker-compose up --build
+```
+
 ## Testing
 
 To run the test suite:

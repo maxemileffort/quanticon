@@ -12,3 +12,5 @@ pyyaml
 pyarrow
 streamlit
 alpaca-trade-api
+fastapi
+uvicorn

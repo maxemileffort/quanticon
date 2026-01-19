@@ -4,6 +4,13 @@ Last Updated: 2026-01-19
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
+## ✅ Completed in Session 29 (2026-01-19)
+- [x] **Ad Hoc Updates (Deployment)**:
+    - [x] **Dockerization**: Created `Dockerfile` and `docker-compose.yml` to containerize the entire application (Dashboard + API).
+    - [x] **Deployment Guide**: Created `DEPLOYMENT.md` detailing steps for Local Docker, Streamlit Cloud, Render, and VPS deployment.
+    - [x] **Dependencies**: Updated `requirements.txt` to include `fastapi` and `uvicorn` for production API hosting.
+    - [x] **Config Handling**: Updated Docker build process to ensure `config.yaml` exists if missing.
+
 ## ✅ Completed in Session 28 (2026-01-19)
 - [x] **Stability & Performance**:
     - [x] **Batch Runner Crash Fix**: Solved "werfault" and memory overflow issues by implementing `multiprocessing.Pool` with `maxtasksperchild=1`, ensuring total memory reclamation after each job.
@@ -41,6 +48,13 @@ This document outlines the pending features and future considerations for the Iv
 - [x] **Transaction Costs Configuration**:
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
+
+## Session Summary (2026-01-19) - Session 29
+
+### Accomplished
+- **Deployment Readiness**: The project is now fully containerized and ready for "free / low cost" deployment. We created a `Dockerfile` compatible with `pandas_ta` (Python 3.10) and a `docker-compose.yml` that orchestrates the Streamlit Dashboard and FastAPI backend together.
+- **Documentation**: Added a comprehensive `DEPLOYMENT.md` guide covering local Docker use, and cloud options like Render and Streamlit Community Cloud.
+- **Environment Verification**: Diagnosed and confirmed the local machine's capability to run Docker Desktop (WSL 2 enabled).
 
 ## Session Summary (2026-01-19) - Session 28
 

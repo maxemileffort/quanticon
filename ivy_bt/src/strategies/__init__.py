@@ -43,7 +43,8 @@ from .reversal import (
 from .breakout import (
     TurtleTradingSystem,
     IchimokuCloudBreakout,
-    DailyHighLowBreakout
+    DailyHighLowBreakout,
+    BBKCSqueezeBreakout
 )
 
 # Import complex strategies
@@ -80,6 +81,7 @@ __all__ = [
     'TurtleTradingSystem',
     'IchimokuCloudBreakout',
     'DailyHighLowBreakout',
+    'BBKCSqueezeBreakout',
     
     # Complex
     'TradingMadeSimpleTDIHeikinAshi',

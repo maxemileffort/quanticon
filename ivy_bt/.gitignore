@@ -9,3 +9,5 @@ config.yaml
 /data
 /presets
 /batch_results
+
+batch_status.json

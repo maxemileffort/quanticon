@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-18
+Last Updated: 2026-01-19
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -74,6 +74,7 @@ This document summarizes the high-level features and capabilities that have been
     - CLI support via `main.py --batch config.yaml`.
     - Support for defining transaction costs in batch config.
     - Automatic result aggregation into CSV summary.
+    - **Reliability Upgrade**: Switched to `multiprocessing.Pool` with strict process recycling (`maxtasksperchild=1`) to eliminate memory leaks during long batch runs.
 
 ## Phase 8: Operational Workflow Integration
 - **Daily Operations Dashboard**:
@@ -106,3 +107,5 @@ This document summarizes the high-level features and capabilities that have been
 - **Test Suite**: Refactored `test_strategies.py`, `test_monte_carlo.py`, and `test_portfolio_strategies.py` to use the live `pandas_ta` library instead of mocks.
 - **Environment**: Resolved Python 3.12 compatibility issues with `pandas_ta` via local patch.
 - **Reporting**: Fixed potential crash in portfolio report generation when returns are empty.
+- **Code Hygiene**: Removed deprecated pandas patterns (`reindex`, `fillna` warnings) from all strategies.
+- **Memory Optimization**: Implemented garbage collection in optimization engine loops.

@@ -10,6 +10,7 @@ typically use price extremes, channels, or volatility to detect breakouts.
 import pandas as pd
 import numpy as np
 import pandas_ta as ta
+import logging
 
 from .base import StrategyTemplate
 
@@ -186,8 +187,9 @@ class DailyHighLowBreakout(StrategyTemplate):
 
         # 2. Indicator Calculation (Daily Levels)
         daily = df.resample('D').agg({'high': 'max', 'low': 'min'}).shift(1)
-        df['prev_day_high'] = daily['high'].reindex(df.index, method='ffill')
-        df['prev_day_low'] = daily['low'].reindex(df.index, method='ffill')
+        # FIX: Reindex method deprecation
+        df['prev_day_high'] = daily['high'].reindex(df.index).ffill()
+        df['prev_day_low'] = daily['low'].reindex(df.index).ffill()
 
         # 3. Entry Signal Generation
         df['entry_sig'] = np.nan
@@ -227,5 +229,80 @@ class DailyHighLowBreakout(StrategyTemplate):
         # 5. Cleanup
         drop_cols = ['prev_day_high', 'prev_day_low', 'entry_sig', 'new_pos', 'entry_time']
         df.drop(columns=drop_cols, inplace=True, errors='ignore')
+
+        return df
+    
+class BBKCSqueezeBreakout(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'length': np.arange(10, 51, 2),
+            'bb_mult': np.arange(15, 36, 1) / 10,
+            'k_mult': np.arange(10, 26, 1) / 10,
+            "trade_with_breakout": [True, False],
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        length = self.params.get('length', 20)
+        bb_mult = self.params.get('bb_mult', 2.0)
+        k_mult = self.params.get('k_mult', 1.5)
+        trade_with_breakout = self.params.get('trade_with_breakout', False)
+
+        # 2. Indicator Calculation
+        # Bollinger Bands: [lower, mid, upper, bandwidth, percent]
+        bb = ta.bbands(df['close'], length=length, std=bb_mult)
+        df['bb_lower'] = bb.iloc[:, 0]
+        df['bb_basis'] = bb.iloc[:, 1]
+        df['bb_upper'] = bb.iloc[:, 2]
+
+        # Keltner Channels
+        k_ma = ta.ema(df['close'], length=length)
+        k_tr = ta.true_range(df['high'], df['low'], df['close'])
+        k_range_ma = ta.ema(k_tr, length=length)
+        
+        df['k_upper'] = k_ma + (k_range_ma * k_mult)
+        df['k_lower'] = k_ma - (k_range_ma * k_mult)
+
+        # Squeeze Condition
+        df['is_squeeze'] = (df['bb_upper'] <= df['k_upper']) & (df['bb_lower'] >= df['k_lower'])
+
+        # 3. Signal Logic
+        df['signal'] = np.nan
+
+        # Entry Conditions: Squeeze + Price Breakout
+        upside_break = (df['is_squeeze']) & (df['close'] > df['bb_upper'])
+        dnside_break = (df['is_squeeze']) & (df['close'] < df['bb_lower'])
+
+        # Apply Entries
+        if trade_with_breakout:
+            df.loc[upside_break, 'signal'] = 1
+            df.loc[dnside_break, 'signal'] = -1
+        else:
+            df.loc[upside_break, 'signal'] = -1
+            df.loc[dnside_break, 'signal'] = 1
+
+        # Initial Forward Fill to establish current position state for exit evaluation
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 4. Exit Logic (Vectorized Mean Reversion)
+        # Shifted values for crossover detection
+        close_shifted = df['close'].shift(1)
+        basis_shifted = df['bb_basis'].shift(1)
+
+        # Exit when price crosses back over the BB Basis (Mean Reversion)
+        long_exit = (df['signal'] == 1) & (close_shifted > basis_shifted) & (df['close'] <= df['bb_basis'])
+        short_exit = (df['signal'] == -1) & (close_shifted < basis_shifted) & (df['close'] >= df['bb_basis'])
+
+        # Apply Exits
+        df['signal'] = df['signal'].mask(long_exit | short_exit, 0)
+
+        # 5. Final Persistence
+        # Ensure the strategy holds the signal (or the flat state) until the next trigger
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # Cleanup
+        cols_to_drop = ['bb_lower', 'bb_basis', 'bb_upper', 'k_upper', 'k_lower', 'is_squeeze']
+        df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
         return df

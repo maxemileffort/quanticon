@@ -60,5 +60,5 @@ class StrategyTemplate:
         """
         subset = resampled_df[columns]
         # Reindex to match original timeframe and forward fill to propagate values
-        aligned = subset.reindex(original_df.index, method='ffill')
+        aligned = subset.reindex(original_df.index).ffill()
         return aligned

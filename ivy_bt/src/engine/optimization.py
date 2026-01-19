@@ -6,6 +6,7 @@ import inspect
 import logging
 import matplotlib.pyplot as plt
 import seaborn as sns
+import gc
 from datetime import datetime
 
 class OptimizationMixin:
@@ -225,7 +226,7 @@ class OptimizationMixin:
       # Determine if portfolio strategy
       is_portfolio = getattr(strategy_class, 'is_portfolio_strategy', False)
 
-      for params in combinations:
+      for i, params in enumerate(combinations):
           strat = strategy_class(**params)
           run_returns = {} # Use a dict to keep track of ticker names
 
@@ -303,6 +304,10 @@ class OptimizationMixin:
               ann_ret, sharpe = 0, 0
 
           grid_results.append({**params, 'Sharpe': sharpe, 'Return': ann_ret})
+          
+          # Memory Cleanup periodically
+          if i % 10 == 0:
+              gc.collect()
 
       return pd.DataFrame(grid_results)
 
@@ -352,7 +357,7 @@ class OptimizationMixin:
         # Determine if portfolio strategy
         is_portfolio = getattr(strategy_class, 'is_portfolio_strategy', False)
 
-        for params in combo_dicts:
+        for i, params in enumerate(combo_dicts):
             strat = strategy_class(**params)
             run_returns = {} # Use a dict to keep track of ticker names
 
@@ -428,6 +433,10 @@ class OptimizationMixin:
                 ann_ret, sharpe = 0, 0
 
             grid_results.append({**params, 'Sharpe': sharpe, 'Return': ann_ret})
+            
+            # Memory Cleanup periodically
+            if i % 10 == 0:
+                gc.collect()
 
         return pd.DataFrame(grid_results)
 

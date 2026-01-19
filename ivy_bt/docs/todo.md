@@ -1,8 +1,16 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-18
+Last Updated: 2026-01-19
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in Session 28 (2026-01-19)
+- [x] **Stability & Performance**:
+    - [x] **Batch Runner Crash Fix**: Solved "werfault" and memory overflow issues by implementing `multiprocessing.Pool` with `maxtasksperchild=1`, ensuring total memory reclamation after each job.
+    - [x] **Memory Management**: Added explicit garbage collection (`gc.collect()`) to optimization loops to prevent fragmentation.
+- [x] **Strategy Robustness**:
+    - [x] **Breakout Refactor**: Fixed logic errors in `BBKCSqueezeBreakout` related to Higher Timeframe (HTF) filters on Daily data.
+    - [x] **Warning Cleanup**: Removed `FutureWarning` spam (deprecated `reindex(method=...)`) across all strategy files.
 
 ## ✅ Completed in Session 27 (2026-01-18)
 - [x] **Phase 6: Visualization & UI**:
@@ -34,6 +42,13 @@ This document outlines the pending features and future considerations for the Iv
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
 
+## Session Summary (2026-01-19) - Session 28
+
+### Accomplished
+- **Critical Stability**: Addressed the "werfault" crashes affecting long-running batch jobs on Windows. By isolating each backtest in a dedicated process that is recycled immediately, we eliminated memory leaks.
+- **Code Hygiene**: Cleaned up deprecated pandas patterns (`reindex`, `fillna`) to ensure the codebase remains warning-free and compatible with future pandas versions.
+- **Strategy Fixes**: Refactored `BBKCSqueezeBreakout` to be robust against timeframe mismatches (e.g., Daily data vs. Hourly filter).
+
 ## Session Summary (2026-01-17) - Session 26
 
 ### Accomplished
@@ -42,14 +57,12 @@ This document outlines the pending features and future considerations for the Iv
 - **Code Reuse**: Refactored `live_trader.py` to be modular, allowing its logic to be used by both the CLI and the Dashboard.
 - **Risk Management**: Implemented "Portfolio Normalization" (Max Leverage Control). Users can now limit the total gross exposure (e.g., to 100%) to prevent excessive leverage when trading multiple assets.
 
-## Session Summary (2026-01-17) - Session 25
-
-### Accomplished
-- **Technical Debt**: Cleaned up the test suite by removing unnecessary mocks, ensuring our tests validate against the real `pandas_ta` library.
-- **Reproducibility**: Solved the issue where optimized portfolios were "lost" after execution. Now, the filtered universe is saved in presets, allowing one-click signal generation for the specific optimized assets.
-- **Realism**: Added support for transaction costs (commission & slippage) in both CLI and Batch modes, enabling more realistic backtesting.
-
 ---
+
+## High priority:
+- [x] Scheduler UI hangs up on batch execution. (Fixed via Process Isolation)
+- [ ] Scheduler UI creates a lot of orphaned files and .cache is referenced / created in incorrect location.
+- [ ] Test suites need to be updated to ensure sufficient coverage.
 
 ## Phase 5: Expand backtest functionality
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.

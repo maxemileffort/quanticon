@@ -2,11 +2,13 @@ import os
 import json
 import yaml
 import logging
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
+import traceback
 from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 import pandas as pd
+import sys
 
 # Import the backtest runner
 # Note: For multiprocessing on Windows, this import should happen at top level
@@ -58,28 +60,41 @@ def load_batch_config(path: str) -> BatchConfig:
     
     return BatchConfig(**data)
 
-def _worker_wrapper(job_config: BatchJobConfig):
+def _worker_wrapper(job_config_json: str):
     """
-    Wrapper to unpack the Pydantic model and call run_backtest.
+    Wrapper to unpack the Pydantic model (passed as JSON string for safety) and call run_backtest.
     Must be a top-level function for multiprocessing pickling.
     """
+    job_id = "Unknown"
     try:
+        # Deserialize config
+        config_dict = json.loads(job_config_json)
+        job_config = BatchJobConfig(**config_dict)
+        job_id = job_config.job_id or job_config.strategy_name
+        
         # Convert model to dict, filtering out None values to let defaults take over
         params = {k: v for k, v in job_config.dict().items() if v is not None and k != 'job_id'}
         
         # Call the actual backtest function
+        # We assume run_backtest handles its own logging setup
         result = run_backtest(**params)
         
         # Attach the job_id if provided, for tracking
-        if result and isinstance(result, dict) and job_config.job_id:
-            result['job_id'] = job_config.job_id
+        if result and isinstance(result, dict):
+            result['job_id'] = job_id
+            
+            # OPTIMIZATION: Ensure we don't pass back massive objects if not needed.
+            # metrics['performance'] might be large.
+            # For the summary, we only need the 'metrics' (scalars) from the engine results.
+            # But let's keep it as is for now, relying on maxtasksperchild to clean up the process.
             
         return result
     except Exception as e:
+        err_msg = f"{str(e)}\n{traceback.format_exc()}"
         return {
             "status": "error", 
-            "message": str(e), 
-            "job_id": job_config.job_id
+            "message": err_msg, 
+            "job_id": job_id
         }
 
 class BatchRunner:
@@ -113,30 +128,29 @@ class BatchRunner:
         print(f"--- Starting Batch Run ({total_jobs} jobs, {workers} workers) ---")
         self._update_status(0, total_jobs)
         
-        with ProcessPoolExecutor(max_workers=workers) as executor:
-            # Submit all jobs
-            future_to_job = {
-                executor.submit(_worker_wrapper, job): job 
-                for job in jobs
-            }
+        # Prepare job arguments (serialized to JSON to avoid pickling issues with Pydantic models across versions/processes)
+        job_args = [job.json() for job in jobs]
+        
+        # Use multiprocessing.Pool with maxtasksperchild=1
+        # This forces a process restart after every task, clearing all memory leaks.
+        with multiprocessing.Pool(processes=workers, maxtasksperchild=1) as pool:
             
-            for future in as_completed(future_to_job):
-                job = future_to_job[future]
+            # We use imap_unordered to get results as they finish
+            for result in pool.imap_unordered(_worker_wrapper, job_args):
                 completed_count += 1
-                job_label = job.job_id or job.strategy_name
                 
-                try:
-                    result = future.result()
-                    if result:
-                        self.results.append(result)
-                        status = result.get('status', 'unknown')
-                        print(f"Job {job_label} finished: {status}")
-                    else:
-                        print(f"Job {job_label} finished: No result returned")
-                        
-                except Exception as exc:
-                    print(f"Job {job_label} generated an exception: {exc}")
+                job_label = result.get('job_id', 'Unknown') if isinstance(result, dict) else 'Unknown'
+                status = result.get('status', 'unknown') if isinstance(result, dict) else 'error'
                 
+                if status == 'success':
+                    self.results.append(result)
+                    print(f"[{completed_count}/{total_jobs}] Job {job_label} finished: {status}")
+                else:
+                    msg = result.get('message', 'No message') if isinstance(result, dict) else str(result)
+                    print(f"[{completed_count}/{total_jobs}] Job {job_label} FAILED: {msg}")
+                    # Still append result to log the error in CSV
+                    self.results.append(result)
+
                 self._update_status(completed_count, total_jobs, last_job=job_label)
 
         self._save_summary()

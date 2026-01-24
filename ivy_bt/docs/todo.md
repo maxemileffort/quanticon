@@ -1,8 +1,16 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-19
+Last Updated: 2026-01-23
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in Session 30 (2026-01-23)
+- [x] **Network Cluster Mean Reversion Strategy**:
+    - [x] **Dependencies**: Added `networkx` and `alphalens-reloaded`.
+    - [x] **Strategy Logic**: Implemented `ClusterMeanReversion` in `src/strategies/portfolio.py` using Graph Theory to identify correlated clusters.
+    - [x] **Research Workflow**: Created `src/research/cluster_analysis.py` to validate the strategy using Alphalens.
+- [x] **Maintenance**:
+    - [x] **Docker**: Verified `Dockerfile` is updated for Python 3.12 and includes the local `pandas_ta` patch.
 
 ## ✅ Completed in Session 29 (2026-01-19)
 - [x] **Ad Hoc Updates (Deployment)**:
@@ -49,6 +57,13 @@ This document outlines the pending features and future considerations for the Iv
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
 
+## Session Summary (2026-01-23) - Session 30
+
+### Accomplished
+- **Strategy Expansion**: Implemented the `ClusterMeanReversion` strategy, which uses NetworkX to dynamically cluster assets based on correlation and trades mean-reversion within the largest cluster.
+- **Research Workflow**: Established a new pattern for research scripts (`src/research/`) and integrated `alphalens-reloaded` for factor analysis.
+- **Maintenance**: Verified Docker configuration for Python 3.12 and patched `pandas_ta`, ensuring the project builds correctly with modern dependencies.
+
 ## Session Summary (2026-01-19) - Session 29
 
 ### Accomplished
@@ -75,6 +90,7 @@ This document outlines the pending features and future considerations for the Iv
 
 ## High priority:
 - [x] Scheduler UI hangs up on batch execution. (Fixed via Process Isolation)
+- [x] **Docker Build Failure**: Updated `Dockerfile` to use `python:3.12-slim` and patched `pandas_ta`.
 - [ ] Scheduler UI creates a lot of orphaned files and .cache is referenced / created in incorrect location.
 - [ ] Test suites need to be updated to ensure sufficient coverage.
 

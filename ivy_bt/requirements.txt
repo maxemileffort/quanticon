@@ -14,3 +14,6 @@ streamlit
 alpaca-trade-api
 fastapi
 uvicorn
+urllib3<2
+networkx
+alphalens-reloaded

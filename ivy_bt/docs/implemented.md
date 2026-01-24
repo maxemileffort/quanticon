@@ -65,6 +65,12 @@ This document summarizes the high-level features and capabilities that have been
 - **Portfolio Strategies**:
     - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
+    - **Cluster Mean Reversion**: 
+        - Uses **Graph Theory** (NetworkX) to identify clusters of highly correlated assets.
+        - Trades mean reversion signals (Z-Score) within the largest connected component.
+- **Analysis Workflow**:
+    - **Alphalens Integration**: Added `alphalens-reloaded` support.
+    - **Research Scripts**: Established `src/research/` pattern for factor validation and custom analysis workflows (e.g., `cluster_analysis.py`).
 - **Data Capabilities**:
     - **Synthetic Assets**: Infrastructure to create spread/ratio assets (e.g., A-B, A/B) via `DataManager` and CLI.
 

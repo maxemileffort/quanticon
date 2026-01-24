@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import pandas_ta as ta
 import logging
+import networkx as nx
 
 from .base import StrategyTemplate
 
@@ -293,4 +294,184 @@ class MarketRegimeSentimentFollower(StrategyTemplate):
         drop_cols = ['prev_day_ret', 'rank_high', 'rank_low', 'z_score', 'spy_green', 'spy_red']
         df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors='ignore')
 
+        return df
+
+
+class ClusterMeanReversion(StrategyTemplate):
+    """
+    Cluster-Based Mean Reversion Strategy.
+
+    Uses Graph Theory (NetworkX) to identify clusters of highly correlated assets,
+    then trades mean reversion signals within the largest cluster.
+
+    Logic:
+    1.  Compute Correlation Matrix of the universe.
+    2.  Build a graph where edges connect assets with correlation > `correlation_threshold`.
+    3.  Identify the Largest Connected Component (Cluster).
+    4.  Calculate Z-Score of Price relative to rolling mean for assets in the cluster.
+    5.  Signal:
+        - Long if Z-Score < -`z_entry` (Price significantly below mean)
+        - Short if Z-Score > `z_entry` (Price significantly above mean)
+        - Exit if |Z-Score| < `z_exit`
+    """
+    is_portfolio_strategy = True
+
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'correlation_threshold': [0.8, 0.85, 0.9],
+            'window': np.arange(20, 60, 10),
+            'z_entry': np.linspace(1.5, 3.0, 4),
+            'z_exit': [0.0, 0.5, 1.0]
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        corr_thresh = self.params.get('correlation_threshold', 0.85)
+        window = int(self.params.get('window', 20))
+        z_entry = self.params.get('z_entry', 2.0)
+        z_exit = self.params.get('z_exit', 0.0)
+
+        # 2. Pivot to Wide Format (Close Prices)
+        # Note: df is MultiIndex (Ticker, Timestamp)
+        df_reset = df.reset_index()
+        # Pivot: Index=Timestamp, Columns=Ticker
+        closes = df_reset.pivot(index='timestamp', columns='ticker', values='close')
+
+        # 3. Correlation & Clustering (Perform once on the full dataset or rolling?)
+        # The user snippet implies a static cluster based on the whole period correlation.
+        # "Assume 'returns_df' is a DataFrame... corr_matrix = returns_df.corr()"
+        # In a real trading scenario, this should be a rolling correlation or periodically updated.
+        # However, for this implementation based on the snippet, we'll calculate it once for the backtest period.
+        # Potential future improvement: Rolling clustering.
+
+        # Calculate returns for correlation
+        returns_df = closes.pct_change()
+        corr_matrix = returns_df.corr()
+
+        # Build Graph
+        G = nx.Graph()
+        # Add nodes
+        G.add_nodes_from(corr_matrix.columns)
+        
+        # Add edges
+        # We can iterate efficiently using numpy or just iterate since universe size is usually < 500
+        # For optimization, we can use upper triangle
+        
+        # Vectorized edge extraction
+        # Stack correlation matrix to Series
+        corr_stacked = corr_matrix.stack()
+        # Filter self-loops and threshold
+        # We need to filter where level 0 != level 1.
+        # Since matrix is symmetric, we can just filter > thresh and handle duplicates or let nx handle it.
+        # Index is (Ticker1, Ticker2).
+        
+        # Proper iteration to match snippet logic exactly for clarity
+        # (Though snippet iterates index & columns, which is O(N^2))
+        
+        # Optimized approach:
+        # Get pairs where corr > thresh
+        high_corr_pairs = corr_stacked[corr_stacked > corr_thresh].index.tolist()
+        # Filter out self-loops (TickerA, TickerA)
+        edges = [(u, v) for u, v in high_corr_pairs if u != v]
+        
+        G.add_edges_from(edges)
+
+        # 4. Extract Largest Cluster
+        if len(G.nodes) > 0:
+            # connected_components yields sets of nodes
+            # We take the largest set
+            try:
+                largest_cluster_nodes = max(nx.connected_components(G), key=len)
+                cluster_tickers = list(largest_cluster_nodes)
+            except ValueError:
+                # No connected components (graph empty?)
+                cluster_tickers = []
+        else:
+            cluster_tickers = []
+            
+        # Log the cluster info
+        logging.info(f"ClusterMeanReversion: Found {len(cluster_tickers)} assets in largest cluster (Threshold={corr_thresh}).")
+
+        # 5. Calculate Z-Scores for Cluster Assets
+        # We work with the wide 'closes' dataframe
+        if not cluster_tickers:
+            df['signal'] = 0
+            df['z_score'] = 0
+            return df
+            
+        cluster_prices = closes[cluster_tickers]
+        
+        # Rolling stats
+        rolling_mean = cluster_prices.rolling(window=window).mean()
+        rolling_std = cluster_prices.rolling(window=window).std()
+        
+        # Z-Score: User snippet: -(Price - Mean) / Std
+        # If Price < Mean (Dip), Price - Mean is negative. -(Negative) is positive.
+        # So High Positive Z-Score means "Buy Dip".
+        z_scores = -(cluster_prices - rolling_mean) / rolling_std
+        
+        # 6. Generate Signals
+        # Long: Z > z_entry (Price significantly below mean)
+        # Short: Z < -z_entry (Price significantly above mean)
+        # Exit: |Z| < z_exit
+        
+        # Initialize signals container (wide)
+        signals = pd.DataFrame(0, index=closes.index, columns=closes.columns)
+        
+        # We only assign signals for cluster tickers
+        cluster_signals = pd.DataFrame(0, index=cluster_prices.index, columns=cluster_tickers)
+        
+        long_cond = z_scores > z_entry
+        short_cond = z_scores < -z_entry
+        exit_cond = z_scores.abs() < z_exit
+        
+        # Apply logic
+        # We iterate or use update. Since we need to maintain state (hold until exit),
+        # vectorized logic is tricky without a loop or forward fill trick.
+        # Pattern:
+        # Create separate entry/exit boolean frames
+        # Create a "State" frame: 1 (Long), -1 (Short), 0 (Flat)
+        
+        # Vectorized State Machine:
+        # 1. Create raw signals: 1 (Enter Long), -1 (Enter Short), 0 (Exit), NaN (Hold)
+        
+        raw_sig = pd.DataFrame(np.nan, index=cluster_prices.index, columns=cluster_tickers)
+        raw_sig[long_cond] = 1
+        raw_sig[short_cond] = -1
+        raw_sig[exit_cond] = 0
+        
+        # 2. Forward fill to propagate the state
+        cluster_signals = raw_sig.ffill().fillna(0)
+        
+        # Map back to full universe signals
+        signals[cluster_tickers] = cluster_signals
+        
+        # 7. Map Back to MultiIndex DF
+        # We also want to save the Z-Score for analysis
+        
+        # Stack signals back to (Timestamp, Ticker) -> reset -> set_index to (Ticker, Timestamp)
+        signals_stacked = signals.stack().rename('signal')
+        
+        # Stack z_scores (only for cluster, others NaN)
+        # Create full Z-score frame
+        z_scores_full = pd.DataFrame(np.nan, index=closes.index, columns=closes.columns)
+        z_scores_full[cluster_tickers] = z_scores
+        z_scores_stacked = z_scores_full.stack().rename('z_score')
+        
+        # Merge into original DF
+        # DF is (Ticker, Timestamp). Stacked Series are (Timestamp, Ticker).
+        # We need to swap levels of stacked series to match df
+        
+        signals_stacked = signals_stacked.swaplevel().sort_index()
+        z_scores_stacked = z_scores_stacked.swaplevel().sort_index()
+        
+        # Assign
+        # Align indexes
+        df['signal'] = signals_stacked
+        df['z_score'] = z_scores_stacked
+        
+        # Fill NaN signals with 0
+        df['signal'] = df['signal'].fillna(0)
+        
         return df

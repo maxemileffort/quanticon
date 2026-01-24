@@ -352,3 +352,86 @@ class TrendGridTrading(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+
+class TDIV5TimeExit(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'rsi_len': np.arange(14, 30, 2),
+            'fast_ma_len': np.arange(2, 8, 1),
+            'slow_ma_len': np.arange(5, 17, 2),
+            'ma_flat_thresh': np.arange(5, 15, 1) / 10,
+            'bb_len': np.arange(10, 25, 2),
+            'bb_std': np.arange(5, 31, 5) / 10,
+            'atr_len': np.arange(10, 31, 2),
+            'exit_after_n': np.arange(1, 6, 1)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        rsi_len = self.params.get('rsi_len', 21)
+        fast_ma_len = self.params.get('fast_ma_len', 2)
+        slow_ma_len = self.params.get('slow_ma_len', 7)
+        ma_flat_thresh = self.params.get('ma_flat_thresh', 0.9)
+        bb_len = self.params.get('bb_len', 10)
+        bb_std = self.params.get('bb_std', 1.5)
+        atr_len = self.params.get('atr_len', 20)
+        exit_after_n = self.params.get('exit_after_n', 10)
+
+        # 2. Indicator Calculation (Using pandas_ta)
+        rsi_val = ta.rsi(df['close'], length=rsi_len)
+        fast_ma = ta.sma(rsi_val, length=fast_ma_len)
+        slow_ma = ta.sma(rsi_val, length=slow_ma_len)
+        
+        # BB and ATR
+        bbands = ta.bbands(df['close'], length=bb_len, std=bb_std)
+        bb_up = bbands[f'BBU_{bb_len}_{bb_std}']
+        bb_low = bbands[f'BBL_{bb_len}_{bb_std}']
+        atr_val = ta.atr(df['high'], df['low'], df['close'], length=atr_len)
+
+        # 3. Intermediate Logic (Vectorized)
+        fast_ma_delt = fast_ma.diff().abs()
+        non_flat = fast_ma_delt > ma_flat_thresh
+        
+        # TDI Crossover logic
+        fast_ma_shift = fast_ma.shift(1)
+        slow_ma_shift = slow_ma.shift(1)
+        tdi_crossover = (slow_ma_shift < fast_ma_shift) & (slow_ma >= fast_ma)
+        tdi_crossunder = (slow_ma_shift > fast_ma_shift) & (slow_ma <= fast_ma)
+        tdi_cross = (tdi_crossover | tdi_crossunder) & non_flat
+
+        # BB Expansion and ATR Trend
+        bb_expanding = (bb_up - bb_low) > (bb_up.shift(1) - bb_low.shift(1))
+        atr_rising = atr_val > atr_val.shift(1)
+
+        # 4. Entry Triggers
+        long_trigger = (atr_rising & bb_expanding & (fast_ma > slow_ma)) | \
+                       (tdi_cross & (fast_ma > slow_ma) & (atr_rising | bb_expanding))
+                       
+        short_trigger = (atr_rising & bb_expanding & (fast_ma < slow_ma)) | \
+                        (tdi_cross & (fast_ma < slow_ma) & (atr_rising | bb_expanding))
+
+        # 5. Signal Generation & Time-Based Exit
+        df['signal'] = np.nan
+        df.loc[long_trigger, 'signal'] = 1
+        df.loc[short_trigger, 'signal'] = -1
+        
+        # Identify valid entry events (ignoring consecutive redundant triggers)
+        is_entry = df['signal'].notna() & (df['signal'] != df['signal'].shift(1))
+        
+        # Forward fill to establish the initial trade direction
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # Calculate bars held since the last entry event
+        entry_ids = is_entry.cumsum()
+        bars_held = df.groupby(entry_ids).cumcount()
+
+        # Apply Time Exit: Force signal to 0 if holding period is reached
+        # Note: cumcount is 0-indexed, so bars_held == exit_after_n is the nth bar
+        exit_mask = (bars_held >= exit_after_n)
+        df['signal'] = df['signal'].mask(exit_mask, 0)
+        
+        # Final Persistence: ffill to ensure Cash (0) is held until next trigger
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

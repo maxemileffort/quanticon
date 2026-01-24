@@ -7,6 +7,7 @@ services:
       - "8501:8501"
     command: streamlit run src/dashboard/Home.py --server.port=8501 --server.address=0.0.0.0
     volumes:
+      - .:/app
       - ./backtests:/app/backtests
       - ./logs:/app/logs
       - ./.cache:/app/.cache
@@ -19,6 +20,7 @@ services:
       - "8000:8000"
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
     volumes:
+      - .:/app
       - ./backtests:/app/backtests
       - ./logs:/app/logs
       - ./.cache:/app/.cache

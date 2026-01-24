@@ -56,7 +56,8 @@ from .complex import (
 # Import portfolio strategies
 from .portfolio import (
     PairsTrading,
-    MarketRegimeSentimentFollower
+    MarketRegimeSentimentFollower,
+    ClusterMeanReversion
 )
 
 
@@ -91,6 +92,7 @@ __all__ = [
     # Portfolio
     'PairsTrading',
     'MarketRegimeSentimentFollower',
+    'ClusterMeanReversion',
     
     # Utility
     'get_all_strategies'

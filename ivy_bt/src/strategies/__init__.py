@@ -45,7 +45,8 @@ from .breakout import (
     TurtleTradingSystem,
     IchimokuCloudBreakout,
     DailyHighLowBreakout,
-    BBKCSqueezeBreakout
+    BBKCSqueezeBreakout,
+    ChannelBreakoutStrategy
 )
 
 # Import complex strategies
@@ -85,6 +86,7 @@ __all__ = [
     'IchimokuCloudBreakout',
     'DailyHighLowBreakout',
     'BBKCSqueezeBreakout',
+    'ChannelBreakoutStrategy',
     
     # Complex
     'TradingMadeSimpleTDIHeikinAshi',

@@ -120,7 +120,20 @@ python main.py --batch batch_config.example.yaml
 
 The system will use multiple cores to execute the strategies concurrently and generate a summary CSV report.
 
+### Automated Batch Execution
+
+To run all generated batch configurations in `batch_configs/` sequentially:
+
+```bash
+python batch_configs/run_batch_yamls.py
+```
+
+Options:
+*   `--dry-run`: Print commands without executing.
+*   `--limit N`: Run only the first N batches (useful for testing).
+
 To execute these signals via **Alpaca** (Paper Trading), use the Live Trader:
+>>>>>>>
 
 ```bash
 python src/live_trader.py presets/MyStrategy_Preset.json --dry-run

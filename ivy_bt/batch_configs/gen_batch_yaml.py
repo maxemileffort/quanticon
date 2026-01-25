@@ -25,7 +25,12 @@ for r,d,files in os.walk(outputs_path):
     os.remove(pth)
 
 strats = get_all_strategies()
-ecos = ['forex', 'crypto', 'spy', 'etf']
+ecos = [
+  # 'forex', 
+  'crypto', 
+  # 'spy', 
+  # 'etf'
+  ]
 
 def gen_header_text(combo_strat, today_str, max_workers=4):
 

@@ -306,3 +306,60 @@ class BBKCSqueezeBreakout(StrategyTemplate):
         df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
         return df
+    
+class ChannelBreakoutStrategy(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'y_long_entry': np.arange(10, 51, 5),
+            'x_long_exit': np.arange(5, 26, 5),
+            'n_short_entry': np.arange(10, 51, 5),
+            'm_short_exit': np.arange(5, 26, 5)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        y_long_entry = self.params.get('y_long_entry', 20)
+        x_long_exit = self.params.get('x_long_exit', 10)
+        n_short_entry = self.params.get('n_short_entry', 20)
+        m_short_exit = self.params.get('m_short_exit', 10)
+
+        # 2. Indicator Calculation (Donchian Channels)
+        # Using shifted rolling windows to avoid look-ahead bias
+        df['long_entry_thresh'] = df['high'].shift(1).rolling(window=y_long_entry).max()
+        df['long_exit_thresh'] = df['low'].shift(1).rolling(window=x_long_exit).min()
+        
+        df['short_entry_thresh'] = df['low'].shift(1).rolling(window=n_short_entry).min()
+        df['short_exit_thresh'] = df['high'].shift(1).rolling(window=m_short_exit).max()
+
+        # 3. Signal Logic: Entries
+        df['signal'] = np.nan
+
+        long_entry_cond = df['high'] >= df['long_entry_thresh']
+        short_entry_cond = df['low'] <= df['short_entry_thresh']
+
+        df.loc[long_entry_cond, 'signal'] = 1
+        df.loc[short_entry_cond, 'signal'] = -1
+
+        # Forward fill to establish the state for exit logic
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 4. Signal Logic: Exits
+        # Long Exit: Price hits the lower channel boundary while in a Long position
+        long_exit_cond = (df['signal'] == 1) & (df['low'] <= df['long_exit_thresh'])
+        
+        # Short Exit: Price hits the upper channel boundary while in a Short position
+        short_exit_cond = (df['signal'] == -1) & (df['high'] >= df['short_exit_thresh'])
+
+        # Apply Exit (Move to Cash)
+        df.loc[long_exit_cond | short_exit_cond, 'signal'] = 0
+
+        # 5. Final Persistence
+        # Re-apply ffill to ensure the '0' (Cash) state is held until the next breakout
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # Cleanup
+        drop_cols = ['long_entry_thresh', 'long_exit_thresh', 'short_entry_thresh', 'short_exit_thresh']
+        df.drop(columns=[c for c in drop_cols if c in df.columns], inplace=True)
+
+        return df

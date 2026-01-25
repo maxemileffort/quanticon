@@ -2,22 +2,19 @@
 
 Open 2 terminals. 
 
-Cd both to project root:
-cd "C:\Users\Max\Desktop\projects\quanticon"
-
 In the first terminal, run:
 ```
-streamlit run ./ivy_bt/src/dashboard/Home.py
+cd "C:\Users\Max\Desktop\projects\quanticon" && streamlit run ./ivy_bt/src/dashboard/Home.py
 ```
 
 In the 2nd terminal, run:
 ```
-python ./ivy_bt/src/api/main.py
+cd "C:\Users\Max\Desktop\projects\quanticon" && python ./ivy_bt/src/api/main.py
 ```
 
 That should start both parts of the project for the UI.
 
-## Running things in the terminal
+## Running batches in the terminal
 
 ```
 cd "C:/Users/Max/Desktop/projects/quanticon/ivy_bt/batch_configs" && python gen_batch_yaml.py

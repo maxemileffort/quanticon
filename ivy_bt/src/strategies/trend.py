@@ -385,8 +385,8 @@ class TDIV5TimeExit(StrategyTemplate):
         
         # BB and ATR
         bbands = ta.bbands(df['close'], length=bb_len, std=bb_std)
-        bb_up = bbands[f'BBU_{bb_len}_{bb_std}']
-        bb_low = bbands[f'BBL_{bb_len}_{bb_std}']
+        bb_up = bbands[[c for c in bbands.columns if c.startswith('BBU')][0]]
+        bb_low = bbands[[c for c in bbands.columns if c.startswith('BBL')][0]]
         atr_val = ta.atr(df['high'], df['low'], df['close'], length=atr_len)
 
         # 3. Intermediate Logic (Vectorized)

@@ -117,7 +117,7 @@ def render_strategy_params(strat_name):
             # Determine defaults
             if len(values) > 0:
                 v_min = float(min(values))
-                v_max = float(max(values))
+                v_max = float(max(values)) * 2.0
                 default_val = float(values[len(values)//2]) # Median-ish
                 step = 1.0
                 if len(values) > 1:

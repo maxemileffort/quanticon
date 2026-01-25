@@ -81,8 +81,10 @@ This document summarizes the high-level features and capabilities that have been
     - Support for defining transaction costs in batch config.
     - Automatic result aggregation into CSV summary.
     - **Reliability Upgrade**: Switched to `multiprocessing.Pool` with strict process recycling (`maxtasksperchild=1`) to eliminate memory leaks during long batch runs.
+    - **Automated Batch Runner**: Created `run_batch_yamls.py` to auto-discover and execute all batch configurations in the `batch_configs` directory sequentially.
 
 ## Phase 8: Operational Workflow Integration
+>>>>>>>
 - **Daily Operations Dashboard**:
     - Unified interface for signal generation and trade execution.
     - Integration with Alpaca Broker to view real-time account status.

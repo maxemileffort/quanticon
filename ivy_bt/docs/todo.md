@@ -57,6 +57,11 @@ This document outlines the pending features and future considerations for the Iv
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
 
+## Session Summary (2026-01-24) - Session 31
+
+### Accomplished
+- **Workflow Automation**: Implemented `run_batch_yamls.py` to automate the tedious process of running multiple batch configurations. This script detects all generated YAML files and executes them sequentially, properly setting the project context and reporting status. This significantly speeds up the testing cycle for new strategies.
+
 ## Session Summary (2026-01-23) - Session 30
 
 ### Accomplished
@@ -65,6 +70,7 @@ This document outlines the pending features and future considerations for the Iv
 - **Maintenance**: Verified Docker configuration for Python 3.12 and patched `pandas_ta`, ensuring the project builds correctly with modern dependencies.
 
 ## Session Summary (2026-01-19) - Session 29
+>>>>>>>
 
 ### Accomplished
 - **Deployment Readiness**: The project is now fully containerized and ready for "free / low cost" deployment. We created a `Dockerfile` compatible with `pandas_ta` (Python 3.10) and a `docker-compose.yml` that orchestrates the Streamlit Dashboard and FastAPI backend together.

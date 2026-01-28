@@ -37,7 +37,9 @@ from .reversal import (
     BollingerReversion,
     RSIReversal,
     MACDReversal,
-    ReversalGridTrading
+    ReversalGridTrading,
+    RebalancingPremiumStrategy,
+    BouncyBallReversion
 )
 
 # Import breakout strategies
@@ -46,7 +48,8 @@ from .breakout import (
     IchimokuCloudBreakout,
     DailyHighLowBreakout,
     BBKCSqueezeBreakout,
-    ChannelBreakoutStrategy
+    ChannelBreakoutStrategy,
+    NR7RangeBreakout
 )
 
 # Import complex strategies
@@ -80,6 +83,8 @@ __all__ = [
     'RSIReversal',
     'MACDReversal',
     'ReversalGridTrading',
+    'RebalancingPremiumStrategy',
+    'BouncyBallReversion',
     
     # Breakout
     'TurtleTradingSystem',
@@ -87,6 +92,7 @@ __all__ = [
     'DailyHighLowBreakout',
     'BBKCSqueezeBreakout',
     'ChannelBreakoutStrategy',
+    'NR7RangeBreakout',
     
     # Complex
     'TradingMadeSimpleTDIHeikinAshi',

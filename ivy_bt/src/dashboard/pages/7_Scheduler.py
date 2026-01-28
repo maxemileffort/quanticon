@@ -77,7 +77,7 @@ if st.session_state['batch_queue']:
     st.divider()
     col1, col2 = st.columns(2)
     max_workers = col1.number_input("Max Workers (Parallel Processes)", min_value=1, value=2)
-    output_filename = col2.text_input("Output Filename", value="batch_results.csv")
+    output_filename = col2.text_input("Output Filename", value="backtests/batch_results.csv")
     
     if st.button("Save & Run Batch"):
         # 1. Create Config Dict
@@ -102,8 +102,11 @@ if st.session_state['batch_queue']:
         st.success(f"Configuration saved to {full_path}")
         
         # 3. Execute
-        main_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../main.py"))
-        status_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../batch_status.json"))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        main_script = os.path.join(project_root, "main.py")
+        
+        # Use logs/batch_status.json
+        status_file = os.path.join(project_root, "logs", "batch_status.json")
         
         # Reset status file
         if os.path.exists(status_file):
@@ -116,8 +119,8 @@ if st.session_state['batch_queue']:
             cmd = [sys.executable, main_script, "--batch", full_path]
             
             try:
-                # Start process asynchronously
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                # Start process asynchronously, ensuring CWD is project root so relative paths work (like .cache)
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=project_root)
                 st.write(f"Batch process started (PID: {process.pid})")
                 
                 progress_bar = st.progress(0)

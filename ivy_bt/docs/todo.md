@@ -1,8 +1,15 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-23
+Last Updated: 2026-01-27
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in Session 32 (2026-01-27)
+- [x] **Maintenance & Stability**:
+    - [x] **Scheduler File Handling**: Fixed issue where Scheduler created orphaned files in root. Now outputs to `backtests/` and logs status to `logs/`. Ensured correct CWD for `.cache` creation.
+    - [x] **Test Coverage**: Created `test_batch_runner.py` and updated `test_portfolio_strategies.py` to cover `ClusterMeanReversion`.
+- [x] **Phase 6: Visualization & UI**:
+    - [x] **Trade Analysis Metrics**: Implemented Win Rate, Profit Factor, Avg Win/Loss calculation in `Results Viewer` using FIFO logic.
 
 ## ✅ Completed in Session 30 (2026-01-23)
 - [x] **Network Cluster Mean Reversion Strategy**:
@@ -57,6 +64,13 @@ This document outlines the pending features and future considerations for the Iv
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
 
+## Session Summary (2026-01-27) - Session 32
+
+### Accomplished
+- **Analytics Upgrade**: Enhanced the "Results Viewer" dashboard to calculate and display professional trade metrics (Win Rate, Profit Factor, Gross Profit/Loss) derived from the raw trade log. This provides deeper insight into strategy performance beyond just the equity curve.
+- **System Hygiene**: Cleaned up the file generation logic in the Scheduler and Batch Runner. Output files now land neatly in `backtests/` and logs in `logs/`, preventing project root clutter.
+- **Testing**: Bolstered the test suite by adding coverage for the Batch Runner infrastructure and the new Cluster Mean Reversion strategy.
+
 ## Session Summary (2026-01-24) - Session 31
 
 ### Accomplished
@@ -97,10 +111,9 @@ This document outlines the pending features and future considerations for the Iv
 ## High priority:
 - [x] Scheduler UI hangs up on batch execution. (Fixed via Process Isolation)
 - [x] **Docker Build Failure**: Updated `Dockerfile` to use `python:3.12-slim` and patched `pandas_ta`.
-- [ ] Scheduler UI creates a lot of orphaned files and .cache is referenced / created in incorrect location.
-- [ ] Test suites need to be updated to ensure sufficient coverage.
 
 ## Phase 5: Expand backtest functionality
+- [ ] **Train/Test Split**: Implement dataset splitting to allow strategy building on training data and validation on unseen testing data.
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
 - [ ] Add support for other data sources (Interactive Brokers, MT4/5, Darwinex, Dukascopy).
 
@@ -108,7 +121,7 @@ This document outlines the pending features and future considerations for the Iv
 Moving towards a more user-friendly product.
 
 - [ ] **Web Dashboard Features**
-    - [ ] Trade Analysis Metrics (Win Rate, Profit Factor, etc. derived from new Trade Log).
+    - [ ] Advanced Filterable Trade Log.
 
 ## Phase 7: Future Innovations & AI
 - [ ] **LLM Strategy Generator**: "AI Strategy Architect" to generate `StrategyTemplate` code from natural language.

@@ -4,13 +4,15 @@ import os
 # Add parent directory to path to allow imports from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.strategies import get_all_strategies
 import itertools
 
 today = datetime.today()
+today_90daysago = today - timedelta(90)
 today_str = today.strftime('%Y%m%d%H%M%S')
 this_month_str = today.strftime('%Y-%m') + '-01'
+daysago90_str = today_90daysago.strftime('%Y-%m') + '-01'
 
 outputs_path = r'C:\Users\Max\Desktop\projects\quanticon\ivy_bt\batch_configs'
 
@@ -43,7 +45,7 @@ def gen_header_text(combo_strat, today_str, max_workers=4):
   
   return template
 
-def gen_job_text(combo, this_month_str ):
+def gen_job_text(combo, end_date_str ):
   strat = combo[0]
   eco = combo[1]
   combo_str = strat + '_' + eco
@@ -51,7 +53,7 @@ def gen_job_text(combo, this_month_str ):
   template += f"""\n    strategy_name: "{strat}" """
   template += f"""\n    instrument_type: "{eco}" """
   template += f"""\n    start_date: "2020-01-01" """
-  template += f"""\n    end_date: "{this_month_str}" """
+  template += f"""\n    end_date: "{end_date_str}" """
   template += f"""\n    metric: "Sharpe" """
   template += f"""\n    enable_plotting: true"""
 
@@ -75,7 +77,7 @@ for combo in combos:
   header = gen_header_text(combo_strat, today_str)
   jobs = []
   for ry in related_yamls:
-    inner_text = gen_job_text(ry, this_month_str)
+    inner_text = gen_job_text(ry, daysago90_str)
     jobs.append(inner_text)
 
   file_text = header + ''.join(jobs)

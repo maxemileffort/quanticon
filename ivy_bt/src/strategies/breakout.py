@@ -363,3 +363,56 @@ class ChannelBreakoutStrategy(StrategyTemplate):
         df.drop(columns=[c for c in drop_cols if c in df.columns], inplace=True)
 
         return df
+
+class NR7RangeBreakout(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'nr_window': np.arange(3, 21, 1)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        nr_window = self.params.get('nr_window', 7)
+
+        # 2. Strategy Calculation (NR7 Identification)
+        # Ensure standardized column names are used (high, low, close)
+        df['bar_range'] = df['high'] - df['low']
+        
+        # Identify if current bar range is the minimum over the lookback window
+        df['is_nr7'] = df['bar_range'] == df['bar_range'].rolling(window=nr_window).min()
+        
+        # Define Breakout Levels based on the NR7 bar
+        # We use ffill() to maintain the levels until the next NR7 bar appears
+        df['nr7_high'] = df['high'].where(df['is_nr7']).ffill()
+        df['nr7_low'] = df['low'].where(df['is_nr7']).ffill()
+        
+        # 3. Vectorized Signal Logic
+        df['signal'] = np.nan
+
+        # Long: Current Close crosses above the High of the NR7 bar
+        long_condition = (
+            (df['close'] > df['nr7_high']) & 
+            (df['close'].shift(1) <= df['nr7_high'].shift(1))
+        )
+        
+        # Short: Current Close crosses below the Low of the NR7 bar
+        short_condition = (
+            (df['close'] < df['nr7_low']) & 
+            (df['close'].shift(1) >= df['nr7_low'].shift(1))
+        )
+        
+        # Apply entry signals
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+        
+        # 4. Final Persistence
+        # Apply .ffill() to ensure the strategy holds positions until a counter-signal
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 5. Cleanup
+        # Dropping temporary columns to keep the DataFrame clean for the engine
+        cols_to_drop = ['bar_range', 'is_nr7', 'nr7_high', 'nr7_low']
+        df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
+
+        return df

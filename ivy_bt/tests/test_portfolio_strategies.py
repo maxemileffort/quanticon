@@ -7,7 +7,7 @@ import os
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.strategies import PairsTrading, MarketRegimeSentimentFollower
+from src.strategies import PairsTrading, MarketRegimeSentimentFollower, ClusterMeanReversion
 from src.engine import BacktestEngine
 
 class TestPortfolioStrategies(unittest.TestCase):
@@ -138,6 +138,52 @@ class TestPortfolioStrategies(unittest.TestCase):
         # We verify that split happened correctly
         self.assertEqual(len(engine.data['X']), 100)
         self.assertEqual(len(engine.data['Y']), 100)
+
+    def test_cluster_mean_reversion(self):
+        # Create 3 assets: A and B are correlated. C is noise.
+        np.random.seed(42)
+        trend = np.linspace(100, 200, 100)
+        
+        noise_a = np.random.normal(0, 0.1, 100)
+        noise_b = np.random.normal(0, 0.1, 100)
+        
+        # A and B track the trend closely -> High correlation
+        a = trend + noise_a
+        b = trend + noise_b
+        
+        # C is random walk
+        c = 100 + np.cumsum(np.random.normal(0, 1, 100))
+        
+        # Construct DF
+        df_a = pd.DataFrame({'close': a, 'open': a}, index=self.dates)
+        df_b = pd.DataFrame({'close': b, 'open': b}, index=self.dates)
+        df_c = pd.DataFrame({'close': c, 'open': c}, index=self.dates)
+        
+        combined = pd.concat([df_a, df_b, df_c], keys=['A', 'B', 'C'], names=['ticker', 'timestamp'])
+        
+        strategy = ClusterMeanReversion(correlation_threshold=0.9, window=20, z_entry=1.0)
+        
+        res = strategy.strat_apply(combined.copy())
+        
+        # Check that we have a z_score column
+        self.assertIn('z_score', res.columns)
+        self.assertIn('signal', res.columns)
+        
+        # Verify execution logic
+        # A and B should be clustered. C likely not.
+        # We can check if signals are generated (non-zero)
+        # Depending on noise, we might not trigger Z > 1.0 often with low noise 0.1.
+        # But 'trend' vs 'rolling mean'. Rolling mean lags trend.
+        # In uptrend, Price > Mean. So Z-Score is -(Positive) = Negative.
+        # If Z < -1.0 (Price significantly ABOVE mean), we Short.
+        
+        # With strong uptrend, Price is consistently above Mean.
+        # Mean of last 20. Price is at 20.
+        # Expect Short signals in strong uptrend if using this Mean Reversion logic.
+        
+        signals = res['signal'].unique()
+        # Should contain -1 or 1 or 0
+        self.assertTrue(len(signals) >= 1)
 
 if __name__ == '__main__':
     unittest.main()

@@ -130,7 +130,7 @@ if selected_runs:
             series_norm = series / series.iloc[0]
             fig.add_trace(go.Scatter(x=series_norm.index, y=series_norm, mode='lines', name=run_id))
         
-        fig.update_layout(title="Cumulative Returns (Normalized)", template="plotly_white", hovermode="x unified")
+        fig.update_layout(title="Cumulative Returns (Normalized)", template="plotly_white", hovermode="x unified", yaxis_type="log")
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No equity curves found for selected runs.")

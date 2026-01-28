@@ -198,3 +198,110 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_i
         plt.close()
 
     return importance_df
+
+def calculate_trade_metrics(trades_df):
+    """
+    Calculates statistics from a trade log DataFrame.
+    Assumes trades_df has columns: 'Date', 'Ticker', 'Action', 'Quantity', 'Price', 'Value'.
+    Uses FIFO matching to determine round-trip PnL.
+    """
+    if trades_df.empty:
+        return {}
+    
+    # Sort by date
+    df = trades_df.sort_values(by='Date')
+    
+    # Inventory: {Ticker: [(price, qty, date), ...]}
+    inventory = {}
+    completed_trades = []
+    
+    for idx, row in df.iterrows():
+        ticker = row['Ticker']
+        qty = row['Quantity'] # Signed: + for Buy, - for Sell
+        price = row['Price']
+        date = row['Date']
+        
+        if ticker not in inventory:
+            inventory[ticker] = []
+            
+        # Current position direction (based on inventory sum)
+        # We need to process the current trade against the inventory
+        
+        remaining_qty = qty
+        
+        while remaining_qty != 0:
+            if not inventory[ticker]:
+                # Add all remaining
+                inventory[ticker].append((price, remaining_qty, date))
+                remaining_qty = 0
+            else:
+                # Check head of queue
+                head_price, head_qty, head_date = inventory[ticker][0]
+                
+                # Check if signs match
+                if (head_qty > 0 and remaining_qty > 0) or (head_qty < 0 and remaining_qty < 0):
+                    # Same direction, add to inventory
+                    inventory[ticker].append((price, remaining_qty, date))
+                    remaining_qty = 0
+                else:
+                    # Closing trade
+                    match_qty = 0
+                    if abs(head_qty) > abs(remaining_qty):
+                        # Partial close of head
+                        match_qty = remaining_qty # This depletes remaining
+                        # Update head
+                        inventory[ticker][0] = (head_price, head_qty + match_qty, head_date)
+                        remaining_qty = 0
+                    else:
+                        # Full close of head (and maybe more)
+                        match_qty = -head_qty # This depletes head
+                        inventory[ticker].pop(0)
+                        remaining_qty -= match_qty # remaining_qty was e.g. -3 (sell), head +2 (long). match_qty -2. rem = -3 - (-2) = -1.
+                        
+                    # Calculate PnL for matched portion
+                    pnl = 0
+                    if head_qty > 0: # Long Close
+                        pnl = (price - head_price) * abs(match_qty)
+                        type_ = 'Long'
+                    else: # Short Close
+                        pnl = (head_price - price) * abs(match_qty)
+                        type_ = 'Short'
+                        
+                    completed_trades.append({
+                        'Ticker': ticker,
+                        'Entry Date': head_date,
+                        'Exit Date': date,
+                        'Type': type_,
+                        'Entry Price': head_price,
+                        'Exit Price': price,
+                        'Quantity': abs(match_qty),
+                        'PnL': pnl
+                    })
+
+    if not completed_trades:
+        return {}
+
+    trades_res = pd.DataFrame(completed_trades)
+    
+    total_trades = len(trades_res)
+    wins = trades_res[trades_res['PnL'] > 0]
+    losses = trades_res[trades_res['PnL'] <= 0]
+    
+    win_rate = len(wins) / total_trades if total_trades > 0 else 0
+    
+    gross_profit = wins['PnL'].sum()
+    gross_loss = abs(losses['PnL'].sum())
+    profit_factor = gross_profit / gross_loss if gross_loss != 0 else float('inf')
+    
+    avg_win = wins['PnL'].mean() if not wins.empty else 0
+    avg_loss = losses['PnL'].mean() if not losses.empty else 0
+    
+    return {
+        "Total Trades": total_trades,
+        "Win Rate": win_rate,
+        "Profit Factor": profit_factor,
+        "Avg Win": avg_win,
+        "Avg Loss": avg_loss,
+        "Gross Profit": gross_profit,
+        "Gross Loss": gross_loss
+    }

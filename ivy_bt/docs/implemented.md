@@ -82,6 +82,7 @@ This document summarizes the high-level features and capabilities that have been
     - Automatic result aggregation into CSV summary.
     - **Reliability Upgrade**: Switched to `multiprocessing.Pool` with strict process recycling (`maxtasksperchild=1`) to eliminate memory leaks during long batch runs.
     - **Automated Batch Runner**: Created `run_batch_yamls.py` to auto-discover and execute all batch configurations in the `batch_configs` directory sequentially.
+    - **File Hygiene**: Configured `BatchRunner` and Scheduler to output results to `backtests/` and logs to `logs/`, preventing project root clutter.
 
 ## Phase 8: Operational Workflow Integration
 >>>>>>>
@@ -112,7 +113,9 @@ This document summarizes the high-level features and capabilities that have been
     - Updated Scheduler UI to poll status file for non-blocking progress updates.
 - **Advanced Interactive Charts**:
     - Updated `ReportingMixin` to generate a detailed trade log.
-    - Enhanced `Results Viewer` to overlay trade entry/exit markers on the equity curve and display a filterable trade log.
+    - Enhanced `Results Viewer` to overlay trade entries/exits on the equity curve and display a filterable trade log.
+- **Trade Analysis Metrics**:
+    - Implemented logic in `Results Viewer` to calculate Win Rate, Profit Factor, Gross PnL, and Average Win/Loss from the raw trade log using FIFO matching.
 
 ## Phase 5: Expand Backtest Functionality (Data)
 - **Alpaca Historical Data**:

@@ -98,10 +98,17 @@ def _worker_wrapper(job_config_json: str):
         }
 
 class BatchRunner:
-    def __init__(self, config_path: str, status_file: str = "batch_status.json"):
+    def __init__(self, config_path: str, status_file: str = None):
         self.config = load_batch_config(config_path)
         self.results = []
-        self.status_file = status_file
+        
+        if status_file is None:
+            # Default to logs directory
+            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            self.status_file = os.path.join(log_dir, "batch_status.json")
+        else:
+            self.status_file = status_file
         
     def _update_status(self, completed: int, total: int, last_job: str = None):
         """Updates the status file with progress."""

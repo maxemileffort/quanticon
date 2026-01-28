@@ -230,7 +230,7 @@ if 'engine' in st.session_state:
             strat_cum = np.exp(engine.data[ticker]['strategy_return'].cumsum())
             fig.add_trace(go.Scatter(x=strat_cum.index, y=strat_cum, mode='lines', name=f"{ticker}"))
     
-    fig.update_layout(title="Growth of $1", template="plotly_white", hovermode="x unified")
+    fig.update_layout(title="Growth of $1", template="plotly_white", hovermode="x unified", yaxis_type="log")
     st.plotly_chart(fig, use_container_width=True)
     
     # Drawdown
@@ -297,7 +297,7 @@ if 'engine' in st.session_state:
                         name='Sell/Short'
                     ))
             
-            fig_price.update_layout(title=f"{ticker} - Price & Trades", template="plotly_white", xaxis_title="Date", yaxis_title="Price")
+            fig_price.update_layout(title=f"{ticker} - Price & Trades", template="plotly_white", xaxis_title="Date", yaxis_title="Price", yaxis_type="log")
             st.plotly_chart(fig_price, use_container_width=True)
     if st.checkbox("Run Monte Carlo Analysis"):
         if 'mc_results' not in st.session_state:

@@ -20,6 +20,12 @@ That should start both parts of the project for the UI.
 cd "C:/Users/Max/Desktop/projects/quanticon/ivy_bt/batch_configs" && python gen_batch_yaml.py
 ```
 
+then 
+
+```
+cd "C:/Users/Max/Desktop/projects/quanticon/ivy_bt/batch_configs" && python run_batch_yamls.py
+```
+
 Then copy and paste the command from the terminal that looks like it needs to run.
 
 ## Docker

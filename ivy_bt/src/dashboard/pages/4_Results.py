@@ -8,7 +8,7 @@ import sys
 
 # Add parent dir to path to import utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from utils import generate_pdf_from_results
+from utils import generate_pdf_from_results, calculate_trade_metrics
 
 st.set_page_config(page_title="IvyBT - Results Viewer", layout="wide")
 
@@ -250,6 +250,16 @@ if selected_run:
         if trades_file:
             with st.expander("Trade Log"):
                 st.dataframe(df_trades)
+                
+            # Trade Analysis
+            trade_metrics = calculate_trade_metrics(df_trades)
+            if trade_metrics:
+                st.subheader("Trade Analysis")
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Win Rate", f"{trade_metrics['Win Rate']:.1%}")
+                c2.metric("Profit Factor", f"{trade_metrics['Profit Factor']:.2f}")
+                c3.metric("Avg Win", f"${trade_metrics['Avg Win']:.2f}")
+                c4.metric("Total Trades", trade_metrics['Total Trades'])
 
     # 3. Monte Carlo
     if mc_file:

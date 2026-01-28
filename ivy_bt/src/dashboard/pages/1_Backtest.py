@@ -37,6 +37,16 @@ sizer = config['sizer']
 stop_loss = config['stop_loss']
 preset = config['preset']
 
+# --- TRAIN/TEST SPLIT CONFIG ---
+with st.sidebar.expander("Training Configuration"):
+    train_split = st.slider("Train Split %", 0.1, 1.0, 1.0, 0.05, help="Percentage of data to use for Training (0.1 to 1.0).")
+    run_mode = st.selectbox(
+        "Run Mode", 
+        ["full", "train", "test"], 
+        index=0, 
+        help="full: Use all data (or up to split if not 1.0). train: Use In-Sample data. test: Use Out-of-Sample data."
+    )
+
 # --- PRESETS LOADER ---
 PRESETS_DIR = os.path.join(project_root, "presets")
 if os.path.exists(PRESETS_DIR):
@@ -171,7 +181,13 @@ if st.button("Run Backtest", type="primary"):
             if p['a'] not in all_tickers: all_tickers.append(p['a'])
             if p['b'] not in all_tickers: all_tickers.append(p['b'])
 
-        engine = BacktestEngine(all_tickers, start_date=start_date, end_date=end_date)
+        engine = BacktestEngine(
+            all_tickers, 
+            start_date=start_date, 
+            end_date=end_date,
+            train_split=train_split,
+            run_mode=run_mode
+        )
         engine.position_sizer = sizer
         strat_instance = StrategyClass(**param_dict)
         sl_val = stop_loss if stop_loss > 0 else None

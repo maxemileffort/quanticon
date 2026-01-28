@@ -199,14 +199,12 @@ def analyze_complex_grid(grid_df, target_metric='Sharpe', output_dir=None, run_i
 
     return importance_df
 
-def calculate_trade_metrics(trades_df):
+def get_round_trip_trades(trades_df):
     """
-    Calculates statistics from a trade log DataFrame.
-    Assumes trades_df has columns: 'Date', 'Ticker', 'Action', 'Quantity', 'Price', 'Value'.
-    Uses FIFO matching to determine round-trip PnL.
+    Converts a raw transaction log into a DataFrame of round-trip trades using FIFO matching.
     """
     if trades_df.empty:
-        return {}
+        return pd.DataFrame()
     
     # Sort by date
     df = trades_df.sort_values(by='Date')
@@ -224,9 +222,6 @@ def calculate_trade_metrics(trades_df):
         if ticker not in inventory:
             inventory[ticker] = []
             
-        # Current position direction (based on inventory sum)
-        # We need to process the current trade against the inventory
-        
         remaining_qty = qty
         
         while remaining_qty != 0:
@@ -256,7 +251,7 @@ def calculate_trade_metrics(trades_df):
                         # Full close of head (and maybe more)
                         match_qty = -head_qty # This depletes head
                         inventory[ticker].pop(0)
-                        remaining_qty -= match_qty # remaining_qty was e.g. -3 (sell), head +2 (long). match_qty -2. rem = -3 - (-2) = -1.
+                        remaining_qty -= match_qty 
                         
                     # Calculate PnL for matched portion
                     pnl = 0
@@ -277,12 +272,19 @@ def calculate_trade_metrics(trades_df):
                         'Quantity': abs(match_qty),
                         'PnL': pnl
                     })
-
-    if not completed_trades:
-        return {}
-
-    trades_res = pd.DataFrame(completed_trades)
     
+    if not completed_trades:
+        return pd.DataFrame()
+        
+    return pd.DataFrame(completed_trades)
+
+def calculate_metrics_from_round_trips(trades_res):
+    """
+    Calculates statistics from a round-trip trades DataFrame.
+    """
+    if trades_res.empty:
+        return {}
+        
     total_trades = len(trades_res)
     wins = trades_res[trades_res['PnL'] > 0]
     losses = trades_res[trades_res['PnL'] <= 0]
@@ -305,3 +307,11 @@ def calculate_trade_metrics(trades_df):
         "Gross Profit": gross_profit,
         "Gross Loss": gross_loss
     }
+
+def calculate_trade_metrics(trades_df):
+    """
+    Wrapper to calculate metrics from raw transaction log.
+    Kept for backward compatibility.
+    """
+    round_trips = get_round_trip_trades(trades_df)
+    return calculate_metrics_from_round_trips(round_trips)

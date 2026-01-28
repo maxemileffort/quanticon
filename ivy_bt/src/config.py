@@ -7,6 +7,8 @@ class BacktestConfig(BaseModel):
     end_date: str
     interval: str = "1d"
     instrument_type: Literal["forex", "crypto", "spy", "iwm", "xlf", "xlv", "xle", "xlk"]
+    train_split: float = 1.0
+    run_mode: Literal["full", "train", "test"] = "full"
 
 class DataConfig(BaseModel):
     cache_enabled: bool

@@ -1,8 +1,22 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-27
+Last Updated: 2026-01-28
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in Session 34 (2026-01-28)
+- [x] **Refinements**:
+    - [x] **Batch Runner Support**: Updated `BatchJobConfig` to support `train_split` and `run_mode`, ensuring batch jobs can run training/testing workflows.
+    - [x] **Dashboard Integration**: Added "Training Configuration" widgets (Split %, Run Mode) to the Backtest Dashboard (`1_Backtest.py`).
+    - [x] **Robust Data Caching**: Completely refactored `DataManager` to implement **Incremental Caching**.
+        -   **Per-Ticker Cache**: Stores data in `cache/{ticker}_{interval}.parquet`.
+        -   **Smart Fetching**: Checks existing cache range, identifies gaps (pre/post), downloads *only* missing data, merges, deduplicates, and updates the cache. This minimizes API calls and ensures data consistency.
+
+## ✅ Completed in Session 33 (2026-01-27)
+- [x] **Phase 5: Expand Backtest Functionality**:
+    - [x] **Train/Test Split**: Added `--train_split` and `--run_mode` CLI arguments (and Config support) to `BacktestEngine`. Allows users to train strategies on In-Sample data (e.g., first 70%) and validate on Out-of-Sample data.
+- [x] **Phase 6: Visualization & UI**:
+    - [x] **Advanced Filterable Trade Log**: Upgraded the "Results Viewer" dashboard to parse raw transaction logs into Round-Trip trades using FIFO matching. Added interactive filters for Ticker, Date, Long/Short, and Win/Loss, with dynamic metric recalculation and PnL distribution plots.
 
 ## ✅ Completed in Session 32 (2026-01-27)
 - [x] **Maintenance & Stability**:
@@ -64,6 +78,12 @@ This document outlines the pending features and future considerations for the Iv
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
 
+## Session Summary (2026-01-27) - Session 33
+
+### Accomplished
+- **Robustness (Train/Test Split)**: Implemented the critical "Train/Test Split" functionality. Users can now specify a `train_split` (e.g., 0.7) and a `run_mode` (train/test/full) via CLI or Config. This enforces a strict separation between in-sample optimization and out-of-sample validation, preventing the common pitfall of overfitting.
+- **Advanced Analytics (Dashboard)**: Significantly upgraded the "Results Viewer" in the dashboard. The new "Advanced Trade Analysis" section automatically matches Buy/Sell transactions into "Round-Trip" trades using FIFO logic. Users can filter this list by Ticker, Date, Type, and Outcome, and instantly see recalculated metrics (Win Rate, Profit Factor, etc.) and a PnL distribution histogram for the filtered subset.
+
 ## Session Summary (2026-01-27) - Session 32
 
 ### Accomplished
@@ -113,15 +133,15 @@ This document outlines the pending features and future considerations for the Iv
 - [x] **Docker Build Failure**: Updated `Dockerfile` to use `python:3.12-slim` and patched `pandas_ta`.
 
 ## Phase 5: Expand backtest functionality
-- [ ] **Train/Test Split**: Implement dataset splitting to allow strategy building on training data and validation on unseen testing data.
+- [x] **Train/Test Split**: Implement dataset splitting to allow strategy building on training data and validation on unseen testing data.
 - [ ] Add support for other broker APIs, like Interactive Brokers, and brokers that use Meta Trader.
 - [ ] Add support for other data sources (Interactive Brokers, MT4/5, Darwinex, Dukascopy).
 
 ## Phase 6: UI & Interaction (The Research Hub) Upgrades
 Moving towards a more user-friendly product.
 
-- [ ] **Web Dashboard Features**
-    - [ ] Advanced Filterable Trade Log.
+- [x] **Web Dashboard Features**
+    - [x] Advanced Filterable Trade Log.
 
 ## Phase 7: Future Innovations & AI
 - [ ] **LLM Strategy Generator**: "AI Strategy Architect" to generate `StrategyTemplate` code from natural language.

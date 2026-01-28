@@ -8,7 +8,7 @@ import sys
 
 # Add parent dir to path to import utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from utils import generate_pdf_from_results, calculate_trade_metrics
+from utils import generate_pdf_from_results, calculate_trade_metrics, get_round_trip_trades, calculate_metrics_from_round_trips
 
 st.set_page_config(page_title="IvyBT - Results Viewer", layout="wide")
 
@@ -248,18 +248,96 @@ if selected_run:
         st.plotly_chart(fig, use_container_width=True)
 
         if trades_file:
-            with st.expander("Trade Log"):
-                st.dataframe(df_trades)
+            st.subheader("Advanced Trade Analysis")
+            
+            # Load Raw Trades
+            df_trades_raw = pd.read_csv(os.path.join(BACKTESTS_DIR, trades_file), parse_dates=['Date'])
+            
+            # Process Round Trips (FIFO)
+            df_round_trips = get_round_trip_trades(df_trades_raw)
+            
+            if df_round_trips.empty:
+                st.warning("No completed round-trip trades found.")
+                st.dataframe(df_trades_raw)
+            else:
+                # --- Filtering ---
+                with st.expander("Filter Trades", expanded=True):
+                    c1, c2, c3, c4 = st.columns(4)
+                    
+                    # Ticker
+                    all_tickers = sorted(df_round_trips['Ticker'].unique())
+                    sel_tickers = c1.multiselect("Tickers", all_tickers, default=all_tickers)
+                    
+                    # Date Range
+                    min_date = df_round_trips['Exit Date'].min().date()
+                    max_date = df_round_trips['Exit Date'].max().date()
+                    sel_dates = c2.date_input("Exit Date Range", [min_date, max_date])
+                    
+                    # Type (Long/Short)
+                    all_types = sorted(df_round_trips['Type'].unique())
+                    sel_types = c3.multiselect("Type", all_types, default=all_types)
+                    
+                    # Outcome
+                    sel_outcome = c4.multiselect("Outcome", ["Win", "Loss"], default=["Win", "Loss"])
                 
-            # Trade Analysis
-            trade_metrics = calculate_trade_metrics(df_trades)
-            if trade_metrics:
-                st.subheader("Trade Analysis")
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Win Rate", f"{trade_metrics['Win Rate']:.1%}")
-                c2.metric("Profit Factor", f"{trade_metrics['Profit Factor']:.2f}")
-                c3.metric("Avg Win", f"${trade_metrics['Avg Win']:.2f}")
-                c4.metric("Total Trades", trade_metrics['Total Trades'])
+                # --- Apply Filters ---
+                df_filtered = df_round_trips.copy()
+                
+                if sel_tickers:
+                    df_filtered = df_filtered[df_filtered['Ticker'].isin(sel_tickers)]
+                
+                if len(sel_dates) == 2:
+                    s, e = sel_dates
+                    df_filtered = df_filtered[(df_filtered['Exit Date'].dt.date >= s) & (df_filtered['Exit Date'].dt.date <= e)]
+                    
+                if sel_types:
+                    df_filtered = df_filtered[df_filtered['Type'].isin(sel_types)]
+                
+                if "Win" not in sel_outcome:
+                    df_filtered = df_filtered[df_filtered['PnL'] <= 0]
+                if "Loss" not in sel_outcome:
+                    df_filtered = df_filtered[df_filtered['PnL'] > 0]
+                
+                # --- Metrics ---
+                metrics = calculate_metrics_from_round_trips(df_filtered)
+                
+                if metrics:
+                    st.markdown("#### Filtered Performance")
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Win Rate", f"{metrics['Win Rate']:.1%}")
+                    c2.metric("Profit Factor", f"{metrics['Profit Factor']:.2f}")
+                    c3.metric("Avg Win", f"${metrics['Avg Win']:.2f}")
+                    c4.metric("Total Trades", metrics['Total Trades'])
+                    
+                    c5, c6, c7, c8 = st.columns(4)
+                    c5.metric("Gross Profit", f"${metrics['Gross Profit']:.2f}")
+                    c6.metric("Gross Loss", f"${metrics['Gross Loss']:.2f}")
+                    c7.metric("Avg Loss", f"${metrics['Avg Loss']:.2f}")
+                    c8.empty()
+
+                # --- Dataframe ---
+                st.markdown(f"**Trade Log ({len(df_filtered)} records)**")
+                st.dataframe(df_filtered.style.format({
+                    'Entry Price': '{:.2f}', 
+                    'Exit Price': '{:.2f}', 
+                    'PnL': '{:.2f}',
+                    'Quantity': '{:.4f}'
+                }), use_container_width=True)
+                
+                # --- Visualization ---
+                st.markdown("#### PnL Distribution")
+                if not df_filtered.empty:
+                    df_filtered['Outcome'] = df_filtered['PnL'].apply(lambda x: 'Win' if x > 0 else 'Loss')
+                    fig_hist = px.histogram(
+                        df_filtered, 
+                        x="PnL", 
+                        nbins=30, 
+                        color="Outcome", 
+                        color_discrete_map={'Win': 'green', 'Loss': 'red'},
+                        marginal="box",
+                        title="PnL Distribution (Filtered)"
+                    )
+                    st.plotly_chart(fig_hist, use_container_width=True)
 
     # 3. Monte Carlo
     if mc_file:

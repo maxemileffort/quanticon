@@ -67,6 +67,10 @@ python main.py --strategy EMACross --tickers "AAPL" --interval 1h
 
 # Synthetic Asset (Spread)
 python main.py --synthetic_assets "BTC-USD,ETH-USD" --synthetic_type diff
+
+# Train/Test Split (In-Sample vs Out-of-Sample)
+python main.py --train_split 0.7 --run_mode train
+python main.py --train_split 0.7 --run_mode test
 ```
 
 The script will:

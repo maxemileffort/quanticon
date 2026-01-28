@@ -36,6 +36,10 @@ class BatchJobConfig(BaseModel):
     # Transaction Costs
     commission: Optional[float] = None
     slippage: Optional[float] = None
+
+    # Train/Test Split
+    train_split: Optional[float] = None
+    run_mode: Optional[str] = None
     
     # Identifier for aggregation
     job_id: Optional[str] = None

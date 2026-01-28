@@ -81,7 +81,9 @@ def run_backtest(
     synthetic_type='diff',
     synthetic_name=None,
     commission=None,
-    slippage=None
+    slippage=None,
+    train_split=None,
+    run_mode=None
 ):
     """
     Main entry point for running backtests.
@@ -119,6 +121,10 @@ def run_backtest(
     interval = interval or config.backtest.interval
     metric = metric or config.optimization.metric
     
+    # Train/Test Split
+    train_split = train_split if train_split is not None else getattr(config.backtest, 'train_split', 1.0)
+    run_mode = run_mode if run_mode is not None else getattr(config.backtest, 'run_mode', 'full')
+
     # Costs (Args > Config > Default)
     # If args are None, we check config (assuming config has them, if not, Engine defaults will handle)
     # But Engine defaults are hardcoded.
@@ -183,7 +189,9 @@ def run_backtest(
         data_config=config.data,
         alpaca_config=config.alpaca,
         transaction_costs=transaction_costs,
-        view_plotting=view_plotting
+        view_plotting=view_plotting,
+        train_split=train_split,
+        run_mode=run_mode
     )
 
     # 6. Fetch Data
@@ -445,6 +453,10 @@ if __name__ == "__main__":
     parser.add_argument("--commission", type=float, help="Fixed commission per trade (e.g., 0.0)", default=None)
     parser.add_argument("--slippage", type=float, help="Slippage percentage (e.g., 0.001 for 0.1%%)", default=None)
 
+    # Train/Test Split
+    parser.add_argument("--train_split", type=float, help="Fraction of data to use for training (0.0 - 1.0)", default=None)
+    parser.add_argument("--run_mode", type=str, choices=['full', 'train', 'test'], help="Run mode: full, train, or test", default=None)
+
     # Batch Mode
     parser.add_argument("--batch", type=str, help="Path to batch configuration file (.json or .yaml)")
 
@@ -472,5 +484,7 @@ if __name__ == "__main__":
             synthetic_type=args.synthetic_type,
             synthetic_name=args.synthetic_name,
             commission=args.commission,
-            slippage=args.slippage
+            slippage=args.slippage,
+            train_split=args.train_split,
+            run_mode=args.run_mode
         )

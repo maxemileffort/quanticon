@@ -6,7 +6,8 @@ This document summarizes the high-level features and capabilities that have been
 
 ## Phase 1: Foundation & Robustness
 - **Data Management**:
-    - Local caching (SQLite/Parquet) for `yfinance` data.
+    - **Incremental Caching**: Refactored `DataManager` to support robust, per-ticker incremental updates. The system now checks existing cache ranges, downloads only missing gaps, and seamlessly merges new data, significantly reducing API load and improving speed.
+    - Local caching (Parquet) for `yfinance` data.
     - `DataManager` class for fetching and cleaning data.
     - Expanded instrument universe (Sector ETFs: IWM, XLF, XLV, XLE, XLK).
 - **Configuration**: `config.yaml` driven configuration for assets, keys, and defaults.
@@ -62,6 +63,8 @@ This document summarizes the high-level features and capabilities that have been
 - **API**: Functional FastAPI service (`src/api/`) for running backtests and serving results.
 
 ## Phase 5: Strategies & Analysis Expansion
+- **Core Engine Features**:
+    - **Train/Test Split**: Implemented data splitting logic (`train_split`, `run_mode`) to enforce strict separation between In-Sample optimization and Out-of-Sample validation.
 - **Portfolio Strategies**:
     - **Pairs Trading**: Mean reversion strategy based on cointegration and rolling beta.
     - **Market Regime Sentiment**: Cross-sectional momentum strategy using SPY regime filter.
@@ -105,6 +108,10 @@ This document summarizes the high-level features and capabilities that have been
     - **Documentation**: Comprehensive `DEPLOYMENT.md` guide for Local, VPS, and Cloud (Render/Streamlit Cloud) deployment.
 
 ## Phase 6: UI & Interaction Upgrades (Optimization)
+- **Advanced Trade Analysis**:
+    - **Filterable Trade Log**: Upgraded Results Viewer to parse transaction logs into Round-Trip trades using FIFO matching.
+    - **Interactive Filtering**: Users can filter trades by Ticker, Date, Long/Short, and Win/Loss.
+    - **Dynamic Metrics**: Metrics (Win Rate, Profit Factor, etc.) and PnL distribution plots recalculate instantly based on active filters.
 - **Decoupled Plotting**: 
     - Separated plotting execution from display (`view_plotting` flag).
     - Prevents script blocking during batch runs while still generating artifacts.

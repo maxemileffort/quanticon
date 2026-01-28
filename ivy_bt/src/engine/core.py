@@ -34,7 +34,9 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
                  , alpaca_config=None
                  , position_sizer=None
                  , transaction_costs=None
-                 , view_plotting=False):
+                 , view_plotting=False
+                 , train_split=1.0
+                 , run_mode='full'):
         """
         Initializes the BacktestEngine.
 
@@ -49,6 +51,8 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
             position_sizer (PositionSizer, optional): Logic for sizing positions. Defaults to FixedSignalSizer(1.0).
             transaction_costs (dict, optional): Dict with 'commission' (fixed $) and 'slippage' (pct).
             view_plotting (bool, optional): If True, show interactive plots via plt.show(). Defaults to False.
+            train_split (float, optional): Fraction of data to use for training (0.0 to 1.0). Defaults to 1.0.
+            run_mode (str, optional): 'full', 'train', or 'test'. Defaults to 'full'.
         """
         self.tickers = tickers
         self.start_date = start_date
@@ -58,6 +62,8 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         self.data_config = data_config
         self.alpaca_config = alpaca_config
         self.view_plotting = view_plotting
+        self.train_split = train_split
+        self.run_mode = run_mode
         self.data_manager = DataManager(self.data_config, self.alpaca_config)
         
         # Costs
@@ -119,6 +125,44 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         else:
             logging.error(f"Failed to fetch benchmark data for {self.benchmark_ticker}")
             self.benchmark_data = pd.DataFrame() 
+
+        # Apply Data Split (Train/Test)
+        self.apply_train_test_split()
+
+    def apply_train_test_split(self):
+        """
+        Splits self.data and self.benchmark_data based on train_split and run_mode.
+        """
+        if self.train_split >= 1.0 or self.run_mode == 'full':
+            return
+
+        logging.info(f"Applying Data Split: Mode={self.run_mode}, Train Split={self.train_split:.0%}")
+        
+        # Split Asset Data
+        for ticker, df in self.data.items():
+            if df.empty: continue
+            
+            n = len(df)
+            split_idx = int(n * self.train_split)
+            
+            if self.run_mode == 'train':
+                self.data[ticker] = df.iloc[:split_idx]
+                if not self.data[ticker].empty:
+                    logging.info(f"  {ticker}: Train Set ({len(self.data[ticker])} bars) -> End: {self.data[ticker].index[-1]}")
+            elif self.run_mode == 'test':
+                self.data[ticker] = df.iloc[split_idx:]
+                if not self.data[ticker].empty:
+                    logging.info(f"  {ticker}: Test Set ({len(self.data[ticker])} bars) -> Start: {self.data[ticker].index[0]}")
+
+        # Split Benchmark Data
+        if self.benchmark_data is not None and not self.benchmark_data.empty:
+            n = len(self.benchmark_data)
+            split_idx = int(n * self.train_split)
+            
+            if self.run_mode == 'train':
+                self.benchmark_data = self.benchmark_data.iloc[:split_idx]
+            elif self.run_mode == 'test':
+                self.benchmark_data = self.benchmark_data.iloc[split_idx:]
 
     def create_synthetic_asset(self, asset_a, asset_b, spread_type='diff', name=None):
         """

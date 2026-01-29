@@ -48,6 +48,18 @@ To run the test suite:
 python -m unittest discover tests
 ```
 
+## Quick Start (One-Click App)
+
+For the full interactive experience (Dashboard + API), you can launch the application with a single script (Windows):
+
+1.  Navigate to the project directory: `quanticon/ivy_bt`
+2.  Double-click `start_app.bat`
+
+This will:
+*   Activate the virtual environment.
+*   Launch the **FastAPI Backend** in a new window.
+*   Launch the **Streamlit Dashboard** in your browser.
+
 ## Quick Start (Research Workflow)
 
 The easiest way to run a backtest with automatic optimization is using the **Command Line Interface**.

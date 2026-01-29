@@ -29,7 +29,8 @@ from .trend import (
     Newsom10Strategy,
     MarkovChainTrendProbability,
     TrendGridTrading,
-    TDIV5TimeExit
+    TDIV5TimeExit,
+    DblMarkovTrend
 )
 
 # Import reversal strategies
@@ -77,6 +78,7 @@ __all__ = [
     'MarkovChainTrendProbability',
     'TrendGridTrading',
     'TDIV5TimeExit',
+    'DblMarkovTrend',
     
     # Reversal
     'BollingerReversion',

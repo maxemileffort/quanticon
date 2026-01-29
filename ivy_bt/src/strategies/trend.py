@@ -13,7 +13,6 @@ import pandas_ta as ta
 
 from .base import StrategyTemplate
 
-
 class EMACross(StrategyTemplate):
     """
     Exponential Moving Average Crossover Strategy.
@@ -432,6 +431,94 @@ class TDIV5TimeExit(StrategyTemplate):
         df['signal'] = df['signal'].mask(exit_mask, 0)
         
         # Final Persistence: ffill to ensure Cash (0) is held until next trigger
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df
+    
+class DblMarkovTrend(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'lookback_ev': np.arange(50, 150, 10),
+            'forecast_bars': np.arange(20, 100, 5),
+            'trend_lookback': np.arange(10, 30, 2),
+            'atr_threshold': np.arange(0.1, 1.1, 0.1),
+            'history_length': np.arange(10, 60, 5),
+            'regression_window': np.arange(5, 40, 5)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        lookback_ev = self.params.get('lookback_ev', 90)
+        forecast_bars = self.params.get('forecast_bars', 55)  # Represented in EV calc logic
+        trend_lookback = self.params.get('trend_lookback', 14)
+        atr_threshold = self.params.get('atr_threshold', 0.5)
+        history_length = self.params.get('history_length', 33)
+        atr_length = self.params.get('atr_length', 14)
+        regression_window = self.params.get('regression_window', 20)
+
+        # 2. Indicator 1: Markov Oscillator (Trend Probability)
+        # Calculate ATR and Normalized Change using standardized 'close'
+        atr = ta.atr(df['high'], df['low'], df['close'], length=atr_length)
+        price_change = df['close'] - df['close'].shift(trend_lookback)
+        
+        # Avoid division by zero/NaN issues with ATR
+        atr_norm_change = price_change / atr
+
+        # State Identification: 1 = Uptrend, -1 = Downtrend
+        state = np.where(atr_norm_change > atr_threshold, 1, np.nan)
+        state = np.where(atr_norm_change < -atr_threshold, -1, state)
+        
+        # Forward fill to maintain state within thresholds
+        current_state = pd.Series(state, index=df.index).ffill().fillna(1)
+
+        # Rolling Probabilities
+        prob_uptrend = (current_state == 1).rolling(window=history_length).sum() / history_length
+        prob_downtrend = 1 - prob_uptrend
+
+        # 3. Indicator 2: Markov EV Predictor (Monte Carlo EV Slope)
+        diff = df['close'].diff()
+        up_move = diff.where(diff > 0, 0)
+        down_move = diff.where(diff < 0, 0).abs()
+
+        up_count = (diff > 0).rolling(window=lookback_ev).sum()
+        down_count = (diff < 0).rolling(window=lookback_ev).sum()
+        
+        up_sum = up_move.rolling(window=lookback_ev).sum()
+        down_sum = down_move.rolling(window=lookback_ev).sum()
+
+        up_weight = up_count * up_sum
+        down_weight = down_count * down_sum
+        total_weight = up_weight + down_weight
+
+        # Probabilities based on weighted moves
+        p_up = up_weight / total_weight
+        p_down = down_weight / total_weight
+        
+        # Average magnitudes
+        avg_up = up_sum / up_count
+        avg_down = down_sum / down_count
+
+        # Expected Value (EV) per step: (P_up * avg_up) - (P_down * avg_down)
+        ev_per_step = (p_up * avg_up) - (p_down * avg_down)
+
+        # Smooth the EV per step to determine the "EV Slope"
+        ev_slope = ev_per_step.rolling(window=regression_window).mean()
+
+        # 4. Signal Generation
+        df['signal'] = np.nan
+
+        # Long: Oscillator Bullish AND EV Slope Positive
+        long_cond = (prob_uptrend > prob_downtrend) & (ev_slope > 0)
+        
+        # Short: Oscillator Bearish AND EV Slope Negative
+        short_cond = (prob_downtrend > prob_uptrend) & (ev_slope < 0)
+
+        df.loc[long_cond, 'signal'] = 1
+        df.loc[short_cond, 'signal'] = -1
+        
+        # 5. Final Persistence
+        # Apply forward fill to ensure position is held until a counter-signal
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df

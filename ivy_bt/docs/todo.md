@@ -4,6 +4,11 @@ Last Updated: 2026-01-28
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
 
+## ✅ Completed in Session 35 (2026-01-28)
+- [x] **Ad Hoc Updates (Startup Scripts)**:
+    - [x] **One-Click Startup**: Created `start_app.bat` to launch the entire application (Backend + Frontend) with a single click.
+    - [x] **Process Isolation**: Created `run_backend.bat` and `run_frontend.bat` to handle environment activation and execution for each component separately, preventing blocking issues.
+
 ## ✅ Completed in Session 34 (2026-01-28)
 - [x] **Refinements**:
     - [x] **Batch Runner Support**: Updated `BatchJobConfig` to support `train_split` and `run_mode`, ensuring batch jobs can run training/testing workflows.
@@ -77,6 +82,11 @@ This document outlines the pending features and future considerations for the Iv
 - [x] **Transaction Costs Configuration**:
     - [x] Added `--commission` and `--slippage` arguments to `main.py`.
     - [x] Updated `BatchJobConfig` for batch support.
+
+## Session Summary (2026-01-28) - Session 35
+
+### Accomplished
+- **Developer Experience**: Significantly improved the startup workflow by creating a set of batch scripts (`start_app.bat`, `run_backend.bat`, `run_frontend.bat`). These scripts automate the activation of the shared virtual environment and handle the simultaneous launch of the FastAPI backend and Streamlit frontend in separate processes. This eliminates the need for manual terminal setup and command execution.
 
 ## Session Summary (2026-01-27) - Session 33
 

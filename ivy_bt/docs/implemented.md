@@ -1,6 +1,6 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-19
+Last Updated: 2026-01-28
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
 
@@ -106,6 +106,11 @@ This document summarizes the high-level features and capabilities that have been
 - **Cloud Readiness**:
     - **Configuration**: Environment-agnostic setup with automatic config generation.
     - **Documentation**: Comprehensive `DEPLOYMENT.md` guide for Local, VPS, and Cloud (Render/Streamlit Cloud) deployment.
+
+## Phase 10: Developer Experience
+- **One-Click Startup**:
+    - **Unified Launch Script**: Created `start_app.bat` (Windows) to automate the entire startup sequence with a single double-click.
+    - **Process Isolation**: Implemented `run_backend.bat` and `run_frontend.bat` to launch the FastAPI backend and Streamlit frontend in separate, non-blocking processes, each managing its own environment activation.
 
 ## Phase 6: UI & Interaction Upgrades (Optimization)
 - **Advanced Trade Analysis**:

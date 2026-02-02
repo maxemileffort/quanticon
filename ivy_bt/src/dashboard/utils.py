@@ -18,6 +18,7 @@ if project_root not in sys.path:
 from src.strategies import get_all_strategies
 from src.risk import FixedSignalSizer, VolatilitySizer, KellySizer
 from src.instruments import crypto_assets, forex_assets, sector_etfs, get_sp500_crosswalk
+from src.utils import calculate_trade_metrics, get_round_trip_trades, calculate_metrics_from_round_trips
 
 # Strategy Map (Dynamic)
 STRATEGIES = get_all_strategies()

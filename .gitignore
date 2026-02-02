@@ -47,3 +47,4 @@ ivy_bt/batch_configs/archive/*.yaml
 ivy_bt.log
 ivy_bt/.cache_test/
 ivy_bt/.cache/
+ivy_bt/outputs

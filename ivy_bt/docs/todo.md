@@ -139,7 +139,8 @@ This document outlines the pending features and future considerations for the Iv
 ---
 
 ## High priority:
-- [ ] **Fix Dashboard Crash**: `ImportError: cannot import name 'calculate_trade_metrics' from 'utils'` in `4_Results.py`. Likely due to `src/dashboard/utils.py` vs `src/utils.py` namespace conflict or missing function.
+- [x] **Fix Dashboard Crash**: `ImportError: cannot import name 'calculate_trade_metrics' from 'utils'` in `4_Results.py`. Likely due to `src/dashboard/utils.py` vs `src/utils.py` namespace conflict or missing function.
+- [x] **Fix Backtest Init Crash**: `AttributeError: 'NoneType' object has no attribute 'cache_enabled'` in `1_Backtest.py`. Fixed by handling missing `data_config` in `BacktestEngine.__init__`.
 - [x] Scheduler UI hangs up on batch execution. (Fixed via Process Isolation)
 - [x] **Docker Build Failure**: Updated `Dockerfile` to use `python:3.12-slim` and patched `pandas_ta`.
 

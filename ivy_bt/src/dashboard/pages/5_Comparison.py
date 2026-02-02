@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="IvyBT - Comparison", layout="wide")
 st.title("Comparison Dashboard")
 
-BACKTESTS_DIR = os.path.join(os.getcwd(), "ivy_bt", "backtests")
+BACKTESTS_DIR = os.path.join(os.getcwd(), "backtests")
 
 if not os.path.exists(BACKTESTS_DIR):
     st.error("Backtests directory not found.")

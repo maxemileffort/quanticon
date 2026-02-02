@@ -6,6 +6,7 @@ from ..data_manager import DataManager
 from ..risk import PositionSizer, FixedSignalSizer
 from ..utils import apply_stop_loss
 from ..regime_filters import add_ar_garch_regime_filter
+from ..config import load_config, DataConfig, AlpacaConfig
 
 from .optimization import OptimizationMixin
 from .analysis import AnalysisMixin
@@ -64,6 +65,23 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         self.view_plotting = view_plotting
         self.train_split = train_split
         self.run_mode = run_mode
+
+        # Load default config if missing
+        if self.data_config is None or self.alpaca_config is None:
+            try:
+                full_config = load_config()
+                if self.data_config is None:
+                    self.data_config = full_config.data
+                if self.alpaca_config is None:
+                    self.alpaca_config = full_config.alpaca
+            except Exception as e:
+                logging.warning(f"Could not load default config: {e}. Using defaults.")
+                # Fallback to prevent crash
+                if self.data_config is None:
+                    self.data_config = DataConfig(cache_enabled=True, cache_dir=".cache", cache_format="parquet")
+                if self.alpaca_config is None:
+                    self.alpaca_config = AlpacaConfig()
+
         self.data_manager = DataManager(self.data_config, self.alpaca_config)
         
         # Costs

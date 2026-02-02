@@ -382,3 +382,74 @@ class BouncyBallReversion(StrategyTemplate):
         df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
         return df
+    
+class SwingPointReversal(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'trend_lookback': np.arange(2, 10, 1),
+            'swing_window': [5]  # Standard 5-bar formation
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        # Lookback for identifying the preceding trend context
+        trend_lb = self.params.get('trend_lookback', 3)
+        
+        # 2. Data Standardization
+        # Ensuring lowercase and mapping to local variables for readability
+        h = df['high']
+        l = df['low']
+        c = df['close']
+        o = df['open']
+
+        # 3. 5-Bar Swing Point Identification
+        # Logic: Bar 3 (shift 2) is the local peak/trough relative to 2 bars on either side
+        is_swing_high = (h.shift(2) > h.shift(3)) & (h.shift(2) > h.shift(4)) & \
+                        (h.shift(2) > h.shift(1)) & (h.shift(2) > h)
+        
+        is_swing_low = (l.shift(2) < l.shift(3)) & (l.shift(2) < l.shift(4)) & \
+                       (l.shift(2) < l.shift(1)) & (l.shift(2) < l)
+
+        # 4. Context Logic (Preceding Trend)
+        # Using vectorized rolling to check for consecutive lower lows or higher highs
+        # Default trend_lb of 3 checks shifts 3, 4, 5 against each other
+        trending_down = (l.shift(2) < l.shift(3))
+        for i in range(3, 2 + trend_lb):
+            trending_down &= (l.shift(i) < l.shift(i + 1))
+
+        trending_up = (h.shift(2) > h.shift(3))
+        for i in range(3, 2 + trend_lb):
+            trending_up &= (h.shift(i) > h.shift(i + 1))
+
+        # 5. Trigger Levels
+        # Buy Trigger (Bar 1/Shift 0): Bearish Bar -> Close; Bullish Bar -> Open
+        buy_trigger_level = np.where(c > o, o, c)
+        # Sell Trigger (Bar 1/Shift 0): Bullish Bar -> Close; Bearish Bar -> Open
+        sell_trigger_level = np.where(c < o, o, c)
+
+        # 6. Signal Generation
+        df['signal'] = np.nan
+
+        # Entry Conditions: Swing point confirmed + Trend Context + Price Level Validation
+        long_condition = (is_swing_low) & (trending_down) & (c.shift(2) > buy_trigger_level)
+        short_condition = (is_swing_high) & (trending_up) & (c.shift(2) < sell_trigger_level)
+
+        df.loc[long_condition, 'signal'] = 1
+        df.loc[short_condition, 'signal'] = -1
+
+        # Initial forward fill to check current position state for exit logic
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 7. Exit Logic (Support/Resistance Violation)
+        # Exit if the current close breaks back through the trigger level
+        exit_long = (df['signal'] == 1) & (c < buy_trigger_level)
+        exit_short = (df['signal'] == -1) & (c > sell_trigger_level)
+        
+        df.loc[exit_long | exit_short, 'signal'] = 0
+
+        # 8. Final Persistence
+        # Ensure the '0' (Cash) or directional state is held until a new trigger
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

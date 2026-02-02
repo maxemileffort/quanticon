@@ -40,7 +40,8 @@ from .reversal import (
     MACDReversal,
     ReversalGridTrading,
     RebalancingPremiumStrategy,
-    BouncyBallReversion
+    BouncyBallReversion,
+    SwingPointReversal
 )
 
 # Import breakout strategies
@@ -87,6 +88,7 @@ __all__ = [
     'ReversalGridTrading',
     'RebalancingPremiumStrategy',
     'BouncyBallReversion',
+    'SwingPointReversal',
     
     # Breakout
     'TurtleTradingSystem',

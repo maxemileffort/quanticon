@@ -62,3 +62,48 @@ If `entry` flips from **Long → Short** or **Short → Long**, exit and re‑en
 ## Next Steps
 If you want a broker adapter (Alpaca/Kraken/Darwinex), we can extend `execution_adapters.py`
 with a class that converts these signals into API orders.
+
+## DX Trade Execution Adapter
+
+The DX Trade REST adapter lets you send signals directly to DX Trade while keeping the JSON
+output as an audit log.
+
+### Usage
+
+Run with the DX Trade adapter:
+
+```bash
+python run_mtf_hmm_physics.py --universe forex --adapter dxtrade
+```
+
+JSON output is still written to:
+
+```
+quanticon/ivy_bt/outputs/<universe>/signals_YYYYMMDD_HHMM.json
+```
+
+DX Trade order audit output is written alongside it:
+
+```
+quanticon/ivy_bt/outputs/<universe>/signals_YYYYMMDD_HHMM_dxtrade.json
+```
+
+### Configuration
+
+DX Trade settings live in `notebooks/config.py` and can also be set via environment variables.
+Key fields:
+
+- `DX_BASE_URL` (default: `https://demo.dx.trade`)
+- `DX_API_KEY`, `DX_ACCOUNT_ID`
+- `DX_INSTRUMENTS_ENDPOINT`, `DX_ORDER_ENDPOINT`, `DX_POSITIONS_ENDPOINT`
+- `DX_DEFAULT_QTY` (small test size)
+- `DX_POSITION_SIZING_MODE` (`fixed_qty` or `percent_equity`)
+- `DX_PCT_EQUITY`, `DX_EQUITY`
+- `DX_SYMBOL_MAP_JSON` (JSON string mapping signal symbols → DX Trade symbols)
+- `DX_DRY_RUN` (set to `true` for safe testing)
+
+### Notes
+
+- The DX adapter pulls instruments and positions from the REST API to map symbols and
+  determine whether to close or flip positions.
+- Start with `DX_DRY_RUN=true` and a small `DX_DEFAULT_QTY` before switching to percent equity.

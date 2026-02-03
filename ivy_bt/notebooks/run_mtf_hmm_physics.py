@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
-from execution_adapters import JsonAdapter
+from execution_adapters import JsonAdapter, DxTradeAdapter
 from utils import (
     get_mtf_data,
     apply_hmm_split_logic,
@@ -153,7 +153,15 @@ def load_cached_data(cache_path, cache_key):
     return None
 
 
-def run_strategy(universe_name, symbols, is_forex, cost_profile, output_dir, lookback_days=730):
+def run_strategy(
+    universe_name,
+    symbols,
+    is_forex,
+    cost_profile,
+    output_dir,
+    lookback_days=730,
+    adapter_name="json",
+):
     start_date = (datetime.today() - timedelta(days=lookback_days)).date()
     end_date = None
     cache_path = os.path.join(os.path.dirname(__file__), f"mtf_hmm_physics_{universe_name}_cache.pkl")
@@ -291,8 +299,12 @@ def run_strategy(universe_name, symbols, is_forex, cost_profile, output_dir, loo
     timestamp_tag = datetime.utcnow().strftime("%Y%m%d_%H%M")
     output_path = os.path.join(output_dir, f"signals_{timestamp_tag}.json")
 
-    adapter = JsonAdapter()
-    adapter.publish(payload, output_path)
+    json_adapter = JsonAdapter()
+    json_adapter.publish(payload, output_path)
+
+    if adapter_name == "dxtrade":
+        adapter = DxTradeAdapter()
+        adapter.publish(payload, output_path)
 
     log_path = os.path.join(output_dir, "run_log.csv")
     log_exists = os.path.exists(log_path)
@@ -315,6 +327,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run MTF HMM Physics strategy and output JSON signals.")
     parser.add_argument("--universe", choices=["crypto", "forex"], required=True)
     parser.add_argument(
+        "--adapter",
+        choices=["json", "dxtrade"],
+        default="json",
+        help="Execution adapter (json or dxtrade)",
+    )
+    parser.add_argument(
         "--output-dir",
         default=os.path.join(os.path.dirname(__file__), "..", "outputs"),
         help="Base output directory",
@@ -330,6 +348,7 @@ def main():
         is_forex,
         cost_profile,
         output_dir,
+        adapter_name=args.adapter,
     )
 
     print(f"Saved {signal_count} signals to {output_path}")

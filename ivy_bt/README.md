@@ -20,6 +20,7 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 - **Transaction Costs**: Supports fixed commissions and variable slippage modeling via CLI arguments or configuration.
 - **Parallel Backtesting**: `BatchRunner` executes multiple strategies concurrently for high-throughput research.
 - **Synthetic Assets**: Create and trade spreads (A-B) or ratios (A/B) on the fly.
+- **Alternative Candle Modes**: Supports `standard` OHLC and **Renko** candles (fixed brick size or ATR-based) across CLI, dashboard, and batch workflows.
 - **Local Caching**: Caches downloaded data to Parquet files to improve performance and avoid rate limits.
 - **Logging**: Comprehensive logging for better observability and debugging.
 
@@ -83,6 +84,12 @@ python main.py --synthetic_assets "BTC-USD,ETH-USD" --synthetic_type diff
 # Train/Test Split (In-Sample vs Out-of-Sample)
 python main.py --train_split 0.7 --run_mode train
 python main.py --train_split 0.7 --run_mode test
+
+# Renko Backtest (Fixed Brick)
+python main.py --strategy EMACross --tickers "BTC-USD" --candle_mode renko --renko_mode fixed --renko_brick_size 50
+
+# Renko Backtest (ATR Brick)
+python main.py --strategy EMACross --tickers "BTC-USD" --candle_mode renko --renko_mode atr --renko_atr_period 14
 ```
 
 The script will:
@@ -171,6 +178,7 @@ This will fetch the latest data, run the strategy, calculate the required positi
 Configuration is managed via `config.yaml`. You can customize:
 
 -   **Backtest Settings**: `start_date`, `end_date`, `interval` (1d, 1h, 5m), and `instrument_type`.
+    -   Includes candle controls: `candle_mode`, `renko_mode`, `renko_brick_size`, `renko_atr_period`, `renko_volume_mode`.
     -   *Note*: These can be overridden via CLI arguments (e.g., `--interval 1h`).
 -   **Data Settings**: Enable/disable caching and set cache directory.
 
@@ -181,6 +189,11 @@ backtest:
   end_date: "2025-12-01"
   interval: "1d"
   instrument_type: "forex"
+  candle_mode: "standard"   # "standard" | "renko"
+  renko_mode: "fixed"       # "fixed" | "atr"
+  renko_brick_size: 1.0      # used when renko_mode="fixed"
+  renko_atr_period: 14       # used when renko_mode="atr"
+  renko_volume_mode: "last" # "last" | "equal" | "zero"
 
 data:
   cache_enabled: true

@@ -9,6 +9,11 @@ class BacktestConfig(BaseModel):
     instrument_type: Literal["forex", "crypto", "spy", "iwm", "xlf", "xlv", "xle", "xlk"]
     train_split: float = 1.0
     run_mode: Literal["full", "train", "test"] = "full"
+    candle_mode: Literal["standard", "renko"] = "standard"
+    renko_mode: Literal["fixed", "atr"] = "fixed"
+    renko_brick_size: float = 1.0
+    renko_atr_period: int = 14
+    renko_volume_mode: Literal["last", "equal", "zero"] = "last"
 
 class DataConfig(BaseModel):
     cache_enabled: bool

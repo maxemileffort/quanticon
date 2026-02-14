@@ -522,3 +522,75 @@ class DblMarkovTrend(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+    
+class MarkovChainTrendStrategy(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'lookback_period': np.arange(5, 30, 2),
+            'atr_threshold': np.arange(0.1, 1.1, 0.1),
+            'history_length': np.arange(10, 50, 5),
+            'atr_length': np.arange(5, 30, 2)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        lookback_period = self.params.get('lookback_period', 14)
+        atr_threshold = self.params.get('atr_threshold', 0.5)
+        history_length = self.params.get('history_length', 33)
+        atr_length = self.params.get('atr_length', 14)
+        take_longs = self.params.get('take_longs', True)
+        take_shorts = self.params.get('take_shorts', True)
+
+        # 2. Indicator Calculation
+        # Ensure column names are standardized to lowercase 'high', 'low', 'close'
+        df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=atr_length)
+        
+        # Calculate normalized price change: (Close - Close[n]) / ATR
+        df['price_change'] = df['close'] - df['close'].shift(lookback_period)
+        df['atr_normalized_change'] = df['price_change'] / df['atr']
+
+        # 3. State Identification Logic
+        # Define States: 1 for Uptrend, -1 for Downtrend
+        df['raw_state'] = np.nan
+        df.loc[df['atr_normalized_change'] > atr_threshold, 'raw_state'] = 1
+        df.loc[df['atr_normalized_change'] < -atr_threshold, 'raw_state'] = -1
+        
+        # current_state persists until a threshold is breached in the opposite direction
+        df['current_state'] = df['raw_state'].ffill().fillna(1)
+
+        # 4. Probability Calculations (Rolling Window)
+        df['is_uptrend'] = (df['current_state'] == 1).astype(int)
+        df['is_downtrend'] = (df['current_state'] == -1).astype(int)
+        
+        df['prob_uptrend'] = df['is_uptrend'].rolling(window=history_length).sum() / history_length
+        df['prob_downtrend'] = df['is_downtrend'].rolling(window=history_length).sum() / history_length
+
+        # 5. Signal Generation (Crossover Logic)
+        df['p_up_prev'] = df['prob_uptrend'].shift(1)
+        df['p_down_prev'] = df['prob_downtrend'].shift(1)
+        
+        long_condition = (df['prob_uptrend'] > df['prob_downtrend']) & (df['p_up_prev'] <= df['p_down_prev'])
+        short_condition = (df['prob_downtrend'] > df['prob_uptrend']) & (df['p_down_prev'] <= df['p_up_prev'])
+
+        # 6. Vectorized Execution & Persistence
+        df['signal'] = np.nan
+        
+        if take_longs:
+            df.loc[long_condition, 'signal'] = 1
+            
+        if take_shorts:
+            df.loc[short_condition, 'signal'] = -1
+
+        # Final Persistence: Apply .ffill() to hold positions until a counter-signal occurs
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 7. Cleanup
+        cols_to_drop = [
+            'atr', 'price_change', 'atr_normalized_change', 'raw_state', 
+            'current_state', 'is_uptrend', 'is_downtrend', 'prob_uptrend', 
+            'prob_downtrend', 'p_up_prev', 'p_down_prev'
+        ]
+        df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
+
+        return df

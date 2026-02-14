@@ -30,7 +30,8 @@ from .trend import (
     MarkovChainTrendProbability,
     TrendGridTrading,
     TDIV5TimeExit,
-    DblMarkovTrend
+    DblMarkovTrend,
+    MarkovChainTrendStrategy
 )
 
 # Import reversal strategies
@@ -41,7 +42,9 @@ from .reversal import (
     ReversalGridTrading,
     RebalancingPremiumStrategy,
     BouncyBallReversion,
-    SwingPointReversal
+    SwingPointReversal,
+    WasherMeanReversion,
+    IntermarketZScoreArb
 )
 
 # Import breakout strategies
@@ -80,6 +83,7 @@ __all__ = [
     'TrendGridTrading',
     'TDIV5TimeExit',
     'DblMarkovTrend',
+    'MarkovChainTrendStrategy',
     
     # Reversal
     'BollingerReversion',
@@ -89,6 +93,8 @@ __all__ = [
     'RebalancingPremiumStrategy',
     'BouncyBallReversion',
     'SwingPointReversal',
+    'WasherMeanReversion',
+    'IntermarketZScoreArb',
     
     # Breakout
     'TurtleTradingSystem',

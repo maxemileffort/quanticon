@@ -7,6 +7,12 @@ python-dotenv
 yfinance
 mplfinance
 ta==0.11.0
+hmmlearn
+scikit-learn
+tensorflow
+tf2onnx
+skl2onnx
+onnx
 google-generativeai
 langchain-google-genai
 langchain-core

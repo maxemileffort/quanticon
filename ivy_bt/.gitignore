@@ -14,3 +14,5 @@ batch_status.json
 
 /notebooks/*.pdf
 /notebooks/*.pkl
+
+/mql5

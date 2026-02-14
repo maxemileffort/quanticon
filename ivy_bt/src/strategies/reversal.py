@@ -453,3 +453,113 @@ class SwingPointReversal(StrategyTemplate):
         df['signal'] = df['signal'].ffill().fillna(0)
 
         return df
+
+class WasherMeanReversion(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'ret_lookback': np.arange(2, 10, 1),
+            'dist_window': np.arange(12, 48, 4),
+            'entry_z': np.arange(1.5, 3.0, 0.1),
+            'exit_z': np.arange(0.1, 1.0, 0.1)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        ret_lookback = self.params.get('ret_lookback', 4)
+        dist_window = self.params.get('dist_window', 24)
+        entry_z = self.params.get('entry_z', 2.0)
+        exit_z = self.params.get('exit_z', 0.5)
+
+        # 2. Indicator Calculation
+        # Calculate Returns (The "Ranking" Metric)
+        period_return = df['close'].pct_change(ret_lookback)
+
+        # Calculate Rolling Stats for Z-Score
+        rolling_mean = period_return.rolling(window=dist_window).mean()
+        rolling_std = period_return.rolling(window=dist_window).std()
+
+        # Calculate Z-Score
+        # Z = (Current Return - Average Return) / Volatility of Return
+        # Handle division by zero/nan by replacing 0 in std with NaN
+        df['return_z_score'] = (period_return - rolling_mean) / rolling_std.replace(0, np.nan)
+
+        # 3. Vectorized Signal Logic
+        df['signal'] = np.nan
+
+        # Define Conditions
+        long_cond = df['return_z_score'] < -entry_z   # Oversold/Loser
+        short_cond = df['return_z_score'] > entry_z   # Overbought/Winner
+        flat_cond = df['return_z_score'].abs() < exit_z # Reverted to Mean
+
+        # Apply Signals
+        # Note: We apply signals to specific rows based on conditions.
+        # Everything else remains NaN to be filled by the previous state.
+        df.loc[long_cond, 'signal'] = 1
+        df.loc[short_cond, 'signal'] = -1
+        df.loc[flat_cond, 'signal'] = 0
+
+        # 4. Final Persistence
+        # Forward fill to ensure the strategy holds the position (1, -1) 
+        # or the neutral state (0) until a new condition is met.
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df
+    
+class IntermarketZScoreArb(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'length': np.arange(10, 51, 5),
+            'threshold': np.arange(1.5, 3.1, 0.5)
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        length = self.params.get('length', 20)
+        threshold = self.params.get('threshold', 2.0)
+
+        # 2. Indicator Calculation
+        # Z-Score = (Price - SMA) / StdDev
+        sma = ta.sma(df['close'], length=length)
+        stdev = ta.stdev(df['close'], length=length)
+        
+        # Handle potential division by zero
+        stdev = stdev.replace(0, np.nan)
+        
+        df['z_score'] = (df['close'] - sma) / stdev
+
+        # 3. Signal Logic
+        df['signal'] = np.nan
+
+        # Entry Conditions
+        # Long when Z-Score is statistically cheap (< -threshold)
+        df.loc[df['z_score'] < -threshold, 'signal'] = 1
+        # Short when Z-Score is statistically expensive (> threshold)
+        df.loc[df['z_score'] > threshold, 'signal'] = -1
+
+        # Initial Forward Fill to establish the directional bias
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        # 4. Exit Logic (Mean Reversion)
+        # Exit when Z-Score crosses zero (reverts to mean)
+        z_prev = df['z_score'].shift(1)
+        
+        cross_zero = (
+            ((z_prev < 0) & (df['z_score'] >= 0)) | # Crossed from below
+            ((z_prev > 0) & (df['z_score'] <= 0))   # Crossed from above
+        )
+
+        flatten_condition = (
+            (df['signal'] != 0) &
+            (cross_zero)
+        )
+
+        # Apply Exit
+        df['signal'] = df['signal'].mask(flatten_condition, 0)
+
+        # 5. Final Persistence
+        # Re-apply ffill to ensure the '0' (Cash) state is held until a new entry trigger
+        df['signal'] = df['signal'].ffill().fillna(0)
+
+        return df

@@ -40,6 +40,165 @@ def ta_crossunder(s1: pd.Series, s2: pd.Series):
     now_under = s1 < s2
     return (now_under) & (was_over)
 
+
+def to_renko(
+    df: pd.DataFrame,
+    mode: str = "fixed",
+    brick_size: float | None = None,
+    atr_period: int = 14,
+    price_col: str = "close",
+    volume_mode: str = "last",
+) -> pd.DataFrame:
+    """
+    Convert an OHLCV time-series DataFrame into Renko bricks.
+
+    Notes:
+    - Supports fixed and ATR brick sizing.
+    - Brick sizes are normalized with abs(...) so negative inputs are treated by magnitude.
+    - Output OHLCV headers are mapped back to the input's original casing when possible
+      (e.g., Open/High/Low/Close/Volume vs open/high/low/close/volume).
+
+    Args:
+        df: Source OHLC(V) DataFrame.
+        mode: "fixed" or "atr".
+        brick_size: Brick size for fixed mode.
+        atr_period: ATR lookback for atr mode.
+        price_col: Price column used to drive brick generation (case-insensitive).
+        volume_mode: "last" (default), "equal", or "zero".
+
+    Returns:
+        Renko DataFrame with OHLCV-compatible structure.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    mode = str(mode).lower()
+    if mode not in {"fixed", "atr"}:
+        raise ValueError("mode must be either 'fixed' or 'atr'.")
+
+    volume_mode = str(volume_mode).lower()
+    if volume_mode not in {"last", "equal", "zero"}:
+        raise ValueError("volume_mode must be one of: 'last', 'equal', 'zero'.")
+
+    # Preserve incoming header style so output can be fed back into existing code paths.
+    lower_to_original = {}
+    for c in df.columns:
+        lc = str(c).lower()
+        if lc not in lower_to_original:
+            lower_to_original[lc] = c
+
+    required = {"open", "high", "low", "close"}
+    missing = [c for c in required if c not in lower_to_original]
+    if missing:
+        raise ValueError(f"Input DataFrame is missing required columns: {missing}")
+
+    driver_col_lc = str(price_col).lower()
+    if driver_col_lc not in lower_to_original:
+        raise ValueError(f"price_col '{price_col}' was not found in input DataFrame columns.")
+
+    # Work internally with lowercase names.
+    working_df = df.copy()
+    working_df.columns = [str(c).lower() for c in working_df.columns]
+
+    # Ensure chronological processing order.
+    working_df = working_df.sort_index()
+
+    # Optional volume support.
+    if "volume" not in working_df.columns:
+        working_df["volume"] = 0.0
+
+    if mode == "fixed":
+        if brick_size is None:
+            raise ValueError("brick_size is required when mode='fixed'.")
+        base_brick = abs(float(brick_size))
+        if not np.isfinite(base_brick) or base_brick == 0:
+            raise ValueError("brick_size must be a finite non-zero value.")
+    else:
+        prev_close = working_df["close"].shift(1)
+        tr_components = pd.concat(
+            [
+                (working_df["high"] - working_df["low"]).abs(),
+                (working_df["high"] - prev_close).abs(),
+                (working_df["low"] - prev_close).abs(),
+            ],
+            axis=1,
+        )
+        tr = tr_components.max(axis=1)
+        atr_series = tr.rolling(int(atr_period), min_periods=int(atr_period)).mean().abs()
+
+    driver_prices = working_df[driver_col_lc]
+    if driver_prices.dropna().empty:
+        return pd.DataFrame()
+
+    first_valid_idx = driver_prices.first_valid_index()
+    last_brick_close = float(driver_prices.loc[first_valid_idx])
+
+    records = []
+    record_index = []
+
+    for idx, row in working_df.loc[first_valid_idx:].iterrows():
+        price = row[driver_col_lc]
+        if pd.isna(price):
+            continue
+
+        if mode == "fixed":
+            brick = base_brick
+        else:
+            brick = abs(float(atr_series.loc[idx])) if pd.notna(atr_series.loc[idx]) else np.nan
+
+        if not np.isfinite(brick) or brick == 0:
+            continue
+
+        delta = float(price) - last_brick_close
+        n_bricks = int(abs(delta) // brick)
+        if n_bricks <= 0:
+            continue
+
+        src_volume = float(row.get("volume", 0.0)) if pd.notna(row.get("volume", 0.0)) else 0.0
+        if volume_mode == "equal":
+            brick_volume = src_volume / n_bricks
+        elif volume_mode == "zero":
+            brick_volume = 0.0
+        else:  # "last"
+            brick_volume = src_volume
+
+        direction = 1 if delta > 0 else -1
+        for _ in range(n_bricks):
+            brick_open = last_brick_close
+            brick_close = brick_open + direction * brick
+            brick_high = max(brick_open, brick_close)
+            brick_low = min(brick_open, brick_close)
+
+            records.append(
+                {
+                    "open": brick_open,
+                    "high": brick_high,
+                    "low": brick_low,
+                    "close": brick_close,
+                    "volume": brick_volume,
+                }
+            )
+            record_index.append(idx)
+            last_brick_close = brick_close
+
+    renko_df = pd.DataFrame(records, index=pd.Index(record_index, name=df.index.name))
+
+    if renko_df.empty:
+        # Keep output schema predictable even when no bricks are formed.
+        renko_df = pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+
+    # Map back to the original input header casing where possible.
+    rename_map = {
+        "open": lower_to_original.get("open", "open"),
+        "high": lower_to_original.get("high", "high"),
+        "low": lower_to_original.get("low", "low"),
+        "close": lower_to_original.get("close", "close"),
+        "volume": lower_to_original.get("volume", "volume"),
+    }
+    renko_df = renko_df.rename(columns=rename_map)
+
+    return renko_df
+
 def apply_stop_loss(df: pd.DataFrame, stop_loss_pct: float, trailing: bool = False) -> pd.DataFrame:
     """
     Applies a stop-loss mechanism to the 'signal' column.

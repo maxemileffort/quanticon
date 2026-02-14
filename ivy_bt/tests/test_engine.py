@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+from unittest.mock import patch
 
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -157,6 +158,39 @@ class TestBacktestEngine(unittest.TestCase):
         self.assertIn('param1', res_df.columns)
         self.assertIn('Sharpe', res_df.columns)
         self.assertEqual(len(res_df), 2) # 2 combinations
+
+    def test_renko_config_validation(self):
+        with self.assertRaises(ValueError):
+            BacktestEngine(
+                tickers=[self.ticker],
+                start_date="2023-01-01",
+                end_date="2023-01-10",
+                candle_mode='renko',
+                renko_mode='fixed',
+                renko_brick_size=0
+            )
+
+    @patch('src.engine.core.add_ar_garch_regime_filter', side_effect=lambda df, price_col='close': df)
+    def test_fetch_data_with_renko_mode(self, _mock_regime):
+        engine = BacktestEngine(
+            tickers=[self.ticker],
+            start_date="2023-01-01",
+            end_date="2023-01-10",
+            candle_mode='renko',
+            renko_mode='fixed',
+            renko_brick_size=1.0,
+            renko_volume_mode='last'
+        )
+
+        # first call: asset data, second call: benchmark data
+        engine.data_manager.fetch_data = lambda tickers, start, end, interval: {tickers[0]: self.df.copy()}
+        engine.fetch_data()
+
+        self.assertIn(self.ticker, engine.data)
+        self.assertFalse(engine.data[self.ticker].empty)
+        self.assertIn('close', engine.data[self.ticker].columns)
+        self.assertIsNotNone(engine.benchmark_data)
+        self.assertFalse(engine.benchmark_data.empty)
 
 if __name__ == '__main__':
     unittest.main()

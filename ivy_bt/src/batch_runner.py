@@ -40,6 +40,13 @@ class BatchJobConfig(BaseModel):
     # Train/Test Split
     train_split: Optional[float] = None
     run_mode: Optional[str] = None
+
+    # Candle / Renko
+    candle_mode: Optional[str] = None
+    renko_mode: Optional[str] = None
+    renko_brick_size: Optional[float] = None
+    renko_atr_period: Optional[int] = None
+    renko_volume_mode: Optional[str] = None
     
     # Identifier for aggregation
     job_id: Optional[str] = None

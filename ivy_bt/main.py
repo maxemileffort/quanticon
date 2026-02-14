@@ -83,7 +83,12 @@ def run_backtest(
     commission=None,
     slippage=None,
     train_split=None,
-    run_mode=None
+    run_mode=None,
+    candle_mode=None,
+    renko_mode=None,
+    renko_brick_size=None,
+    renko_atr_period=None,
+    renko_volume_mode=None
 ):
     """
     Main entry point for running backtests.
@@ -124,6 +129,13 @@ def run_backtest(
     # Train/Test Split
     train_split = train_split if train_split is not None else getattr(config.backtest, 'train_split', 1.0)
     run_mode = run_mode if run_mode is not None else getattr(config.backtest, 'run_mode', 'full')
+
+    # Candle / Renko configuration
+    candle_mode = candle_mode if candle_mode is not None else getattr(config.backtest, 'candle_mode', 'standard')
+    renko_mode = renko_mode if renko_mode is not None else getattr(config.backtest, 'renko_mode', 'fixed')
+    renko_brick_size = renko_brick_size if renko_brick_size is not None else getattr(config.backtest, 'renko_brick_size', 1.0)
+    renko_atr_period = renko_atr_period if renko_atr_period is not None else getattr(config.backtest, 'renko_atr_period', 14)
+    renko_volume_mode = renko_volume_mode if renko_volume_mode is not None else getattr(config.backtest, 'renko_volume_mode', 'last')
 
     # Costs (Args > Config > Default)
     # If args are None, we check config (assuming config has them, if not, Engine defaults will handle)
@@ -191,7 +203,12 @@ def run_backtest(
         transaction_costs=transaction_costs,
         view_plotting=view_plotting,
         train_split=train_split,
-        run_mode=run_mode
+        run_mode=run_mode,
+        candle_mode=candle_mode,
+        renko_mode=renko_mode,
+        renko_brick_size=renko_brick_size,
+        renko_atr_period=renko_atr_period,
+        renko_volume_mode=renko_volume_mode,
     )
 
     # 6. Fetch Data
@@ -368,6 +385,11 @@ def run_backtest(
             "end_date": end_date,
             "interval": interval,
             "instrument_type": instrument_type,
+            "candle_mode": candle_mode,
+            "renko_mode": renko_mode,
+            "renko_brick_size": renko_brick_size,
+            "renko_atr_period": renko_atr_period,
+            "renko_volume_mode": renko_volume_mode,
             "timestamp": timestamp,
             "optimized_universe": engine.tickers
         },
@@ -457,6 +479,13 @@ if __name__ == "__main__":
     parser.add_argument("--train_split", type=float, help="Fraction of data to use for training (0.0 - 1.0)", default=None)
     parser.add_argument("--run_mode", type=str, choices=['full', 'train', 'test'], help="Run mode: full, train, or test", default=None)
 
+    # Candle / Renko Mode
+    parser.add_argument("--candle_mode", type=str, choices=['standard', 'renko'], help="Candle mode: standard or renko", default=None)
+    parser.add_argument("--renko_mode", type=str, choices=['fixed', 'atr'], help="Renko sizing mode", default=None)
+    parser.add_argument("--renko_brick_size", type=float, help="Renko brick size (required for fixed mode)", default=None)
+    parser.add_argument("--renko_atr_period", type=int, help="Renko ATR period (for atr mode)", default=None)
+    parser.add_argument("--renko_volume_mode", type=str, choices=['last', 'equal', 'zero'], help="Volume allocation mode for Renko bricks", default=None)
+
     # Batch Mode
     parser.add_argument("--batch", type=str, help="Path to batch configuration file (.json or .yaml)")
 
@@ -486,5 +515,10 @@ if __name__ == "__main__":
             commission=args.commission,
             slippage=args.slippage,
             train_split=args.train_split,
-            run_mode=args.run_mode
+            run_mode=args.run_mode,
+            candle_mode=args.candle_mode,
+            renko_mode=args.renko_mode,
+            renko_brick_size=args.renko_brick_size,
+            renko_atr_period=args.renko_atr_period,
+            renko_volume_mode=args.renko_volume_mode,
         )

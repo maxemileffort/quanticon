@@ -6,6 +6,11 @@ seaborn
 statsmodels
 plotly
 scikit-learn
+hmmlearn
+tensorflow
+tf2onnx
+skl2onnx
+onnx
 pandas_ta
 pydantic
 pyyaml

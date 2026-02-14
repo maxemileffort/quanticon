@@ -1,8 +1,16 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-01-28
+Last Updated: 2026-02-14
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
+
+## Session Update: 2026-02-14 (Renko Integration)
+- **Renko End-to-End Wiring**:
+    - Added unified candle configuration support across CLI, engine, dashboard, and batch runner.
+    - `BacktestEngine` now supports `candle_mode` (`standard` / `renko`) and Renko parameters (`renko_mode`, `renko_brick_size`, `renko_atr_period`, `renko_volume_mode`) with validation.
+    - Backtest dashboard now exposes Renko controls and routes them into engine execution.
+    - Scheduler and batch job schema now carry Renko settings through YAML execution.
+    - Backtest metadata output now records candle/Renko configuration for reproducibility.
 
 ## Phase 1: Foundation & Robustness
 - **Data Management**:

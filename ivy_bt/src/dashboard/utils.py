@@ -73,6 +73,22 @@ def render_sidebar():
     risk_model_name = st.sidebar.selectbox("Position Sizing", list(RISK_MODELS.keys()))
     stop_loss = st.sidebar.number_input("Stop Loss % (0 to disable)", 0.0, 0.5, 0.0, step=0.01)
 
+    # Candle / Renko Settings
+    st.sidebar.subheader("Candle Mode")
+    candle_mode = st.sidebar.selectbox("Mode", ["standard", "renko"], index=0)
+    renko_mode = "fixed"
+    renko_brick_size = 1.0
+    renko_atr_period = 14
+    renko_volume_mode = "last"
+
+    if candle_mode == "renko":
+        renko_mode = st.sidebar.selectbox("Renko Sizing", ["fixed", "atr"], index=0)
+        if renko_mode == "fixed":
+            renko_brick_size = st.sidebar.number_input("Renko Brick Size", min_value=0.000001, value=1.0, step=0.1)
+        else:
+            renko_atr_period = st.sidebar.number_input("Renko ATR Period", min_value=1, value=14, step=1)
+        renko_volume_mode = st.sidebar.selectbox("Renko Volume Mode", ["last", "equal", "zero"], index=0)
+
     def get_risk_model(name):
         if name == "Volatility Target":
             target_vol = st.sidebar.number_input("Target Vol", 0.05, 0.5, 0.15)
@@ -92,7 +108,12 @@ def render_sidebar():
         "StrategyClass": StrategyClass,
         "sizer": sizer,
         "stop_loss": stop_loss,
-        "preset" : preset
+        "preset" : preset,
+        "candle_mode": candle_mode,
+        "renko_mode": renko_mode,
+        "renko_brick_size": renko_brick_size,
+        "renko_atr_period": renko_atr_period,
+        "renko_volume_mode": renko_volume_mode,
     }
 
 def render_strategy_params(strat_name):

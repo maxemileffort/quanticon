@@ -41,6 +41,21 @@ enable_plotting = st.sidebar.checkbox("Enable Plotting", value=False)
 commission = st.sidebar.number_input("Commission", value=0.0)
 slippage = st.sidebar.number_input("Slippage", value=0.0)
 
+st.sidebar.subheader("Candle Mode")
+candle_mode = st.sidebar.selectbox("Mode", ["standard", "renko"], index=0)
+renko_mode = "fixed"
+renko_brick_size = 1.0
+renko_atr_period = 14
+renko_volume_mode = "last"
+
+if candle_mode == "renko":
+    renko_mode = st.sidebar.selectbox("Renko Sizing", ["fixed", "atr"], index=0)
+    if renko_mode == "fixed":
+        renko_brick_size = st.sidebar.number_input("Renko Brick Size", min_value=0.000001, value=1.0, step=0.1)
+    else:
+        renko_atr_period = st.sidebar.number_input("Renko ATR Period", min_value=1, value=14, step=1)
+    renko_volume_mode = st.sidebar.selectbox("Renko Volume Mode", ["last", "equal", "zero"], index=0)
+
 if st.sidebar.button("Add to Queue"):
     if not job_id:
         job_id = f"{strategy_name}_{instrument_type}_{datetime.now().strftime('%H%M%S')}"
@@ -54,7 +69,12 @@ if st.sidebar.button("Add to Queue"):
         "end_date": end_date.strftime('%Y-%m-%d'),
         "enable_plotting": enable_plotting,
         "commission": commission,
-        "slippage": slippage
+        "slippage": slippage,
+        "candle_mode": candle_mode,
+        "renko_mode": renko_mode,
+        "renko_brick_size": renko_brick_size,
+        "renko_atr_period": renko_atr_period,
+        "renko_volume_mode": renko_volume_mode,
     }
     # Remove None values
     job = {k: v for k, v in job.items() if v is not None}

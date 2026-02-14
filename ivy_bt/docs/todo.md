@@ -1,8 +1,25 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-01-28
+Last Updated: 2026-02-14
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in This Session (2026-02-14)
+- [x] **Phase 6: Dashboard Renko Integration**
+    - [x] Added candle mode controls in dashboard sidebar (`standard` / `renko`).
+    - [x] Added Renko configuration controls (`fixed/atr`, brick size, ATR period, volume mode).
+    - [x] Routed settings into `BacktestEngine` via `src/dashboard/pages/1_Backtest.py`.
+- [x] **Batch / Scheduler Renko Support**
+    - [x] Extended scheduler UI (`src/dashboard/pages/7_Scheduler.py`) to include Renko parameters.
+    - [x] Extended `BatchJobConfig` in `src/batch_runner.py` to carry Renko parameters end-to-end.
+    - [x] Updated `batch_configs/gen_batch_yaml.py` to emit Renko fields in generated YAML jobs.
+- [x] **Core Engine + CLI Wiring**
+    - [x] Added candle mode and Renko args to `BacktestEngine` and validated inputs.
+    - [x] Added CLI arguments in `main.py` (`--candle_mode`, `--renko_*`) and metadata persistence.
+    - [x] Extended `BacktestConfig` schema in `src/config.py` with candle/Renko defaults.
+- [x] **Ad Hoc Updates (Quality/Docs)**
+    - [x] Added test coverage for Renko config and execution path (`tests/test_engine.py`, `tests/test_batch_runner.py`).
+    - [x] Synced implementation docs (`docs/implemented.md`) for this session’s delivered feature set.
 
 ## ✅ Completed in Session 35 (2026-01-28)
 - [x] **Ad Hoc Updates (Startup Scripts)**:
@@ -143,6 +160,8 @@ This document outlines the pending features and future considerations for the Iv
 - [x] **Fix Backtest Init Crash**: `AttributeError: 'NoneType' object has no attribute 'cache_enabled'` in `1_Backtest.py`. Fixed by handling missing `data_config` in `BacktestEngine.__init__`.
 - [x] Scheduler UI hangs up on batch execution. (Fixed via Process Isolation)
 - [x] **Docker Build Failure**: Updated `Dockerfile` to use `python:3.12-slim` and patched `pandas_ta`.
+ - [x] **Dashboard Renko Toggle Integration**: Added candle mode + Renko controls in `src/dashboard/utils.py` and routed into `src/dashboard/pages/1_Backtest.py` and scheduler batch jobs.
+ - [x] **Batch YAML Renko Support**: Updated batch schema/flow (`src/batch_runner.py`, `batch_configs/gen_batch_yaml.py`) so YAML jobs pass Renko configuration through to `main.py`/engine.
 
 ## Phase 5: Expand backtest functionality
 - [x] **Train/Test Split**: Implement dataset splitting to allow strategy building on training data and validation on unseen testing data.
@@ -179,6 +198,28 @@ Features needed for a production/distributed environment and live signal generat
 
 ## Notes for Future Developers
 
+### Architecture Decisions
+- **Single-source candle configuration path**: Candle mode and Renko settings now flow through all major entrypoints (CLI, Dashboard Backtest, Scheduler, Batch YAML) into one engine contract (`BacktestEngine` init args), reducing feature drift.
+- **Engine-level Renko conversion**: Renko transformation is applied centrally in `BacktestEngine.fetch_data()` (including benchmark path), rather than duplicating conversion logic across UI/CLI callers.
+
 ### Known Limitations
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
+- **Local Test Invocation Noise**: Running isolated tests from a parent working directory can emit `config.yaml` fallback warnings; tests still pass, but path normalization for test harness could be improved.
+- **Pydantic v2 Deprecation Warning**: `BatchRunner` currently uses `job.json()` (works today), but should be migrated to `model_dump_json()` in a cleanup pass.
+
+## Session Summary (2026-02-14) - Session 36
+
+### Accomplished
+- Implemented end-to-end Renko support across core engine, CLI, dashboard backtest flow, scheduler, and batch job schema.
+- Added validation and reproducibility metadata for candle/Renko settings.
+- Added and passed targeted tests for new Renko paths.
+
+### Next Session Priorities
+- Update `batch_configs/run_batch_yamls.py` with optional CLI-level Renko overrides for batch sweeping convenience.
+- Add dashboard support for Renko in Optimization and Walk-Forward pages for full UI parity.
+- Clean roadmap/doc formatting artifacts (legacy duplicated entries and old merge markers) in docs.
+
+### Notes / Warnings
+- Keep Renko defaults explicit when using `fixed` mode to avoid silent mismatches.
+- Validate result comparability when switching between standard candles and Renko because bar construction changes return distributions.

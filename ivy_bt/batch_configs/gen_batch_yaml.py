@@ -45,7 +45,7 @@ def gen_header_text(combo_strat, today_str, max_workers=4):
   
   return template
 
-def gen_job_text(combo, end_date_str ):
+def gen_job_text(combo, end_date_str, candle_mode='standard', renko_mode='fixed', renko_brick_size=1.0, renko_atr_period=14, renko_volume_mode='last'):
   strat = combo[0]
   eco = combo[1]
   combo_str = strat + '_' + eco
@@ -56,6 +56,11 @@ def gen_job_text(combo, end_date_str ):
   template += f"""\n    end_date: "{end_date_str}" """
   template += f"""\n    metric: "Sharpe" """
   template += f"""\n    enable_plotting: true"""
+  template += f"""\n    candle_mode: "{candle_mode}" """
+  template += f"""\n    renko_mode: "{renko_mode}" """
+  template += f"""\n    renko_brick_size: {renko_brick_size}"""
+  template += f"""\n    renko_atr_period: {renko_atr_period}"""
+  template += f"""\n    renko_volume_mode: "{renko_volume_mode}"""
 
   return template
 

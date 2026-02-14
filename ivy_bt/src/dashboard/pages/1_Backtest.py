@@ -36,6 +36,11 @@ StrategyClass = config['StrategyClass']
 sizer = config['sizer']
 stop_loss = config['stop_loss']
 preset = config['preset']
+candle_mode = config['candle_mode']
+renko_mode = config['renko_mode']
+renko_brick_size = config['renko_brick_size']
+renko_atr_period = config['renko_atr_period']
+renko_volume_mode = config['renko_volume_mode']
 
 # --- TRAIN/TEST SPLIT CONFIG ---
 with st.sidebar.expander("Training Configuration"):
@@ -186,7 +191,12 @@ if st.button("Run Backtest", type="primary"):
             start_date=start_date, 
             end_date=end_date,
             train_split=train_split,
-            run_mode=run_mode
+            run_mode=run_mode,
+            candle_mode=candle_mode,
+            renko_mode=renko_mode,
+            renko_brick_size=renko_brick_size,
+            renko_atr_period=renko_atr_period,
+            renko_volume_mode=renko_volume_mode,
         )
         engine.position_sizer = sizer
         strat_instance = StrategyClass(**param_dict)

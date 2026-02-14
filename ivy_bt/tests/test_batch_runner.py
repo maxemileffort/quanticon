@@ -27,7 +27,12 @@ class TestBatchRunner(unittest.TestCase):
                     "strategy_name": "EMACross",
                     "tickers": "AAPL",
                     "start_date": "2023-01-01",
-                    "end_date": "2023-01-10"
+                    "end_date": "2023-01-10",
+                    "candle_mode": "renko",
+                    "renko_mode": "fixed",
+                    "renko_brick_size": 1.0,
+                    "renko_atr_period": 14,
+                    "renko_volume_mode": "last"
                 }
             ]
         }
@@ -50,6 +55,8 @@ class TestBatchRunner(unittest.TestCase):
         self.assertEqual(runner.config.max_workers, 1)
         self.assertEqual(len(runner.config.jobs), 1)
         self.assertEqual(runner.config.jobs[0].strategy_name, "EMACross")
+        self.assertEqual(runner.config.jobs[0].candle_mode, "renko")
+        self.assertEqual(runner.config.jobs[0].renko_mode, "fixed")
 
     @patch('src.batch_runner.multiprocessing.Pool')
     def test_run_mocked(self, mock_pool):

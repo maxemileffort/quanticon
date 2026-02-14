@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from ..data_manager import DataManager
 from ..risk import PositionSizer, FixedSignalSizer
-from ..utils import apply_stop_loss
+from ..utils import apply_stop_loss, to_renko
 from ..regime_filters import add_ar_garch_regime_filter
 from ..config import load_config, DataConfig, AlpacaConfig
 
@@ -37,7 +37,12 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
                  , transaction_costs=None
                  , view_plotting=False
                  , train_split=1.0
-                 , run_mode='full'):
+                 , run_mode='full'
+                 , candle_mode='standard'
+                 , renko_mode='fixed'
+                 , renko_brick_size=None
+                 , renko_atr_period=14
+                 , renko_volume_mode='last'):
         """
         Initializes the BacktestEngine.
 
@@ -54,6 +59,11 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
             view_plotting (bool, optional): If True, show interactive plots via plt.show(). Defaults to False.
             train_split (float, optional): Fraction of data to use for training (0.0 to 1.0). Defaults to 1.0.
             run_mode (str, optional): 'full', 'train', or 'test'. Defaults to 'full'.
+            candle_mode (str, optional): 'standard' or 'renko'. Defaults to 'standard'.
+            renko_mode (str, optional): 'fixed' or 'atr' (used when candle_mode='renko').
+            renko_brick_size (float, optional): Required if renko_mode='fixed'.
+            renko_atr_period (int, optional): ATR period if renko_mode='atr'.
+            renko_volume_mode (str, optional): 'last', 'equal', or 'zero'.
         """
         self.tickers = tickers
         self.start_date = start_date
@@ -65,6 +75,13 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         self.view_plotting = view_plotting
         self.train_split = train_split
         self.run_mode = run_mode
+        self.candle_mode = str(candle_mode).lower()
+        self.renko_mode = str(renko_mode).lower()
+        self.renko_brick_size = renko_brick_size
+        self.renko_atr_period = int(renko_atr_period)
+        self.renko_volume_mode = str(renko_volume_mode).lower()
+
+        self._validate_candle_config()
 
         # Load default config if missing
         if self.data_config is None or self.alpaca_config is None:
@@ -98,6 +115,46 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         self.benchmark_data = None
         self.strat_name = 'MyStrategy'
 
+    def _validate_candle_config(self):
+        """Validate and normalize candle-related configuration."""
+        if self.candle_mode not in {'standard', 'renko'}:
+            raise ValueError("candle_mode must be 'standard' or 'renko'.")
+
+        if self.candle_mode == 'standard':
+            return
+
+        if self.renko_mode not in {'fixed', 'atr'}:
+            raise ValueError("renko_mode must be 'fixed' or 'atr'.")
+
+        if self.renko_mode == 'fixed':
+            if self.renko_brick_size is None:
+                raise ValueError("renko_brick_size is required when renko_mode='fixed'.")
+            if float(self.renko_brick_size) == 0:
+                raise ValueError("renko_brick_size must be non-zero.")
+
+        if self.renko_atr_period <= 0:
+            raise ValueError("renko_atr_period must be > 0.")
+
+        if self.renko_volume_mode not in {'last', 'equal', 'zero'}:
+            raise ValueError("renko_volume_mode must be one of: 'last', 'equal', 'zero'.")
+
+    def _maybe_convert_to_renko(self, ticker: str, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply Renko conversion when configured; otherwise return input df."""
+        if self.candle_mode != 'renko' or df is None or df.empty:
+            return df
+
+        renko_df = to_renko(
+            df,
+            mode=self.renko_mode,
+            brick_size=self.renko_brick_size,
+            atr_period=self.renko_atr_period,
+            volume_mode=self.renko_volume_mode,
+        )
+        if renko_df.empty:
+            logging.warning(f"Renko conversion produced no bricks for {ticker}. Keeping original candles.")
+            return df
+        return renko_df
+
     @property
     def annualization_factor(self):
         """Returns the annualization factor based on the data interval."""
@@ -119,6 +176,18 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         # Use DataManager to fetch asset data
         logging.info(f"Fetching asset data via DataManager (Interval: {self.interval})...")
         self.data = self.data_manager.fetch_data(self.tickers, self.start_date, self.end_date, self.interval)
+
+        if self.candle_mode == 'renko':
+            logging.info(
+                f"Converting asset candles to Renko (mode={self.renko_mode}, "
+                f"brick_size={self.renko_brick_size}, atr_period={self.renko_atr_period}, "
+                f"volume_mode={self.renko_volume_mode})"
+            )
+            for ticker, df in list(self.data.items()):
+                try:
+                    self.data[ticker] = self._maybe_convert_to_renko(ticker, df)
+                except Exception as e:
+                    logging.warning(f"Renko conversion failed for {ticker}: {e}. Keeping original candles.")
         
         # Apply Regime Filters
         logging.info("Applying AR-GARCH Regime Filters...")
@@ -135,6 +204,7 @@ class BacktestEngine(OptimizationMixin, AnalysisMixin, ReportingMixin):
         bench = self.data_manager.fetch_data([self.benchmark_ticker], self.start_date, self.end_date, self.interval).get(self.benchmark_ticker)
         
         if bench is not None and not bench.empty:
+            bench = self._maybe_convert_to_renko(self.benchmark_ticker, bench)
             bench['log_return'] = np.log(bench['close'] / bench['close'].shift(1))
             bench['signal'] = 1
             bench['position'] = 1

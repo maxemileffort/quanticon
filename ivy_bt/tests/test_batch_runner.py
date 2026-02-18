@@ -28,6 +28,7 @@ class TestBatchRunner(unittest.TestCase):
                     "tickers": "AAPL",
                     "start_date": "2023-01-01",
                     "end_date": "2023-01-10",
+                    "interval": "1d",
                     "candle_mode": "renko",
                     "renko_mode": "fixed",
                     "renko_brick_size": 1.0,
@@ -93,6 +94,23 @@ class TestBatchRunner(unittest.TestCase):
         df = pd.read_csv(self.output_file)
         self.assertEqual(len(df), 1)
         self.assertEqual(df.iloc[0]['sharpe'], 1.5)
+
+    @patch('src.batch_runner.multiprocessing.Pool')
+    def test_cli_interval_override_applies_to_jobs(self, mock_pool):
+        mock_pool_instance = mock_pool.return_value
+        mock_pool_instance.__enter__.return_value = mock_pool_instance
+        mock_pool_instance.imap_unordered.return_value = [
+            {"status": "success", "job_id": "test_job_1", "metrics": {"metadata": {}, "performance": {"Portfolio": {}}}, "metrics_path": "path"}
+        ]
+
+        runner = BatchRunner(
+            self.config_path,
+            status_file=self.status_file,
+            cli_overrides={"interval": "1h"}
+        )
+        runner.run()
+
+        self.assertEqual(runner.config.jobs[0].interval, "1h")
 
 if __name__ == '__main__':
     unittest.main()

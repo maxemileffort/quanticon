@@ -1,8 +1,23 @@
 # IvyBT Project Roadmap & Suggestions
 
-Last Updated: 2026-02-14
+Last Updated: 2026-02-18
 
 This document outlines the pending features and future considerations for the IvyBT quantitative research hub.
+
+## ✅ Completed in This Session (2026-02-18)
+- [x] **Phase 6: Intraday UX Parity Across Backtesting Flows**
+    - [x] Added shared dashboard interval selector in `src/dashboard/utils.py`.
+    - [x] Wired interval into Backtest page engine construction (`src/dashboard/pages/1_Backtest.py`).
+    - [x] Wired interval into Optimization page engine construction and cache key (`src/dashboard/pages/2_Optimization.py`).
+    - [x] Wired interval into Walk-Forward page engine construction (`src/dashboard/pages/3_Walk_Forward.py`).
+    - [x] Added interval selection in Scheduler jobs so generated batch YAML includes timeframe (`src/dashboard/pages/7_Scheduler.py`).
+- [x] **Batch Execution Ergonomics**
+    - [x] Added optional `--interval` override to `batch_configs/run_batch_yamls.py`.
+    - [x] Added CLI override support in `BatchRunner` and passed batch interval override from `main.py --batch`.
+- [x] **Ad Hoc Updates (Stability + Compatibility)**
+    - [x] Added defensive import fallback for `futures_assets` in `src/dashboard/utils.py` to prevent dashboard import crashes across mixed environments.
+    - [x] Added/updated test coverage for batch interval override behavior (`tests/test_batch_runner.py`).
+    - [x] Ran targeted tests: `test_batch_runner` and `test_intraday`.
 
 ## ✅ Completed in This Session (2026-02-14)
 - [x] **Phase 6: Dashboard Renko Integration**
@@ -201,12 +216,33 @@ Features needed for a production/distributed environment and live signal generat
 ### Architecture Decisions
 - **Single-source candle configuration path**: Candle mode and Renko settings now flow through all major entrypoints (CLI, Dashboard Backtest, Scheduler, Batch YAML) into one engine contract (`BacktestEngine` init args), reducing feature drift.
 - **Engine-level Renko conversion**: Renko transformation is applied centrally in `BacktestEngine.fetch_data()` (including benchmark path), rather than duplicating conversion logic across UI/CLI callers.
+- **Single-source intraday interval path**: Interval selection now flows from shared dashboard sidebar into Backtest, Optimization, Walk-Forward, and Scheduler-generated batch jobs to reduce timeframe drift between workflows.
+- **Batch CLI override pattern**: Batch execution now supports a CLI override layer (`main.py` → `BatchRunner.cli_overrides`) to apply cross-job settings (currently interval) without editing each YAML.
+- **Defensive dashboard imports for optional asset presets**: Futures preset import is now resilient to partial module states via fallback import logic in dashboard utils.
 
 ### Known Limitations
 - **Streamlit State**: The dashboard relies heavily on `st.session_state` to persist the `BacktestEngine` object. This is efficient for single-user local use but may not scale well if deployed as a multi-user web app without a proper backend database.
 - **Visualization**: Using `fig.show()` for Plotly in script mode can cause connection errors if the local server fails. Always prefer `write_html` for robustness in scripts.
 - **Local Test Invocation Noise**: Running isolated tests from a parent working directory can emit `config.yaml` fallback warnings; tests still pass, but path normalization for test harness could be improved.
 - **Pydantic v2 Deprecation Warning**: `BatchRunner` currently uses `job.json()` (works today), but should be migrated to `model_dump_json()` in a cleanup pass.
+- **Provider Lookback Constraints (Intraday)**: Very low intervals can be constrained by upstream provider history windows. UX currently allows interval selection but does not yet enforce source-aware date-range guards.
+
+## Session Summary (2026-02-18) - Session 37
+
+### Accomplished
+- **Intraday Parity Delivery**: Completed interval propagation across Dashboard Backtest, Optimization, Walk-Forward, Scheduler, and batch CLI execution pathways.
+- **Batch Convenience**: Added optional global interval override for automated batch YAML runs, reducing manual edits for intraday sweeps.
+- **Stability Hardening**: Resolved dashboard import crash risk around `futures_assets` by adding backward-compatible fallback behavior.
+- **Validation**: Added/updated targeted tests and confirmed passing runs for batch + intraday suites.
+
+### Next Session Priorities
+- Migrate `BatchRunner` serialization from deprecated `job.json()` to `model_dump_json()`.
+- Add source-aware intraday guardrails/warnings for unsupported date-window + interval combinations.
+- Clean remaining legacy roadmap formatting artifacts/merge markers in docs.
+
+### Notes / Warnings
+- Intraday intervals increase sensitivity to data-availability gaps and timezone inconsistencies; validate requested ranges before long batch runs.
+- Keep interval explicit in batch workflows when comparing results across sessions to avoid accidental timeframe mismatch.
 
 ## Session Summary (2026-02-14) - Session 36
 

@@ -31,6 +31,7 @@ config = utils.render_sidebar()
 tickers = config['tickers']
 start_date = config['start_date']
 end_date = config['end_date']
+interval = config['interval']
 strat_name = config['strat_name']
 StrategyClass = config['StrategyClass']
 sizer = config['sizer']
@@ -190,6 +191,7 @@ if st.button("Run Backtest", type="primary"):
             all_tickers, 
             start_date=start_date, 
             end_date=end_date,
+            interval=interval,
             train_split=train_split,
             run_mode=run_mode,
             candle_mode=candle_mode,

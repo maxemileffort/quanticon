@@ -6,7 +6,7 @@ IvyBT is a Python-based backtesting engine designed for quantitative trading str
 
 - **Backtest Engine**: Efficiently processes historical data, executes strategies, and calculates performance metrics (Sharpe Ratio, Max Drawdown, Returns).
 - **Market Regime Analysis**: Automatically detects market regimes (Momentum vs. Mean Reversion, High vs. Low Volatility) using AR-GARCH filters.
-- **Asset Support**: Built-in support for major Forex pairs and Cryptocurrencies via `yfinance`. Includes robust S&P 500 ticker fetching with caching.
+- **Asset Support**: Built-in support for major Forex pairs, Cryptocurrencies, and a curated Futures preset via `yfinance`. Includes robust S&P 500 ticker fetching with caching.
 - **Advanced Optimization**: Walk-Forward Optimization (Rolling Window) and Grid Search.
 - **Probabilistic Validation**: Monte Carlo Simulation for drawdown and equity analysis.
 - **Web Dashboard**: Interactive research hub using Streamlit and Plotly.
@@ -81,6 +81,9 @@ python main.py --strategy EMACross --tickers "AAPL" --interval 1h
 # Synthetic Asset (Spread)
 python main.py --synthetic_assets "BTC-USD,ETH-USD" --synthetic_type diff
 
+# Lag-aware Pair Scanner (Correlation + Cointegration + ADF)
+python scripts/run_pair_scanner.py --bars 1000 --timeframes 1d,1h,5m --corr-min 0.7 --coint-pmax 0.05 --adf-pmax 0.05 --max-lag 20
+
 # Train/Test Split (In-Sample vs Out-of-Sample)
 python main.py --train_split 0.7 --run_mode train
 python main.py --train_split 0.7 --run_mode test
@@ -101,6 +104,28 @@ The script will:
 *   Save results to `backtests/` (JSON metrics, CSV equity curves, MC stats, **Interactive HTML Plots**).
 *   **Save Presets**: Extract and save the top 5 performing parameter sets to `presets/` for future reference.
 
+### Pair Scanner (Research Utility)
+
+IvyBT includes a lag-aware pair scanner for cross-asset relationship discovery:
+
+- Computes return correlation at lag 0 and best lead/lag correlation over `[-max_lag, +max_lag]`
+- Runs Engle-Granger cointegration tests for candidate pairs
+- Runs ADF on spread residuals and estimates spread half-life
+- Scans across multiple timeframes (default `1d,1h,5m`)
+- Writes artifacts to `outputs/pair_scans/<run_id>/`
+
+Example:
+
+```bash
+python scripts/run_pair_scanner.py --bars 1000 --timeframes 1d,1h,5m --corr-prefilter 0.5 --corr-min 0.7 --coint-pmax 0.05 --adf-pmax 0.05 --max-lag 20 --require-adf
+```
+
+Key outputs:
+- `pairs_full_<tf>.csv` / `.parquet`: full tested pair metrics
+- `pairs_top_<tf>.csv`: filtered shortlist
+- `universe_health_<tf>.csv`: symbol coverage diagnostics
+- `scan_summary.json`: run-level metadata and counts
+
 ### Web Dashboard
 
 To use the interactive dashboard:
@@ -117,6 +142,8 @@ The dashboard now features four modes:
 5.  **Comparison**: Select multiple backtest runs to compare their metrics and equity curves side-by-side.
 6.  **Daily Operations**: Generate live trading signals, view real-time Alpaca account status, and execute rebalancing trades directly from the UI.
 7.  **Scheduler**: Queue multiple backtest jobs and execute them in parallel (Batch Processing) via a user-friendly interface.
+
+All primary backtesting dashboard modes now share explicit timeframe/interval selection for intraday parity (`1d`, `1h`, `15m`, `5m`, etc.).
 
 ### REST API
 
@@ -155,6 +182,7 @@ python batch_configs/run_batch_yamls.py
 Options:
 *   `--dry-run`: Print commands without executing.
 *   `--limit N`: Run only the first N batches (useful for testing).
+*   `--interval TF`: Override interval for all discovered batch YAMLs (e.g., `--interval 1h`).
 
 To execute these signals via **Alpaca** (Paper Trading), use the Live Trader:
 >>>>>>>
@@ -229,6 +257,7 @@ optimization:
     -   `instruments.py`: Definitions of available assets (Forex pairs, Crypto tickers, S&P 500).
     -   `utils.py`: Utility functions for visualization and analysis.
     -   `config.py`: Configuration loading and validation using Pydantic.
+    -   `research/pair_scanner.py`: Lag-aware correlation/cointegration/ADF scanner for multi-timeframe pair discovery.
 -   `tests/`: Unit tests for the codebase.
 -   `docs/`: Documentation including architecture guides and roadmaps.
 -   `requirements.txt`: List of Python dependencies.

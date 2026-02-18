@@ -36,6 +36,7 @@ if instrument_type == "custom":
 
 start_date = st.sidebar.date_input("Start Date", datetime(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.today())
+interval = st.sidebar.selectbox("Data Interval", ["1d", "1h", "15m", "5m", "30m", "1m"], index=0)
 
 enable_plotting = st.sidebar.checkbox("Enable Plotting", value=False)
 commission = st.sidebar.number_input("Commission", value=0.0)
@@ -67,6 +68,7 @@ if st.sidebar.button("Add to Queue"):
         "tickers": tickers if instrument_type == "custom" else None,
         "start_date": start_date.strftime('%Y-%m-%d'),
         "end_date": end_date.strftime('%Y-%m-%d'),
+        "interval": interval,
         "enable_plotting": enable_plotting,
         "commission": commission,
         "slippage": slippage,

@@ -17,7 +17,12 @@ if project_root not in sys.path:
 
 from src.strategies import get_all_strategies
 from src.risk import FixedSignalSizer, VolatilitySizer, KellySizer
-from src.instruments import crypto_assets, forex_assets, sector_etfs, get_sp500_crosswalk
+try:
+    from src.instruments import crypto_assets, forex_assets, futures_assets, sector_etfs, get_sp500_crosswalk
+except ImportError:
+    # Backward-compatible fallback if futures_assets is absent in older environments.
+    from src.instruments import crypto_assets, forex_assets, sector_etfs, get_sp500_crosswalk
+    futures_assets = []
 from src.utils import calculate_trade_metrics, get_round_trip_trades, calculate_metrics_from_round_trips
 
 # Strategy Map (Dynamic)
@@ -38,6 +43,9 @@ PRESETS = {
     "Major Forex": ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X"],
     "Blue Chip Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"]
 }
+
+if futures_assets:
+    PRESETS["Futures"] = futures_assets
 
 def render_sidebar():
     """Renders the common sidebar configuration and returns selected settings."""
@@ -60,6 +68,14 @@ def render_sidebar():
     col1, col2 = st.sidebar.columns(2)
     start_date = col1.date_input("Start Date", datetime(2020, 1, 1))
     end_date = col2.date_input("End Date", datetime.today())
+
+    # Timeframe / Interval
+    interval = st.sidebar.selectbox(
+        "Data Interval",
+        ["1d", "1h", "15m", "5m", "30m", "1m"],
+        index=0,
+        help="Lower timeframes may have provider lookback limits depending on data source."
+    )
 
     # Strategy Selection
     if 'strat_selection' not in st.session_state:
@@ -104,6 +120,7 @@ def render_sidebar():
         "tickers": tickers,
         "start_date": start_date,
         "end_date": end_date,
+        "interval": interval,
         "strat_name": selected_strat_name,
         "StrategyClass": StrategyClass,
         "sizer": sizer,

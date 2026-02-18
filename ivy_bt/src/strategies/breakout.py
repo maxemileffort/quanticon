@@ -416,3 +416,173 @@ class NR7RangeBreakout(StrategyTemplate):
         df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
         return df
+    
+import numpy as np
+import pandas as pd
+import pandas_ta as ta
+
+class NewsNukeBreakout(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            'news_hour': [8],
+            'news_minute': [30],
+            'tp_points': np.arange(20, 55, 5),
+            'sl_points': np.arange(15, 35, 5),
+            'use_color': [True, False],
+            'max_hold_hours': [1, 2]
+        }
+
+    def strat_apply(self, df):
+        # 1. Parameter Extraction
+        news_hour = self.params.get('news_hour', 8)
+        news_minute = self.params.get('news_minute', 30)
+        tp_points = self.params.get('tp_points', 35.0)
+        sl_points = self.params.get('sl_points', 25.0)
+        use_color = self.params.get('use_color', True)
+        max_hold_hours = self.params.get('max_hold_hours', 1)
+
+        # 2. Pre-calculation & Data Standardization
+        # Ensure index is datetime for time checks
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+
+        # Initialize Signal Column
+        df['signal'] = 0.0
+
+        # Vectorized identification of News Bars
+        is_news = (df.index.hour == news_hour) & (df.index.minute == news_minute)
+
+        # 3. Execution Logic (State Machine via Numpy)
+        # Note: We use a Numpy loop here because the logic involves path-dependent 
+        # variables (pending orders, daily limits, exact entry prices) which are 
+        # difficult to vectorize efficiently without look-ahead bias.
+        
+        # Extract Data to Numpy for Speed
+        times = df.index
+        opens = df['open'].values
+        highs = df['high'].values
+        lows = df['low'].values
+        closes = df['close'].values
+        
+        # Output Array
+        sig_arr = np.zeros(len(df))
+
+        # State Variables
+        current_trade_dir = 0  # 0=Flat, 1=Long, -1=Short
+        tp_price = 0.0
+        sl_price = 0.0
+        
+        # Pending Order Variables
+        setup_active = False
+        buy_trigger = 0.0
+        sell_trigger = 0.0
+        can_buy = False
+        can_sell = False
+        setup_time_idx = -1
+        
+        # Daily Limit Tracker
+        last_trade_day = None
+
+        # Iterate through bars
+        for i in range(1, len(df)):
+            current_time = times[i]
+            # Convert numpy datetime64 to python date object for comparison
+            current_day = pd.Timestamp(current_time).date()
+
+            # A. Check for News Bar Occurrence (Setup Generation)
+            if is_news[i]:
+                setup_active = True
+                setup_time_idx = i
+                
+                # Define Triggers based on this bar's H/L
+                buy_trigger = highs[i]
+                sell_trigger = lows[i]
+                is_green = closes[i] > opens[i]
+                
+                # Color Filter Logic
+                can_buy = True
+                can_sell = True
+                if use_color:
+                    if is_green:
+                        can_sell = False
+                    else:
+                        can_buy = False
+                
+                # We do not trade ON the news bar itself
+                sig_arr[i] = 0
+                continue
+
+            # B. Manage Active Positions
+            if current_trade_dir != 0:
+                # LONG Exit Logic
+                if current_trade_dir == 1:
+                    if highs[i] >= tp_price:
+                        current_trade_dir = 0 # TP Hit
+                    elif lows[i] <= sl_price:
+                        current_trade_dir = 0 # SL Hit
+                
+                # SHORT Exit Logic
+                elif current_trade_dir == -1:
+                    if lows[i] <= tp_price:
+                        current_trade_dir = 0 # TP Hit
+                    elif highs[i] >= sl_price:
+                        current_trade_dir = 0 # SL Hit
+                
+                sig_arr[i] = current_trade_dir
+                continue
+
+            # C. Pending Order Management (If flat)
+            if setup_active:
+                # 1. Check Time Expiration
+                # Calculate hours passed since setup
+                time_diff = (current_time - times[setup_time_idx]).total_seconds() / 3600.0
+                if time_diff > max_hold_hours:
+                    setup_active = False
+                    continue
+                
+                # 2. Check Day Constraint (One trade per day)
+                if last_trade_day == current_day:
+                    setup_active = False
+                    continue
+
+                # 3. Check Breakout Entries
+                # LONG Entry
+                if can_buy and highs[i] > buy_trigger:
+                    current_trade_dir = 1
+                    entry_price = buy_trigger
+                    tp_price = entry_price + tp_points
+                    sl_price = entry_price - sl_points
+                    
+                    last_trade_day = current_day
+                    setup_active = False 
+                    
+                    # Check same-bar stop out (Wick protection)
+                    if lows[i] <= sl_price:
+                        current_trade_dir = 0
+                    
+                    sig_arr[i] = current_trade_dir
+                
+                # SHORT Entry
+                elif can_sell and lows[i] < sell_trigger:
+                    current_trade_dir = -1
+                    entry_price = sell_trigger
+                    tp_price = entry_price - tp_points
+                    sl_price = entry_price + sl_points
+                    
+                    last_trade_day = current_day
+                    setup_active = False
+                    
+                    # Check same-bar stop out (Wick protection)
+                    if highs[i] >= sl_price:
+                        current_trade_dir = 0
+                        
+                    sig_arr[i] = current_trade_dir
+
+        # 4. Final Output Construction
+        df['signal'] = sig_arr
+        
+        # Ensure signal persistence (state machine handles it, but safety fill covers edge cases)
+        df['signal'] = df['signal'].fillna(0)
+
+        return df

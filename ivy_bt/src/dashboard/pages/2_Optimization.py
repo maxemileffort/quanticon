@@ -27,6 +27,7 @@ config = utils.render_sidebar()
 tickers = config['tickers']
 start_date = config['start_date']
 end_date = config['end_date']
+interval = config['interval']
 strat_name = config['strat_name']
 StrategyClass = config['StrategyClass']
 sizer = config['sizer']
@@ -60,7 +61,7 @@ if st.button(f"Run {search_method}", type="primary"):
         with st.spinner(f"Running {search_method}..."):
             # Construct a unique key for the current data configuration
             tickers_sorted = sorted(tickers) if isinstance(tickers, list) else [tickers]
-            current_config_key = f"{tickers_sorted}_{start_date}_{end_date}"
+            current_config_key = f"{tickers_sorted}_{start_date}_{end_date}_{interval}"
             
             # Check if we have a cached engine and if the config matches
             if 'opt_engine' in st.session_state and st.session_state.get('opt_config_key') == current_config_key:
@@ -68,7 +69,7 @@ if st.button(f"Run {search_method}", type="primary"):
                 opt_engine = st.session_state['opt_engine']
             else:
                 st.info("Fetching fresh data...")
-                opt_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
+                opt_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date, interval=interval)
                 opt_engine.fetch_data()
                 
                 # Cache the engine and the key

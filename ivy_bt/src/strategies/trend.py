@@ -594,3 +594,101 @@ class MarkovChainTrendStrategy(StrategyTemplate):
         df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
         return df
+    
+class SupertrendDirectionChange(StrategyTemplate):
+    @classmethod
+    def get_default_grid(cls):
+        return {
+            "atr_length": np.arange(5, 31, 1),
+            "factor": np.arange(1.0, 5.1, 0.25),
+        }
+
+    def strat_apply(self, df):
+        # 1) Parameter extraction
+        atr_length = int(self.params.get("atr_length", 10))
+        factor = float(self.params.get("factor", 3.0))
+
+        # 2) Required columns check
+        required = {"high", "low", "close"}
+        if df.empty or not required.issubset(df.columns):
+            df["signal"] = 0
+            return df
+
+        high = df["high"].astype(float)
+        low = df["low"].astype(float)
+        close = df["close"].astype(float)
+
+        # 3) Manual ATR (Wilder's RMA style)
+        prev_close = close.shift(1)
+        tr = pd.concat(
+            [
+                (high - low),
+                (high - prev_close).abs(),
+                (low - prev_close).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
+        atr = tr.ewm(alpha=1.0 / atr_length, adjust=False, min_periods=atr_length).mean()
+
+        # 4) Basic bands
+        hl2 = (high + low) / 2.0
+        basic_upper = hl2 + factor * atr
+        basic_lower = hl2 - factor * atr
+
+        # 5) Final bands + direction (iterative, classic Supertrend)
+        final_upper = pd.Series(np.nan, index=df.index, dtype=float)
+        final_lower = pd.Series(np.nan, index=df.index, dtype=float)
+        direction = pd.Series(np.nan, index=df.index, dtype=float)  # 1 bull, -1 bear
+
+        first_valid_idx = atr.first_valid_index()
+        if first_valid_idx is None:
+            df["signal"] = 0
+            return df
+
+        start = df.index.get_loc(first_valid_idx)
+        final_upper.iloc[start] = basic_upper.iloc[start]
+        final_lower.iloc[start] = basic_lower.iloc[start]
+        direction.iloc[start] = 1.0
+
+        for i in range(start + 1, len(df)):
+            prev_fu = final_upper.iloc[i - 1]
+            prev_fl = final_lower.iloc[i - 1]
+            prev_dir = direction.iloc[i - 1]
+            prev_c = close.iloc[i - 1]
+
+            bu = basic_upper.iloc[i]
+            bl = basic_lower.iloc[i]
+
+            # Carry forward / reset upper band
+            if (bu < prev_fu) or (prev_c > prev_fu):
+                final_upper.iloc[i] = bu
+            else:
+                final_upper.iloc[i] = prev_fu
+
+            # Carry forward / reset lower band
+            if (bl > prev_fl) or (prev_c < prev_fl):
+                final_lower.iloc[i] = bl
+            else:
+                final_lower.iloc[i] = prev_fl
+
+            c = close.iloc[i]
+            if c > prev_fu:
+                direction.iloc[i] = 1.0
+            elif c < prev_fl:
+                direction.iloc[i] = -1.0
+            else:
+                direction.iloc[i] = prev_dir
+
+        # 6) Entry on direction flips
+        prev_direction = direction.shift(1)
+        long_flip = (direction == 1.0) & (prev_direction == -1.0)
+        short_flip = (direction == -1.0) & (prev_direction == 1.0)
+
+        df["signal"] = np.nan
+        df.loc[long_flip, "signal"] = 1
+        df.loc[short_flip, "signal"] = -1
+
+        # Hold until next counter-flip
+        df["signal"] = df["signal"].ffill().fillna(0)
+
+        return df

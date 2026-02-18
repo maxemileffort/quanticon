@@ -26,6 +26,7 @@ config = utils.render_sidebar()
 tickers = config['tickers']
 start_date = config['start_date']
 end_date = config['end_date']
+interval = config['interval']
 strat_name = config['strat_name']
 StrategyClass = config['StrategyClass']
 sizer = config['sizer']
@@ -46,7 +47,7 @@ if st.button("Run Walk-Forward Analysis", type="primary"):
         st.error("No parameters to optimize.")
     else:
         with st.spinner("Running Walk-Forward Optimization..."):
-            wfo_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date)
+            wfo_engine = BacktestEngine(tickers, start_date=start_date, end_date=end_date, interval=interval)
             wfo_engine.position_sizer = sizer
             
             try:

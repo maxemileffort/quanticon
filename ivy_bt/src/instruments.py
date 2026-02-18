@@ -6,24 +6,22 @@ import io
 
 crypto_crosswalk = pd.DataFrame([
     ("AAVEUSD", "AAVE-USD"),    ("ADAUSD", "ADA-USD"),    ("AIXBTUSD", "AIXBT-USD"),
-    ("ALGOUSD", "ALGO-USD"),    ("APTUSD", "APT-USD"),    ("ARBUSD", "ARB-USD"),
+    ("ALGOUSD", "ALGO-USD"),    ("ARBUSD", "ARB-USD"),
     ("ATOMUSD", "ATOM-USD"),    ("AVAXUSD", "AVAX-USD"),
     ("BCHUSD", "BCH-USD"),    ("BNBUSD", "BNB-USD"),    ("BONKUSD", "BONK-USD"),
     ("BTCUSD", "BTC-USD"),    ("CRVUSD", "CRV-USD"),    ("DOGEUSD", "DOGE-USD"),
     ("DOTUSD", "DOT-USD"),    ("ETCUSD", "ETC-USD"),    ("ETHUSD", "ETH-USD"),
     ("FARTCOINUSD", "FARTCOIN-USD"),    ("FILUSD", "FIL-USD"),    ("FLOKIUSD", "FLOKI-USD"),
-    ("HBARUSD", "HBAR-USD"),    ("HYPEUSD", "HYPE-USD"),
+    ("HBARUSD", "HBAR-USD"),
     ("INJUSD", "INJ-USD"),    ("IPUSD", "IP-USD"),    ("JTOUSD", "JTO-USD"),
     ("JUPUSD", "JUP-USD"),    ("KAITOUSD", "KAITO-USD"),    ("LDOUSD", "LDO-USD"),
-    ("LINKUSD", "LINK-USD"),    ("LTCUSD", "LTC-USD"),    ("MOODENG", "MOODENG-USD"),
+    ("LINKUSD", "LINK-USD"),    ("LTCUSD", "LTC-USD"),    
     ("NEARUSD", "NEAR-USD"),    ("ONDOUSD", "ONDO-USD"),    ("OPUSD", "OP-USD"),
-    ("ORDIUSD", "ORDI-USD"),
-    ("PNUTUSD", "PNUT-USD"),    ("POLUSD", "POL-USD"),
-    ("RENDERUSD", "RENDER-USD"),    ("SUSD", "SUSD-USD"),
-    ("SHIBUSD", "SHIB-USD"),    ("SOLUSD", "SOL-USD"),    ("STXUSD", "STX-USD"),
-    ("SUIUSD", "SUI-USD"),    ("TIAUSD", "TIA-USD"),
+    ("ORDIUSD", "ORDI-USD"),    ("PNUTUSD", "PNUT-USD"),    ("RENDERUSD", "RENDER-USD"),    ("SUSD", "SUSD-USD"),
+    ("SHIBUSD", "SHIB-USD"),    ("SOLUSD", "SOL-USD"),    
+    ("TIAUSD", "TIA-USD"),
     ("TONUSD", "TON-USD"),    ("TRUMPUSD", "TRUMP-USD"),    ("TRXUSD", "TRX-USD"),
-    ("UNIUSD", "UNI-USD"),    ("VIRTUALUSD", "VIRTUAL-USD"),    ("WIFUSD", "WIF-USD"),
+    ("VIRTUALUSD", "VIRTUAL-USD"),    ("WIFUSD", "WIF-USD"),
     ("WLDUSD", "WLD-USD"),    ("XPLUSD", "XPL-USD"),    ("XRPUSD", "XRP-USD"),
 ], columns=["breakout_symbol", "yfinance_symbol"])
 
@@ -55,6 +53,10 @@ forex_crosswalk = pd.DataFrame([
 forex_assets = forex_crosswalk['yfinance_symbol'].to_list()
 
 sector_etfs = ["IWM", "XLF", "XLV", "XLE", "XLK"]
+
+futures_assets = ["6A=F", "6B=F", "6C=F", "6E=F", "6J=F", "6S=F", "6N=F", "NE=F", 
+    "MGC=F", "SI=F", "QI=F", "MBT=F", "MET=F", "MES=F", "MNQ=F", 
+    "MYM=F", "YM=F", "NQ=F", "ES=F", "CL=F"]
 
 def get_sp500_crosswalk():
     """
@@ -130,5 +132,7 @@ def get_assets(instrument_type="forex"):
         return df['yfinance_symbol'].to_list()
     elif instrument_type == "etf":
         return sector_etfs
+    elif instrument_type == "futures":
+        return futures_assets
     else:
         return forex_assets

@@ -1,8 +1,20 @@
 # IvyBT Implemented Features
 
-Last Updated: 2026-02-14
+Last Updated: 2026-02-18
 
 This document summarizes the high-level features and capabilities that have been implemented in the IvyBT quantitative research hub.
+
+## Session Update: 2026-02-18 (Intraday Parity + Batch Override)
+- **Intraday Configuration Parity Across Backtesting Surfaces**:
+    - Added a unified dashboard interval selector and propagated it through Backtest, Optimization, Walk-Forward, and Scheduler workflows.
+    - Updated Optimization caching keying to include interval, preventing cross-timeframe cache reuse.
+    - Scheduler-generated jobs now include interval explicitly for reproducible timeframe execution.
+- **Batch Execution Override Layer**:
+    - Added `--interval` support in `batch_configs/run_batch_yamls.py`.
+    - Added CLI override plumbing from `main.py --batch` into `BatchRunner` so one override can fan out across all jobs in a batch run.
+- **Stability / Compatibility Hardening**:
+    - Added resilient `futures_assets` import fallback in dashboard utils to avoid import-time crashes in mixed environments.
+    - Expanded tests in `tests/test_batch_runner.py` to cover interval override behavior.
 
 ## Session Update: 2026-02-14 (Renko Integration)
 - **Renko End-to-End Wiring**:

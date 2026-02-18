@@ -31,7 +31,8 @@ from .trend import (
     TrendGridTrading,
     TDIV5TimeExit,
     DblMarkovTrend,
-    MarkovChainTrendStrategy
+    MarkovChainTrendStrategy,
+    SupertrendDirectionChange
 )
 
 # Import reversal strategies
@@ -54,7 +55,8 @@ from .breakout import (
     DailyHighLowBreakout,
     BBKCSqueezeBreakout,
     ChannelBreakoutStrategy,
-    NR7RangeBreakout
+    NR7RangeBreakout,
+    NewsNukeBreakout
 )
 
 # Import complex strategies
@@ -84,6 +86,7 @@ __all__ = [
     'TDIV5TimeExit',
     'DblMarkovTrend',
     'MarkovChainTrendStrategy',
+    'SupertrendDirectionChange',
     
     # Reversal
     'BollingerReversion',
@@ -103,6 +106,7 @@ __all__ = [
     'BBKCSqueezeBreakout',
     'ChannelBreakoutStrategy',
     'NR7RangeBreakout',
+    'NewsNukeBreakout',
     
     # Complex
     'TradingMadeSimpleTDIHeikinAshi',

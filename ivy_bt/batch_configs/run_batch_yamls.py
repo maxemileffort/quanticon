@@ -7,6 +7,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run batch configurations sequentially.")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without executing.")
     parser.add_argument("--limit", type=int, help="Limit the number of batches to run (for testing).")
+    parser.add_argument("--interval", type=str, help="Optional global interval override for all batch runs (e.g., 1h, 15m, 5m).")
     args = parser.parse_args()
 
     # Determine directories
@@ -46,6 +47,8 @@ def main():
         # Construct command
         # python main.py --batch "path/to/config.yaml"
         cmd = [sys.executable, main_py_path, '--batch', yaml_path]
+        if args.interval:
+            cmd.extend(['--interval', args.interval])
 
         if args.dry_run:
             print(f"[DRY RUN] would execute: {' '.join(cmd)}")

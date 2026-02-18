@@ -109,9 +109,10 @@ def _worker_wrapper(job_config_json: str):
         }
 
 class BatchRunner:
-    def __init__(self, config_path: str, status_file: str = None):
+    def __init__(self, config_path: str, status_file: str = None, cli_overrides: Optional[Dict[str, Any]] = None):
         self.config = load_batch_config(config_path)
         self.results = []
+        self.cli_overrides = {k: v for k, v in (cli_overrides or {}).items() if v is not None}
         
         if status_file is None:
             # Default to logs directory
@@ -140,6 +141,13 @@ class BatchRunner:
         """Execute the batch jobs in parallel."""
         workers = self.config.max_workers
         jobs = self.config.jobs
+
+        if self.cli_overrides:
+            for job in jobs:
+                for key, value in self.cli_overrides.items():
+                    if hasattr(job, key):
+                        setattr(job, key, value)
+
         total_jobs = len(jobs)
         completed_count = 0
         

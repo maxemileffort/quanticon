@@ -493,7 +493,7 @@ if __name__ == "__main__":
 
     if args.batch:
         from src.batch_runner import BatchRunner
-        runner = BatchRunner(args.batch)
+        runner = BatchRunner(args.batch, cli_overrides={"interval": args.interval})
         runner.run()
     else:
         run_backtest(

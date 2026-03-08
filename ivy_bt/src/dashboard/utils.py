@@ -153,24 +153,72 @@ def render_strategy_params(strat_name):
     for i, (param, values) in enumerate(default_grid.items()):
         col = cols[i % 3]
         with col:
+            param_key = f"single_{strat_name}_{param}"
+            values = list(values)
+            has_none = any(v is None for v in values)
+            has_bool = any(isinstance(v, (bool, np.bool_)) for v in values)
+            has_str = any(isinstance(v, str) for v in values)
+            is_numeric = all(
+                isinstance(v, (int, float, np.integer, np.floating))
+                and not isinstance(v, (bool, np.bool_))
+                for v in values
+            )
+
             # Determine defaults
             if len(values) > 0:
-                v_min = float(min(values))
-                v_max = float(max(values)) * 2.0
-                default_val = float(values[len(values)//2]) # Median-ish
-                step = 1.0
-                if len(values) > 1:
-                    step = float(values[1] - values[0])
-                
-                # Check integer heuristic
-                is_int = all(isinstance(x, (int, np.integer)) for x in values)
-                
-                if is_int and step.is_integer():
-                    val = st.number_input(f"{param}", min_value=int(min(0.0, v_min)), max_value=int(v_max), value=int(default_val), step=int(step), key=f"single_{param}")
-                    params[param] = int(val)
+                # Handle categorical and optional values (e.g., None) safely
+                if has_none or has_bool or has_str or not is_numeric:
+                    default_val = values[len(values)//2]
+                    current_val = st.session_state.get(param_key, default_val)
+                    if current_val not in values:
+                        current_val = default_val
+                        st.session_state[param_key] = default_val
+                    default_idx = values.index(current_val)
+                    val = st.selectbox(
+                        f"{param}",
+                        options=values,
+                        index=default_idx,
+                        key=param_key
+                    )
+                    params[param] = val
                 else:
-                    val = st.number_input(f"{param}", min_value=min(0.0, v_min), max_value=v_max, value=default_val, step=step, key=f"single_{param}")
-                    params[param] = float(val)
+                    v_min = float(min(values))
+                    v_max = float(max(values)) * 2.0
+                    default_val = float(values[len(values)//2]) # Median-ish
+                    step = 1.0
+                    if len(values) > 1:
+                        step = float(values[1] - values[0])
+                    
+                    # Check integer heuristic
+                    is_int = all(isinstance(x, (int, np.integer)) for x in values)
+                    
+                    if is_int and float(step).is_integer():
+                        i_min = int(min(0.0, v_min))
+                        i_max = int(v_max)
+                        i_default = int(default_val)
+                        i_default = max(i_min, min(i_default, i_max))
+                        if param_key in st.session_state:
+                            try:
+                                current = int(st.session_state[param_key])
+                                if current < i_min or current > i_max:
+                                    st.session_state[param_key] = i_default
+                            except Exception:
+                                st.session_state[param_key] = i_default
+                        val = st.number_input(f"{param}", min_value=i_min, max_value=i_max, value=i_default, step=max(1, int(step)), key=param_key)
+                        params[param] = int(val)
+                    else:
+                        f_min = min(0.0, v_min)
+                        f_max = v_max
+                        f_default = max(f_min, min(default_val, f_max))
+                        if param_key in st.session_state:
+                            try:
+                                current = float(st.session_state[param_key])
+                                if current < f_min or current > f_max:
+                                    st.session_state[param_key] = f_default
+                            except Exception:
+                                st.session_state[param_key] = f_default
+                        val = st.number_input(f"{param}", min_value=f_min, max_value=f_max, value=f_default, step=step, key=param_key)
+                        params[param] = float(val)
     
     return params
 
@@ -194,10 +242,11 @@ def render_param_grid_inputs(strat_name, key_prefix="grid"):
         col = cols[i % 2]
         with col:
             st.markdown(f"**{param}**")
+            values = list(values)
             # If values is a range-like object (list, np.array)
             if len(values) > 0:
                 # Check if values are categorical (string or boolean)
-                is_categorical = any(isinstance(x, (str, bool, np.bool_)) for x in values)
+                is_categorical = any((x is None) or isinstance(x, (str, bool, np.bool_)) for x in values)
                 
                 if is_categorical:
                     selected_vals = st.multiselect(

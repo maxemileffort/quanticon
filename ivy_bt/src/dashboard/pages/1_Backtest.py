@@ -79,10 +79,11 @@ if os.path.exists(PRESETS_DIR):
                 params = selected_preset_tuple[1]
                 # Map params to session state keys dynamically
                 for k, v in params.items():
-                    # The keys in render_strategy_params are f"single_{k}"
+                    # The keys in render_strategy_params are namespaced by strategy:
+                    # f"single_{strat_name}_{k}"
                     if isinstance(v, float) and v.is_integer():
                          v = int(v)
-                    st.session_state[f"single_{k}"] = v
+                    st.session_state[f"single_{strat_name}_{k}"] = v
                 
                 st.success("Parameters applied!")
                 st.rerun()
@@ -121,10 +122,11 @@ if os.path.exists(PRESETS_DIR):
                         # Map params to session state keys dynamically
                         for k, v in params.items():
                             if k in ['Sharpe', 'Return']: continue
-                            # The keys in render_strategy_params are f"single_{k}"
+                            # The keys in render_strategy_params are namespaced by strategy:
+                            # f"single_{strat_name}_{k}"
                             if isinstance(v, float) and v.is_integer():
                                  v = int(v)
-                            st.session_state[f"single_{k}"] = v
+                            st.session_state[f"single_{strat_name}_{k}"] = v
                         
                         st.success(f"Imported parameters for {st.session_state.strat_selection}!")
                         st.rerun()

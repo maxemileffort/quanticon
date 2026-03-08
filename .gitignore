@@ -48,3 +48,5 @@ ivy_bt.log
 ivy_bt/.cache_test/
 ivy_bt/.cache/
 ivy_bt/outputs
+ivy_bt/mql5
+ivy_bt/ninjascripts

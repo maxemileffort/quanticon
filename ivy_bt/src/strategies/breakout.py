@@ -417,172 +417,211 @@ class NR7RangeBreakout(StrategyTemplate):
 
         return df
     
-import numpy as np
-import pandas as pd
-import pandas_ta as ta
+
 
 class NewsNukeBreakout(StrategyTemplate):
     @classmethod
     def get_default_grid(cls):
         return {
-            'news_hour': [8],
-            'news_minute': [30],
-            'tp_points': np.arange(20, 55, 5),
-            'sl_points': np.arange(15, 35, 5),
-            'use_color': [True, False],
-            'max_hold_hours': [1, 2]
+            "news_hour": [8],
+            "news_minute": [30],
+            # Match Pine: these are TICKS (multiplied by tick_size)
+            "tp_ticks": np.arange(20, 55, 5),
+            "sl_ticks": np.arange(15, 35, 5),
+            "use_color": [True, False],
+            # Match Pine cancel rule: hour > news_hour + cancel_after_hours
+            "cancel_after_hours": [10],
+            # You can hard-set per instrument (ES=0.25, NQ=0.25, CL=0.01, etc.)
+            # If None, we infer from price decimals (best-effort, not perfect).
+            "tick_size": [None],
         }
 
-    def strat_apply(self, df):
-        # 1. Parameter Extraction
-        news_hour = self.params.get('news_hour', 8)
-        news_minute = self.params.get('news_minute', 30)
-        tp_points = self.params.get('tp_points', 35.0)
-        sl_points = self.params.get('sl_points', 25.0)
-        use_color = self.params.get('use_color', True)
-        max_hold_hours = self.params.get('max_hold_hours', 1)
+    @staticmethod
+    def _infer_tick_size_from_prices(closes: np.ndarray) -> float:
+        # Best-effort tick inference from decimal structure (fallback).
+        # Prefer providing tick_size explicitly for parity.
+        x = closes[np.isfinite(closes)]
+        if x.size == 0:
+            return 1.0
+        sample = x[-min(2000, x.size):]
+        diffs = np.abs(np.diff(sample))
+        diffs = diffs[diffs > 0]
+        if diffs.size == 0:
+            return 1.0
+        # take a robust small step
+        diffs.sort()
+        return float(diffs[max(0, int(0.05 * diffs.size))])
 
-        # 2. Pre-calculation & Data Standardization
-        # Ensure index is datetime for time checks
+    def strat_apply(self, df):
+        # ----------------------------
+        # 1) Parameters (mirror Pine)
+        # ----------------------------
+        news_hour = int(self.params.get("news_hour", 8))
+        news_minute = int(self.params.get("news_minute", 30))
+
+        tp_ticks = float(self.params.get("tp_ticks", 35.0))
+        sl_ticks = float(self.params.get("sl_ticks", 25.0))
+
+        use_color = bool(self.params.get("use_color", True))
+        cancel_after_hours = int(self.params.get("cancel_after_hours", 1))
+
+        tick_size = self.params.get("tick_size", None)
+
+        # ----------------------------
+        # 2) Index + columns
+        # ----------------------------
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
 
-        # Initialize Signal Column
-        df['signal'] = 0.0
+        df["signal"] = 0.0
 
-        # Vectorized identification of News Bars
-        is_news = (df.index.hour == news_hour) & (df.index.minute == news_minute)
-
-        # 3. Execution Logic (State Machine via Numpy)
-        # Note: We use a Numpy loop here because the logic involves path-dependent 
-        # variables (pending orders, daily limits, exact entry prices) which are 
-        # difficult to vectorize efficiently without look-ahead bias.
-        
-        # Extract Data to Numpy for Speed
         times = df.index
-        opens = df['open'].values
-        highs = df['high'].values
-        lows = df['low'].values
-        closes = df['close'].values
-        
-        # Output Array
-        sig_arr = np.zeros(len(df))
+        opens = df["open"].to_numpy(dtype=float)
+        highs = df["high"].to_numpy(dtype=float)
+        lows = df["low"].to_numpy(dtype=float)
+        closes = df["close"].to_numpy(dtype=float)
 
-        # State Variables
-        current_trade_dir = 0  # 0=Flat, 1=Long, -1=Short
-        tp_price = 0.0
-        sl_price = 0.0
-        
-        # Pending Order Variables
-        setup_active = False
-        buy_trigger = 0.0
-        sell_trigger = 0.0
-        can_buy = False
-        can_sell = False
-        setup_time_idx = -1
-        
-        # Daily Limit Tracker
-        last_trade_day = None
+        if tick_size is None:
+            tick_size = self._infer_tick_size_from_prices(closes)
+        tick_size = float(tick_size)
 
-        # Iterate through bars
+        tp_points = tp_ticks * tick_size
+        sl_points = sl_ticks * tick_size
+
+        # Detect Pine-style news bar
+        is_news = (times.hour == news_hour) & (times.minute == news_minute)
+
+        # ----------------------------
+        # 3) Pine-state variables
+        # ----------------------------
+        sig = np.zeros(len(df), dtype=float)
+
+        # Pine vars: entryHigh/entryLow/isGreen/lastTradeDay (dayofmonth)
+        entry_high = np.nan
+        entry_low = np.nan
+        is_green = None
+        last_trade_day = 0  # dayofmonth int in Pine
+
+        # Position state
+        pos = 0  # 0 flat, 1 long, -1 short
+        tp_price = np.nan
+        sl_price = np.nan
+
+        # "pending stop orders" state (to mimic strategy.entry(stop=...))
+        long_stop_active = False
+        short_stop_active = False
+
+        # ----------------------------
+        # 4) Iterate bars (path-dependent)
+        # ----------------------------
         for i in range(1, len(df)):
-            current_time = times[i]
-            # Convert numpy datetime64 to python date object for comparison
-            current_day = pd.Timestamp(current_time).date()
+            t = times[i]
+            dom = int(pd.Timestamp(t).day)      # dayofmonth
+            hr = int(pd.Timestamp(t).hour)
+            mn = int(pd.Timestamp(t).minute)
 
-            # A. Check for News Bar Occurrence (Setup Generation)
+            # Pine: Reset logic for a new day
+            if dom != last_trade_day:
+                entry_high = np.nan
+                entry_low = np.nan
+                is_green = None
+                long_stop_active = False
+                short_stop_active = False
+                # NOTE: Pine does NOT force-close positions here.
+                # We also do not force-close.
+
+            # 1) Identify setup candle (news bar)
             if is_news[i]:
-                setup_active = True
-                setup_time_idx = i
-                
-                # Define Triggers based on this bar's H/L
-                buy_trigger = highs[i]
-                sell_trigger = lows[i]
-                is_green = closes[i] > opens[i]
-                
-                # Color Filter Logic
-                can_buy = True
-                can_sell = True
+                entry_high = highs[i]
+                entry_low = lows[i]
+                is_green = bool(closes[i] > opens[i])
+                last_trade_day = dom
+                # Do not place/fill orders on the news bar itself
+                sig[i] = pos
+                continue
+
+            # 2) Manage open position exits (attached bracket orders)
+            if pos == 1:
+                # Long: limit at +tp, stop at -sl
+                hit_tp = highs[i] >= tp_price
+                hit_sl = lows[i] <= sl_price
+
+                if hit_tp and hit_sl:
+                    # Ambiguous intrabar. Pick a deterministic rule:
+                    # TradingView's bar model varies by settings; this choice is common for bracket logic.
+                    # If you want "worst-case", swap to SL first.
+                    pos = 0  # TP-first assumption
+                elif hit_tp:
+                    pos = 0
+                elif hit_sl:
+                    pos = 0
+
+                sig[i] = pos
+                continue
+
+            if pos == -1:
+                # Short: limit at -tp (lower), stop at +sl (higher)
+                hit_tp = lows[i] <= tp_price
+                hit_sl = highs[i] >= sl_price
+
+                if hit_tp and hit_sl:
+                    pos = 0  # TP-first assumption
+                elif hit_tp:
+                    pos = 0
+                elif hit_sl:
+                    pos = 0
+
+                sig[i] = pos
+                continue
+
+            # 3) Place/cancel pending stop orders (flat only)
+            # Pine canTrade:
+            # canTrade = (dayofmonth == lastTradeDay) and (strategy.closedtrades == 0 or strategy.opentrades == 0) and not isNewsBar
+            # In our model: if we're flat, "opentrades == 0" is true.
+            can_trade = (dom == last_trade_day) and (not is_news[i]) and (not np.isnan(entry_high))
+
+            if can_trade:
+                # Place stops (we model them as active flags)
                 if use_color:
-                    if is_green:
-                        can_sell = False
-                    else:
-                        can_buy = False
-                
-                # We do not trade ON the news bar itself
-                sig_arr[i] = 0
+                    long_stop_active = bool(is_green)   # only if green
+                    short_stop_active = bool(not is_green)
+                else:
+                    long_stop_active = True
+                    short_stop_active = True
+
+            # Cleanup: cancel pending orders if hour > newsHour + 1 (Pine)
+            if hr > (news_hour + cancel_after_hours):
+                long_stop_active = False
+                short_stop_active = False
+
+            # 4) Execute stop entries (stop fills if level is TOUCHED or CROSSED)
+            # Pine stop entry triggers on >= / <=, not strict > / <
+            if long_stop_active and (not np.isnan(entry_high)) and highs[i] >= entry_high:
+                pos = 1
+                entry_price = entry_high
+                tp_price = entry_price + tp_points
+                sl_price = entry_price - sl_points
+                # Once filled, that stop is no longer pending
+                long_stop_active = False
+                # Pine does not explicitly cancel the opposite entry on fill; leaving it active can cause odd
+                # double-fill artifacts in bar sims. To mirror typical bracket behavior, cancel the other.
+                short_stop_active = False
+
+                sig[i] = pos
                 continue
 
-            # B. Manage Active Positions
-            if current_trade_dir != 0:
-                # LONG Exit Logic
-                if current_trade_dir == 1:
-                    if highs[i] >= tp_price:
-                        current_trade_dir = 0 # TP Hit
-                    elif lows[i] <= sl_price:
-                        current_trade_dir = 0 # SL Hit
-                
-                # SHORT Exit Logic
-                elif current_trade_dir == -1:
-                    if lows[i] <= tp_price:
-                        current_trade_dir = 0 # TP Hit
-                    elif highs[i] >= sl_price:
-                        current_trade_dir = 0 # SL Hit
-                
-                sig_arr[i] = current_trade_dir
+            if short_stop_active and (not np.isnan(entry_low)) and lows[i] <= entry_low:
+                pos = -1
+                entry_price = entry_low
+                tp_price = entry_price - tp_points
+                sl_price = entry_price + sl_points
+                short_stop_active = False
+                long_stop_active = False
+
+                sig[i] = pos
                 continue
 
-            # C. Pending Order Management (If flat)
-            if setup_active:
-                # 1. Check Time Expiration
-                # Calculate hours passed since setup
-                time_diff = (current_time - times[setup_time_idx]).total_seconds() / 3600.0
-                if time_diff > max_hold_hours:
-                    setup_active = False
-                    continue
-                
-                # 2. Check Day Constraint (One trade per day)
-                if last_trade_day == current_day:
-                    setup_active = False
-                    continue
+            sig[i] = pos
 
-                # 3. Check Breakout Entries
-                # LONG Entry
-                if can_buy and highs[i] > buy_trigger:
-                    current_trade_dir = 1
-                    entry_price = buy_trigger
-                    tp_price = entry_price + tp_points
-                    sl_price = entry_price - sl_points
-                    
-                    last_trade_day = current_day
-                    setup_active = False 
-                    
-                    # Check same-bar stop out (Wick protection)
-                    if lows[i] <= sl_price:
-                        current_trade_dir = 0
-                    
-                    sig_arr[i] = current_trade_dir
-                
-                # SHORT Entry
-                elif can_sell and lows[i] < sell_trigger:
-                    current_trade_dir = -1
-                    entry_price = sell_trigger
-                    tp_price = entry_price - tp_points
-                    sl_price = entry_price + sl_points
-                    
-                    last_trade_day = current_day
-                    setup_active = False
-                    
-                    # Check same-bar stop out (Wick protection)
-                    if highs[i] >= sl_price:
-                        current_trade_dir = 0
-                        
-                    sig_arr[i] = current_trade_dir
-
-        # 4. Final Output Construction
-        df['signal'] = sig_arr
-        
-        # Ensure signal persistence (state machine handles it, but safety fill covers edge cases)
-        df['signal'] = df['signal'].fillna(0)
-
+        df["signal"] = pd.Series(sig, index=df.index).fillna(0.0)
         return df
